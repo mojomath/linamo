@@ -1,13 +1,13 @@
 [workspace]
 authors = ["ZHU Yuhao 朱宇浩 <dr.yuhao.zhu@outlook.com>"]
 channels = ["https://conda.modular.com/max", "https://repo.prefix.dev/modular-community", "conda-forge"]
-name = "matmojo"
+name = "linamo"
 platforms = ["osx-arm64", "linux-64"]
-version = "0.2.0"
+version = "0.1.0"
 
 [tasks]
 # Build the package into the test directory
-pack = "pixi run mojo precompile -o tests/matmojo.mojoc src/matmojo"
+pack = "pixi run mojo precompile -o tests/linamo.mojoc src/linamo"
 
 # Run the test files (uses -I src to import directly, no package build needed)
 test = "bash ./tests/test_all.sh"

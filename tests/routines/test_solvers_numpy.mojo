@@ -5,10 +5,10 @@ Tests det, solve, inv, lstsq against numpy.linalg as ground truth.
 """
 
 import std.testing as testing
-from matmojo.routines.linalg import det, solve, inv, lstsq, transpose
-from matmojo.routines.math import matmul
-from matmojo.routines.numpy_interop import matrix_from_numpy, to_numpy
-from matmojo.utils.test_utils import assert_matrices_close
+from linamo.routines.linalg import det, solve, inv, lstsq, transpose
+from linamo.routines.math import matmul
+from linamo.routines.numpy_interop import matrix_from_numpy, to_numpy
+from linamo.utils.test_utils import assert_matrices_close
 from std.python import Python, PythonObject
 
 

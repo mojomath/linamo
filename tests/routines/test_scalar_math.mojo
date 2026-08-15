@@ -3,8 +3,8 @@ Tests for scalar-matrix operations: scalar_add, scalar_sub, scalar_mul, scalar_d
 """
 
 import std.testing as testing
-import matmojo as mm
-from matmojo.routines.math import scalar_add, scalar_sub, scalar_mul, scalar_div
+import linamo as mm
+from linamo.routines.math import scalar_add, scalar_sub, scalar_mul, scalar_div
 
 
 def test_scalar_add() raises:

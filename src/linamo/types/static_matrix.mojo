@@ -2,11 +2,11 @@
 This module defines the `StaticMatrix` type which is a statically sized 2D matrix.
 """
 
-from matmojo.traits.matrix_like import MatrixLike
-from matmojo.types.errors import IndexError, ValueError
-from matmojo.types.matrix_view import MatrixView
-import matmojo.routines.math
-from matmojo.utils.indexing import (
+from linamo.traits.matrix_like import MatrixLike
+from linamo.types.errors import IndexError, ValueError
+from linamo.types.matrix_view import MatrixView
+import linamo.routines.math
+from linamo.utils.indexing import (
     indices_within_bounds,
 )
 
@@ -185,7 +185,7 @@ struct StaticMatrix[dtype: DType, nrows: Int, ncols: Int](
 
     def __add__(self, other: Self) -> Self:
         """Performs element-wise addition of two matrices."""
-        return matmojo.routines.math.add(self, other)
+        return linamo.routines.math.add(self, other)
 
     def __matmul__[
         other_ncols: Int
@@ -193,4 +193,4 @@ struct StaticMatrix[dtype: DType, nrows: Int, ncols: Int](
         self, other: StaticMatrix[Self.dtype, Self.ncols, other_ncols]
     ) -> StaticMatrix[Self.dtype, Self.nrows, other_ncols]:
         """Performs matrix multiplication of two matrices."""
-        return matmojo.routines.math.matmul(self, other)
+        return linamo.routines.math.matmul(self, other)

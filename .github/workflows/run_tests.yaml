@@ -1,4 +1,4 @@
-name: MatMojo Unit Tests
+name: Linamo Unit Tests
 
 on:
   push:
@@ -11,7 +11,7 @@ permissions:
   pull-requests: read
 
 jobs:
-  testing-matmojo:
+  testing-linamo:
     name: with ${{ matrix.os }}
     strategy:
       fail-fast: false

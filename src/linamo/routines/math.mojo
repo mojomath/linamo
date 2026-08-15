@@ -6,12 +6,12 @@ from std.algorithm import vectorize
 from max.algorithm import parallelize
 from std.sys import simd_width_of
 
-from matmojo.types.errors import ValueError
-from matmojo.types.static_matrix import StaticMatrix
-from matmojo.types.matrix import Matrix
-from matmojo.types.matrix_view import MatrixView
-from matmojo.traits.matrix_like import MatrixLike
-from matmojo.utils.indexing import get_offset
+from linamo.types.errors import ValueError
+from linamo.types.static_matrix import StaticMatrix
+from linamo.types.matrix import Matrix
+from linamo.types.matrix_view import MatrixView
+from linamo.traits.matrix_like import MatrixLike
+from linamo.utils.indexing import get_offset
 
 # [Mojo Miji]
 # We use the `MatrixLike` trait to perform item-wise, naive matrix operations.
@@ -43,7 +43,7 @@ from matmojo.utils.indexing import get_offset
 #     """
 #     if a.get_nrows() != b.get_nrows() or a.get_ncols() != b.get_ncols():
 #         raise ValueError(
-#             file="src/matmojo/routines/math.mojo",
+#             file="src/linamo/routines/math.mojo",
 #             function="add()",
 #             message="Input matrices must have the same shape.",
 #             previous_error=None,
@@ -194,7 +194,7 @@ def _matmul_view_simd[
 
     if a.ncols != b.nrows:
         raise ValueError(
-            file="src/matmojo/routines/math.mojo",
+            file="src/linamo/routines/math.mojo",
             function="matmul()",
             message=(
                 "Inner dimensions of a and b must match for matrix"
@@ -485,7 +485,7 @@ def _elementwise_view[
     """
     if a.nrows != b.nrows or a.ncols != b.ncols:
         raise ValueError(
-            file="src/matmojo/routines/math.mojo",
+            file="src/linamo/routines/math.mojo",
             function="_elementwise_view()",
             message="Input matrices must have the same shape.",
             previous_error=None,

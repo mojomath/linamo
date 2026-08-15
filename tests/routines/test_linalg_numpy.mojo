@@ -1,17 +1,17 @@
 """
 Numpy-powered integration tests for linear algebra routines.
 
-Uses numpy.random to generate matrices and compares matmojo's
+Uses numpy.random to generate matrices and compares linamo's
 transpose, trace, LU, Cholesky, QR against numpy.linalg as ground truth.
 """
 
 import std.testing as testing
-from matmojo.routines.creation import eye
-from matmojo.routines.linalg import transpose, trace, lu, cholesky, qr
-from matmojo.routines.math import matmul
-from matmojo.routines.numpy_interop import matrix_from_numpy, to_numpy
-from matmojo.types.matrix import Matrix
-from matmojo.utils.test_utils import assert_matrices_close
+from linamo.routines.creation import eye
+from linamo.routines.linalg import transpose, trace, lu, cholesky, qr
+from linamo.routines.math import matmul
+from linamo.routines.numpy_interop import matrix_from_numpy, to_numpy
+from linamo.types.matrix import Matrix
+from linamo.utils.test_utils import assert_matrices_close
 from std.python import Python, PythonObject
 
 

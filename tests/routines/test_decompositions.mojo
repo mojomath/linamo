@@ -3,10 +3,10 @@ Tests for matrix decompositions: LU, Cholesky, QR.
 """
 
 import std.testing as testing
-import matmojo as mm
-from matmojo.types.matrix import Matrix
-from matmojo.routines.linalg import lu, cholesky, qr, transpose
-from matmojo.routines.math import matmul
+import linamo as mm
+from linamo.types.matrix import Matrix
+from linamo.routines.linalg import lu, cholesky, qr, transpose
+from linamo.routines.math import matmul
 
 
 # ===----------------------------------------------------------------------===#

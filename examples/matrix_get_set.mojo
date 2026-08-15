@@ -1,4 +1,4 @@
-from matmojo.prelude import *
+from linamo.prelude import *
 
 
 def main() raises:

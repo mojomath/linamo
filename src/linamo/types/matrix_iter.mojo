@@ -3,7 +3,7 @@ This module defines `MatrixAxisIter`, the axis iterator shared by `Matrix` and
 `MatrixView`.
 """
 
-from matmojo.types.matrix_view import MatrixView
+from linamo.types.matrix_view import MatrixView
 
 
 struct MatrixAxisIter[

@@ -3,7 +3,7 @@ Tests for StaticMatrix creation and element access.
 """
 
 import std.testing as testing
-import matmojo as mm
+import linamo as mm
 
 
 def test_smatrix_from_nested_list() raises:
@@ -37,7 +37,7 @@ def test_smatrix_from_flat_list() raises:
 
 def test_smatrix_default_zeros() raises:
     """Test that default-constructed static matrix is all zeros."""
-    from matmojo.types.static_matrix import StaticMatrix
+    from linamo.types.static_matrix import StaticMatrix
 
     var mat = StaticMatrix[DType.float64, 3, 3]()
     for i in range(3):

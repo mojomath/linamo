@@ -3,7 +3,7 @@ Tests for Matrix copy and move semantics.
 """
 
 import std.testing as testing
-import matmojo as mm
+import linamo as mm
 
 
 def test_matrix_copy() raises:

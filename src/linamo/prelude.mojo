@@ -1,10 +1,10 @@
 """
-Prelude module for MatMojo.
+Prelude module for Linamo.
 """
 
 # [Mojo Miji]
 # The prelude module serves as a central place to define the most commonly used
-# types, functions, and constants in MatMojo. By importing the prelude, users
+# types, functions, and constants in Linamo. By importing the prelude, users
 # can access all the essential components of the library without needing to
 # import multiple modules separately. This design choice is inspired by the
 # concept of a "prelude" in other programming languages, which provides a
@@ -13,7 +13,7 @@ Prelude module for MatMojo.
 # it will potentially pollute the global namespace and make it harder for users
 # to understand where specific functions or types are coming from.
 
-import matmojo as mm
+import linamo as mm
 
 comptime float64 = DType.float64
 """Alias for 64-bit floating point data type."""

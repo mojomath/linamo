@@ -3,11 +3,11 @@ Tests for Phase 3 — Solvers & Inverse: det, solve, inv, lstsq.
 """
 
 import std.testing as testing
-from matmojo.types.matrix import Matrix
-from matmojo.routines.creation import matrix, eye, zeros
-from matmojo.routines.linalg import det, solve, inv, lstsq, transpose
-from matmojo.routines.math import matmul
-from matmojo.utils.test_utils import assert_matrices_close
+from linamo.types.matrix import Matrix
+from linamo.routines.creation import matrix, eye, zeros
+from linamo.routines.linalg import det, solve, inv, lstsq, transpose
+from linamo.routines.math import matmul
+from linamo.utils.test_utils import assert_matrices_close
 
 
 # ===----------------------------------------------------------------------===#

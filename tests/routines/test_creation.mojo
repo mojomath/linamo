@@ -3,8 +3,8 @@ Tests for convenience creation routines: zeros, ones, full, eye, identity, diag.
 """
 
 import std.testing as testing
-import matmojo as mm
-from matmojo.routines.creation import zeros, ones, full, eye, identity, diag
+import linamo as mm
+from linamo.routines.creation import zeros, ones, full, eye, identity, diag
 
 
 # ===----------------------------------------------------------------------===#

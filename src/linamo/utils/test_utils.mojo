@@ -1,5 +1,5 @@
 """
-Test comparison utilities for MatMojo.
+Test comparison utilities for Linamo.
 
 Provides assertion functions for comparing matrices, including:
 
@@ -9,7 +9,7 @@ Provides assertion functions for comparing matrices, including:
 
 from std.testing import assert_true
 
-from matmojo.types.matrix import Matrix
+from linamo.types.matrix import Matrix
 
 
 def assert_matrices_equal[

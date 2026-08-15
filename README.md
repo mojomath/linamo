@@ -1,8 +1,18 @@
-# MatMojo <!-- omit in toc -->
+# Linamo <!-- omit in toc -->
 
 A matrix and linear algebra library for Mojo.
 
-**[Roadmap](docs/ROADMAP.md)** | **[Mojo Miji](https://mojo-lang.com/miji/)** | **[Repository on GitHub»](https://github.com/mojomath/matmojo)** | **[Discord channel»](https://discord.gg/3rGH87uZTk)**
+**[Roadmap](docs/ROADMAP.md)** | **[Mojo Miji](https://mojo-lang.com/miji/)** | **[Repository on GitHub»](https://github.com/mojomath/linamo)** | **[Discord channel»](https://discord.gg/3rGH87uZTk)**
+
+[![Version](https://img.shields.io/badge/version-v0.1.0-blue)](https://github.com/mojomath/linamo/releases/tag/v0.1.0)
+[![Mojo](https://img.shields.io/badge/mojo-1.0.0-orange)](https://docs.modular.com/mojo/manual/)
+[![pixi](https://img.shields.io/badge/pixi%20add-linamo-purple)](https://prefix.dev/channels/modular-community/packages/linamo)
+<!-- [![CI](https://img.shields.io/github/actions/workflow/status/mojomath/linamo/run_tests.yaml?branch=main&label=tests)](https://github.com/mojomath/linamo/actions/workflows/run_tests.yaml) -->
+
+| Type         | Information                 |
+| ------------ | --------------------------- |
+| `Matrix`     | A 2-dimensional matrix type |
+| `MatrixView` | A non-own view of `Matrix`  |
 
 - [Overview](#overview)
 - [Goals](#goals)
@@ -19,14 +29,13 @@ A matrix and linear algebra library for Mojo.
 
 ## Overview
 
-MatMojo focuses on efficient **matrix operations** and provides the foundations
+Linamo focuses on efficient **matrix operations** and provides the foundations
 for **linear algebra** workflows in Mojo.
 
-The name **MatMojo** has a double meaning: **Mat**rix + Mojo (emphasizing the
-core type) and **Mat**h + Mojo (emphasizing the linear algebra focus). Both
-readings capture what this library is about.
+The name **Linamo** is **LIN**ear + **A**lgebra + **MO**jo: the field it
+covers, and the language it is written in.
 
-Compared to a general-purpose multi-dimensional array library, MatMojo is more
+Compared to a general-purpose multi-dimensional array library, Linamo is more
 specialized and optimized for linear algebra of 2D matrices. This allows us to
 keep the API small, clean, and focused, while still providing powerful
 functionality for matrix computations. It is designed to be similar to
@@ -36,10 +45,10 @@ API.
 If you need multi-dimensional arrays, consider the
 [NuMojo package](https://github.com/Mojo-Numerics-and-Algorithms-group/NuMojo).
 
-Below are some differences between **MatMojo** (this package) and **NuMojo** (a
+Below are some differences between **Linamo** (this package) and **NuMojo** (a
 general-purpose multi-dimensional array library):
 
-| Feature                  | **MatMojo**                                       | **NuMojo**                                         |
+| Feature                  | **Linamo**                                       | **NuMojo**                                         |
 | ------------------------ | ------------------------------------------------- | -------------------------------------------------- |
 | **Primary goal**         | Linear algebra & matrix computation               | General-purpose ndarray / tensor computing         |
 | **Supported dimensions** | 2D only (matrices)                                | Arbitrary dimensions (N-D arrays)                  |
@@ -76,12 +85,12 @@ details.
 ## Background
 
 At the moment I am still building out the project scaffolding and solidifying
-the core functionality. MatMojo targets **Mojo 1.0.0**; while the language is
+the core functionality. Linamo targets **Mojo 1.0.0**; while the language is
 now stable, this package's own API is still moving quickly, so
 **pull requests are not accepted at this time**. If you have any suggestions,
 questions, or feedback, please feel free to open an
-[issue](https://github.com/mojomath/stamojo/issues), start a
-[discussion](https://github.com/mojomath/stamojo/discussions), or reach out on
+[issue](https://github.com/mojomath/linamo/issues), start a
+[discussion](https://github.com/mojomath/linamo/discussions), or reach out on
 our [Discord channel](https://discord.gg/3rGH87uZTk). Thank you for your
 understanding!
 
@@ -104,7 +113,7 @@ pixi run test
 ### Create matrices
 
 ```mojo
-import matmojo as mm
+import linamo as mm
 
 fn main() raises:
     # From nested lists
@@ -130,7 +139,7 @@ fn main() raises:
     var D = A @ A   # matrix multiplication
 
     # Scalar operations
-    from matmojo.routines.math import scalar_mul
+    from linamo.routines.math import scalar_mul
     var scaled = scalar_mul(A, 2.0)
 ```
 
@@ -164,9 +173,9 @@ fn main() raises:
 ## Project structure
 
 ```text
-matmojo
+linamo
 ├── pixi.toml
-├── src/matmojo
+├── src/linamo
 │   ├── __init__.mojo
 │   ├── types/
 │   │   ├── matrix.mojo          # Dynamic Matrix (row/col-major)
@@ -192,7 +201,7 @@ matmojo
 
 ## Status
 
-MatMojo is under active development. See the [Roadmap](docs/ROADMAP.md) for
+Linamo is under active development. See the [Roadmap](docs/ROADMAP.md) for
 upcoming phases (eigenvalues, statistics, norms, etc.).
 
 ### Requirements

@@ -4,10 +4,10 @@ Defines linear algebra routines for matrices.
 
 from std.math import sqrt
 
-from matmojo.types.errors import ValueError
-from matmojo.types.matrix import Matrix
-from matmojo.types.matrix_view import MatrixView
-from matmojo.utils.indexing import get_offset
+from linamo.types.errors import ValueError
+from linamo.types.matrix import Matrix
+from linamo.types.matrix_view import MatrixView
+from linamo.utils.indexing import get_offset
 
 # ===---------------------------------------------------------------------- ===#
 # Transpose
@@ -53,7 +53,7 @@ def trace[
     """Computes the trace (sum of diagonal elements) of a square matrix view."""
     if view.nrows != view.ncols:
         raise ValueError(
-            file="src/matmojo/routines/linalg.mojo",
+            file="src/linamo/routines/linalg.mojo",
             function="trace()",
             message="Matrix must be square to compute trace.",
             previous_error=None,
@@ -89,7 +89,7 @@ def lu[
     """
     if view.nrows != view.ncols:
         raise ValueError(
-            file="src/matmojo/routines/linalg.mojo",
+            file="src/linamo/routines/linalg.mojo",
             function="lu()",
             message="Matrix must be square for LU decomposition.",
             previous_error=None,
@@ -188,7 +188,7 @@ def cholesky[
     """
     if view.nrows != view.ncols:
         raise ValueError(
-            file="src/matmojo/routines/linalg.mojo",
+            file="src/linamo/routines/linalg.mojo",
             function="cholesky()",
             message="Matrix must be square for Cholesky decomposition.",
             previous_error=None,
@@ -206,7 +206,7 @@ def cholesky[
                 var diag_val = view[i, i] - s
                 if diag_val <= 0:
                     raise ValueError(
-                        file="src/matmojo/routines/linalg.mojo",
+                        file="src/linamo/routines/linalg.mojo",
                         function="cholesky()",
                         message=(
                             "Matrix is not positive-definite (non-positive"
@@ -246,7 +246,7 @@ def qr[
     var n = view.ncols
     if m < n:
         raise ValueError(
-            file="src/matmojo/routines/linalg.mojo",
+            file="src/linamo/routines/linalg.mojo",
             function="qr()",
             message="QR decomposition requires nrows >= ncols.",
             previous_error=None,
@@ -341,7 +341,7 @@ def det[
     """Computes the determinant of a square matrix view via LU decomposition."""
     if view.nrows != view.ncols:
         raise ValueError(
-            file="src/matmojo/routines/linalg.mojo",
+            file="src/linamo/routines/linalg.mojo",
             function="det()",
             message="Matrix must be square to compute determinant.",
             previous_error=None,
@@ -396,7 +396,7 @@ def solve[
     """
     if A.nrows != A.ncols:
         raise ValueError(
-            file="src/matmojo/routines/linalg.mojo",
+            file="src/linamo/routines/linalg.mojo",
             function="solve()",
             message="Coefficient matrix A must be square.",
             previous_error=None,
@@ -404,7 +404,7 @@ def solve[
     var n = A.nrows
     if b.nrows != n:
         raise ValueError(
-            file="src/matmojo/routines/linalg.mojo",
+            file="src/linamo/routines/linalg.mojo",
             function="solve()",
             message="Dimensions of A and b do not match: A is "
             + String(n)
@@ -495,7 +495,7 @@ def inv[
     """
     if view.nrows != view.ncols:
         raise ValueError(
-            file="src/matmojo/routines/linalg.mojo",
+            file="src/linamo/routines/linalg.mojo",
             function="inv()",
             message="Matrix must be square to compute inverse.",
             previous_error=None,
@@ -542,14 +542,14 @@ def lstsq[
     var n = A.ncols
     if m < n:
         raise ValueError(
-            file="src/matmojo/routines/linalg.mojo",
+            file="src/linamo/routines/linalg.mojo",
             function="lstsq()",
             message="Least squares requires nrows >= ncols (overdetermined).",
             previous_error=None,
         )
     if b.nrows != m:
         raise ValueError(
-            file="src/matmojo/routines/linalg.mojo",
+            file="src/linamo/routines/linalg.mojo",
             function="lstsq()",
             message="Dimensions of A and b do not match: A has "
             + String(m)

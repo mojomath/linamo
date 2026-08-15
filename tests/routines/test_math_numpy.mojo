@@ -2,14 +2,14 @@
 Numpy-powered integration tests for matrix arithmetic operations.
 
 Uses numpy.random to generate arbitrary-sized matrices and compares
-matmojo results against numpy as ground truth.
+linamo results against numpy as ground truth.
 """
 
 import std.testing as testing
-from matmojo.routines.math import add, sub, mul, div, matmul
-from matmojo.routines.math import scalar_add, scalar_sub, scalar_mul, scalar_div
-from matmojo.routines.numpy_interop import matrix_from_numpy, to_numpy
-from matmojo.utils.test_utils import assert_matrices_close
+from linamo.routines.math import add, sub, mul, div, matmul
+from linamo.routines.math import scalar_add, scalar_sub, scalar_mul, scalar_div
+from linamo.routines.numpy_interop import matrix_from_numpy, to_numpy
+from linamo.utils.test_utils import assert_matrices_close
 from std.python import Python, PythonObject
 
 

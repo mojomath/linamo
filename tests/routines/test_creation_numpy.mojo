@@ -1,14 +1,14 @@
 """
 Numpy-powered integration tests for matrix creation routines.
 
-Verifies round-trip fidelity: numpy -> matmojo -> numpy for
+Verifies round-trip fidelity: numpy -> linamo -> numpy for
 zeros, ones, full, eye, diag, and random matrix creation.
 """
 
 import std.testing as testing
-from matmojo.routines.creation import zeros, ones, full, eye, diag
-from matmojo.routines.numpy_interop import matrix_from_numpy, to_numpy
-from matmojo.utils.test_utils import (
+from linamo.routines.creation import zeros, ones, full, eye, diag
+from linamo.routines.numpy_interop import matrix_from_numpy, to_numpy
+from linamo.utils.test_utils import (
     assert_matrices_equal,
     assert_matrices_close,
 )

@@ -3,7 +3,7 @@ Tests for Matrix string representation and writing.
 """
 
 import std.testing as testing
-import matmojo as mm
+import linamo as mm
 
 
 def test_matrix_str_basic() raises:

@@ -3,8 +3,8 @@ Tests for linear algebra routines: transpose, trace.
 """
 
 import std.testing as testing
-import matmojo as mm
-from matmojo.routines.linalg import transpose, trace
+import linamo as mm
+from linamo.routines.linalg import transpose, trace
 
 
 # ===----------------------------------------------------------------------===#

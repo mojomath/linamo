@@ -4,12 +4,12 @@ This module defines the `Matrix` type, which is a dynamically sized 2D matrix.
 
 import std.math as builtin_math
 
-from matmojo.traits.matrix_like import MatrixLike
-from matmojo.types.errors import IndexError, ValueError
-from matmojo.types.matrix_iter import MatrixAxisIter
-from matmojo.types.matrix_view import MatrixView
-import matmojo.routines.math
-from matmojo.utils.indexing import (
+from linamo.traits.matrix_like import MatrixLike
+from linamo.types.errors import IndexError, ValueError
+from linamo.types.matrix_iter import MatrixAxisIter
+from linamo.types.matrix_view import MatrixView
+import linamo.routines.math
+from linamo.utils.indexing import (
     get_offset,
     indices_within_bounds,
 )
@@ -48,7 +48,7 @@ struct Matrix[dtype: DType](Copyable, MatrixLike, Movable, Sized, Writable):
     # of "using safe Mojo as much as possible".
     # The disadvantage of this approach is that you cannot easily design a
     # shared-memory model where multiple matrices share the same underlying data
-    # without defining different data types. In MatMojo, we have to define both
+    # without defining different data types. In Linamo, we have to define both
     # a "Matrix" type that owns its data and a "MatrixView" type that references
     # the data of another matrix. Thanks to the generic programming capabilities
     # of Mojo, we can still achieve a high level of code reuse between these
@@ -203,7 +203,7 @@ struct Matrix[dtype: DType](Copyable, MatrixLike, Movable, Sized, Writable):
         """
         if row < 0 or row >= self.nrows or col < 0 or col >= self.ncols:
             raise IndexError(
-                file="src/matmojo/types/matrix.mojo",
+                file="src/linamo/types/matrix.mojo",
                 function=(
                     "Matrix.__getitem__(self, row: Int, col: Int) ->"
                     " Self.ElementType"
@@ -353,7 +353,7 @@ struct Matrix[dtype: DType](Copyable, MatrixLike, Movable, Sized, Writable):
         """
         if row < 0 or row >= self.nrows or col < 0 or col + width > self.ncols:
             raise IndexError(
-                file="src/matmojo/types/matrix.mojo",
+                file="src/linamo/types/matrix.mojo",
                 function="Matrix.load[width](self, row: Int, col: Int)",
                 message="SIMD load runs past the end of the matrix.",
                 previous_error=None,
@@ -393,7 +393,7 @@ struct Matrix[dtype: DType](Copyable, MatrixLike, Movable, Sized, Writable):
         """
         if row < 0 or row >= self.nrows or col < 0 or col + width > self.ncols:
             raise IndexError(
-                file="src/matmojo/types/matrix.mojo",
+                file="src/linamo/types/matrix.mojo",
                 function="Matrix.store[width](mut self, row, col, value)",
                 message="SIMD store runs past the end of the matrix.",
                 previous_error=None,
@@ -454,7 +454,7 @@ struct Matrix[dtype: DType](Copyable, MatrixLike, Movable, Sized, Writable):
         var target_ncols = builtin_math.ceildiv(end_col - start_col, step_col)
         if target_nrows != src.nrows or target_ncols != src.ncols:
             raise ValueError(
-                file="src/matmojo/types/matrix.mojo",
+                file="src/linamo/types/matrix.mojo",
                 function="Matrix.assign(mut self, rows, cols, src)",
                 message="Shape mismatch in region assignment.",
                 previous_error=None,
@@ -528,51 +528,51 @@ struct Matrix[dtype: DType](Copyable, MatrixLike, Movable, Sized, Writable):
 
     def __add__(self, other: Self) raises -> Self:
         """Performs element-wise addition of two matrices."""
-        return matmojo.routines.math.add(self, other)
+        return linamo.routines.math.add(self, other)
 
     def __add__[
         origin: Origin
     ](self, other: MatrixView[Self.dtype, origin]) raises -> Self:
         """Performs element-wise addition of a matrix and a matrix view."""
-        return matmojo.routines.math.add(self, other)
+        return linamo.routines.math.add(self, other)
 
     def __sub__(self, other: Self) raises -> Self:
         """Performs element-wise subtraction of two matrices."""
-        return matmojo.routines.math.sub(self, other)
+        return linamo.routines.math.sub(self, other)
 
     def __sub__[
         origin: Origin
     ](self, other: MatrixView[Self.dtype, origin]) raises -> Self:
         """Performs element-wise subtraction of a matrix and a matrix view."""
-        return matmojo.routines.math.sub(self, other)
+        return linamo.routines.math.sub(self, other)
 
     def __mul__(self, other: Self) raises -> Self:
         """Performs element-wise multiplication of two matrices."""
-        return matmojo.routines.math.mul(self, other)
+        return linamo.routines.math.mul(self, other)
 
     def __mul__[
         origin: Origin
     ](self, other: MatrixView[Self.dtype, origin]) raises -> Self:
         """Performs element-wise multiplication of a matrix and a matrix view.
         """
-        return matmojo.routines.math.mul(self, other)
+        return linamo.routines.math.mul(self, other)
 
     def __truediv__(self, other: Self) raises -> Self:
         """Performs element-wise division of two matrices."""
-        return matmojo.routines.math.div(self, other)
+        return linamo.routines.math.div(self, other)
 
     def __truediv__[
         origin: Origin
     ](self, other: MatrixView[Self.dtype, origin]) raises -> Self:
         """Performs element-wise division of a matrix and a matrix view."""
-        return matmojo.routines.math.div(self, other)
+        return linamo.routines.math.div(self, other)
 
     def __matmul__(self, other: Self) raises -> Self:
         """Performs matrix multiplication of two matrices."""
-        return matmojo.routines.math.matmul(self, other)
+        return linamo.routines.math.matmul(self, other)
 
     def __matmul__[
         origin: Origin
     ](self, other: MatrixView[Self.dtype, origin]) raises -> Self:
         """Performs matrix multiplication of a matrix and a matrix view."""
-        return matmojo.routines.math.matmul(self, other)
+        return linamo.routines.math.matmul(self, other)

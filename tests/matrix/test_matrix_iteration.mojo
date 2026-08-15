@@ -4,8 +4,8 @@ on Matrix and MatrixView.
 """
 
 import std.testing as testing
-import matmojo as mm
-from matmojo.routines.mutation import assign, fill, store
+import linamo as mm
+from linamo.routines.mutation import assign, fill, store
 
 
 def test_len_is_row_count() raises:

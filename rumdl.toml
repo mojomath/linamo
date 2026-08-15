@@ -1,4 +1,4 @@
-# rumdl — Markdown line wrapper for matmojo's prose docs.
+# rumdl — Markdown line wrapper for linamo's prose docs.
 #
 # Scoped to MD013 (line-length) only. The goal is 80-column prose
 # wrapping, not a repo-wide Markdown restyle, so every other markdownlint

@@ -1,7 +1,7 @@
 """
-Numpy interoperability for MatMojo.
+Numpy interoperability for Linamo.
 
-Provides functions to convert between numpy ndarrays and MatMojo matrices:
+Provides functions to convert between numpy ndarrays and Linamo matrices:
 
 - `matrix_from_numpy()`: Create a Matrix from a 2D numpy ndarray (data copy).
 - `to_numpy()`: Export a Matrix to a numpy ndarray (data copy).
@@ -10,7 +10,7 @@ Provides functions to convert between numpy ndarrays and MatMojo matrices:
 from std.python import Python, PythonObject
 from std.memory import unsafe_memcpy
 
-from matmojo.types.matrix import Matrix
+from linamo.types.matrix import Matrix
 
 
 # ===----------------------------------------------------------------------===#
@@ -42,7 +42,7 @@ def matrix_from_numpy[
     Example:
         ```mojo
         from std.python import Python
-        from matmojo.routines.numpy_interop import matrix_from_numpy
+        from linamo.routines.numpy_interop import matrix_from_numpy
 
         def main() raises:
             var np = Python.import_module("numpy")
@@ -123,8 +123,8 @@ def to_numpy[dtype: DType](mat: Matrix[dtype]) raises -> PythonObject:
 
     Example:
         ```mojo
-        from matmojo import matrix
-        from matmojo.routines.numpy_interop import to_numpy
+        from linamo import matrix
+        from linamo.routines.numpy_interop import to_numpy
 
         def main() raises:
             var mat = matrix[DType.float64]([[1.0, 2.0], [3.0, 4.0]])

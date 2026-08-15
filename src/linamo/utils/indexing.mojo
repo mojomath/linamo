@@ -1,4 +1,4 @@
-"""This module provides indexing and memory layout utilities for MatMojo."""
+"""This module provides indexing and memory layout utilities for Linamo."""
 
 
 @always_inline

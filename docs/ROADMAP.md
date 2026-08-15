@@ -1,6 +1,6 @@
 # Roadmap <!-- omit in toc -->
 
-MatMojo development roadmap. Phases are prioritized for use as the linear
+Linamo development roadmap. Phases are prioritized for use as the linear
 algebra foundation of [stamojo](https://github.com/mojomath/stamojo) (a
 statistical modeling library, similar to statsmodels).
 
@@ -133,7 +133,7 @@ Mojo 1.0.0 (released 2026-08-11) landed a large set of breaking changes. See the
 | Test suite green (214 tests), zero build warnings                          | `tests/`                      | ✓      |
 | CI: add `linux-64` so the declared ubuntu leg can actually solve           | `pixi.toml`                   | ✓      |
 
-> **Note — typed raises had to be dropped.** MatMojo previously declared
+> **Note — typed raises had to be dropped.** Linamo previously declared
 > `raises ValueError` (etc.) on its public routines. Mojo 1.0.0 makes typed
 > raises strictly **invariant**: a `raises Error` function cannot call a
 > `raises ValueError` one, *and vice versa*. That makes a typed-raise public API
@@ -142,7 +142,7 @@ Mojo 1.0.0 (released 2026-08-11) landed a large set of breaking changes. See the
 >
 > Resolution: the error kinds in `types/errors.mojo` (`ValueError`,
 > `IndexError`, …) changed from **type aliases** into **factory functions** that
-> build a `MatMojoError` payload and wrap it in a plain `Error`. Every
+> build a `LinamoError` payload and wrap it in a plain `Error`. Every
 > `raise ValueError(file=..., function=..., message=...)` call site is
 > unchanged, and the rich traceback formatting is preserved, because `Error` is
 > constructed from a `Writable`. Only the signatures changed:
@@ -156,10 +156,10 @@ Mojo 1.0.0 (released 2026-08-11) landed a large set of breaking changes. See the
 > **Status: 🚧 In progress — 5.1 done**
 >
 > NuMojo is dropping its `Matrix` type (`numojo/core/matrix/`), and it lives
-> here from now on. So MatMojo needs to cover what NuMojo users are losing.
+> here from now on. So Linamo needs to cover what NuMojo users are losing.
 
 We're after the *functionality*, not the API. NuMojo's `Matrix` handed out
-pointer-backed sub-matrices; MatMojo splits ownership into `Matrix` (owning)
+pointer-backed sub-matrices; Linamo splits ownership into `Matrix` (owning)
 and `MatrixView` (non-owning, origin-tracked), and that split is the point of
 the library. Nothing below should reintroduce an `UnsafePointer` in a public
 signature, and every view has to carry its `origin` so the borrow checker can
@@ -293,9 +293,9 @@ containers, so it won't dispatch to `__reversed__` — use `rows[False]()`.
 | Coordinate removal of `numojo/core/matrix/` upstream | NuMojo repo                   | □      |
 
 > **Note on `to_ndarray`:** NuMojo's `Matrix.to_ndarray()` converts to NuMojo's
-> own `NDArray`. Reproducing it here would make MatMojo depend on NuMojo, which
+> own `NDArray`. Reproducing it here would make Linamo depend on NuMojo, which
 > inverts the intended dependency direction. Preferred resolution: NuMojo grows
-> an `NDArray.from_matmojo()` (or equivalent) on its side, and MatMojo stays
+> an `NDArray.from_linamo()` (or equivalent) on its side, and Linamo stays
 > dependency-free. Decision pending.
 
 ---

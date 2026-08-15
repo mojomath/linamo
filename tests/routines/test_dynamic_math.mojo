@@ -3,8 +3,8 @@ Tests for dynamic Matrix element-wise operations: add, sub, mul, div.
 """
 
 import std.testing as testing
-import matmojo as mm
-from matmojo.routines.math import add, sub, mul, div
+import linamo as mm
+from linamo.routines.math import add, sub, mul, div
 
 
 # ===----------------------------------------------------------------------===#

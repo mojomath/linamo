@@ -3,7 +3,7 @@ Tests for Matrix creation routines.
 """
 
 import std.testing as testing
-import matmojo as mm
+import linamo as mm
 
 
 def test_matrix_from_nested_list_row_major() raises:

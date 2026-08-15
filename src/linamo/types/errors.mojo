@@ -1,5 +1,5 @@
 """
-Implements error handling for MatMojo.
+Implements error handling for Linamo.
 """
 
 from std.pathlib.path import cwd
@@ -11,9 +11,9 @@ from std.pathlib.path import cwd
 # `std.testing` (which raises `Error`) or with any downstream caller.
 #
 # So the error *kinds* below are constructor functions that build a
-# `MatMojoError` payload and wrap it in a plain `Error`.  Call sites are
+# `LinamoError` payload and wrap it in a plain `Error`.  Call sites are
 # unchanged -- `raise ValueError(file=..., function=..., message=...)` still
-# works -- and the rich traceback formatting from `MatMojoError.write_to` is
+# works -- and the rich traceback formatting from `LinamoError.write_to` is
 # preserved, because `Error` is constructed from a `Writable`.
 
 
@@ -24,7 +24,7 @@ def OverflowError(
     message: Optional[String] = None,
     previous_error: Optional[Error] = None,
 ) -> Error:
-    """Builds an `Error` describing overflow errors in MatMojo.
+    """Builds an `Error` describing overflow errors in Linamo.
 
     Args:
         file: The file where the error occurred.
@@ -33,10 +33,10 @@ def OverflowError(
         previous_error: An optional previous error that caused this error.
 
     Returns:
-        An `Error` carrying a `MatMojoError["OverflowError"]` payload.
+        An `Error` carrying a `LinamoError["OverflowError"]` payload.
     """
     return Error(
-        MatMojoError[error_type="OverflowError"](
+        LinamoError[error_type="OverflowError"](
             file, function, message, previous_error
         )
     )
@@ -49,7 +49,7 @@ def IndexError(
     message: Optional[String] = None,
     previous_error: Optional[Error] = None,
 ) -> Error:
-    """Builds an `Error` describing index errors in MatMojo.
+    """Builds an `Error` describing index errors in Linamo.
 
     Args:
         file: The file where the error occurred.
@@ -58,10 +58,10 @@ def IndexError(
         previous_error: An optional previous error that caused this error.
 
     Returns:
-        An `Error` carrying a `MatMojoError["IndexError"]` payload.
+        An `Error` carrying a `LinamoError["IndexError"]` payload.
     """
     return Error(
-        MatMojoError[error_type="IndexError"](
+        LinamoError[error_type="IndexError"](
             file, function, message, previous_error
         )
     )
@@ -74,7 +74,7 @@ def KeyError(
     message: Optional[String] = None,
     previous_error: Optional[Error] = None,
 ) -> Error:
-    """Builds an `Error` describing key errors in MatMojo.
+    """Builds an `Error` describing key errors in Linamo.
 
     Args:
         file: The file where the error occurred.
@@ -83,10 +83,10 @@ def KeyError(
         previous_error: An optional previous error that caused this error.
 
     Returns:
-        An `Error` carrying a `MatMojoError["KeyError"]` payload.
+        An `Error` carrying a `LinamoError["KeyError"]` payload.
     """
     return Error(
-        MatMojoError[error_type="KeyError"](
+        LinamoError[error_type="KeyError"](
             file, function, message, previous_error
         )
     )
@@ -99,7 +99,7 @@ def ValueError(
     message: Optional[String] = None,
     previous_error: Optional[Error] = None,
 ) -> Error:
-    """Builds an `Error` describing value errors in MatMojo.
+    """Builds an `Error` describing value errors in Linamo.
 
     Args:
         file: The file where the error occurred.
@@ -108,10 +108,10 @@ def ValueError(
         previous_error: An optional previous error that caused this error.
 
     Returns:
-        An `Error` carrying a `MatMojoError["ValueError"]` payload.
+        An `Error` carrying a `LinamoError["ValueError"]` payload.
     """
     return Error(
-        MatMojoError[error_type="ValueError"](
+        LinamoError[error_type="ValueError"](
             file, function, message, previous_error
         )
     )
@@ -124,7 +124,7 @@ def ZeroDivisionError(
     message: Optional[String] = None,
     previous_error: Optional[Error] = None,
 ) -> Error:
-    """Builds an `Error` describing divided-by-zero errors in MatMojo.
+    """Builds an `Error` describing divided-by-zero errors in Linamo.
 
     Args:
         file: The file where the error occurred.
@@ -133,10 +133,10 @@ def ZeroDivisionError(
         previous_error: An optional previous error that caused this error.
 
     Returns:
-        An `Error` carrying a `MatMojoError["ZeroDivisionError"]` payload.
+        An `Error` carrying a `LinamoError["ZeroDivisionError"]` payload.
     """
     return Error(
-        MatMojoError[error_type="ZeroDivisionError"](
+        LinamoError[error_type="ZeroDivisionError"](
             file, function, message, previous_error
         )
     )
@@ -149,7 +149,7 @@ def ConversionError(
     message: Optional[String] = None,
     previous_error: Optional[Error] = None,
 ) -> Error:
-    """Builds an `Error` describing conversion errors in MatMojo.
+    """Builds an `Error` describing conversion errors in Linamo.
 
     Args:
         file: The file where the error occurred.
@@ -158,10 +158,10 @@ def ConversionError(
         previous_error: An optional previous error that caused this error.
 
     Returns:
-        An `Error` carrying a `MatMojoError["ConversionError"]` payload.
+        An `Error` carrying a `LinamoError["ConversionError"]` payload.
     """
     return Error(
-        MatMojoError[error_type="ConversionError"](
+        LinamoError[error_type="ConversionError"](
             file, function, message, previous_error
         )
     )
@@ -169,12 +169,12 @@ def ConversionError(
 
 comptime HEADER_OF_ERROR_MESSAGE = """
 ---------------------------------------------------------------------------
-MatMojoError                             Traceback (most recent call last)
+LinamoError                             Traceback (most recent call last)
 """
 
 
-struct MatMojoError[error_type: String = "MatMojoError"](Writable):
-    """Base type for all MatMojo errors.
+struct LinamoError[error_type: String = "LinamoError"](Writable):
+    """Base type for all Linamo errors.
 
     Parameters:
         error_type: The type of the error, e.g., "OverflowError", "IndexError".

@@ -1,12 +1,12 @@
 """
-This module defines routines for creating matrices and matrix views in MatMojo.
+This module defines routines for creating matrices and matrix views in Linamo.
 """
 
-from matmojo.types.errors import ValueError
-from matmojo.types.matrix import Matrix
-from matmojo.types.matrix_view import MatrixView
-from matmojo.types.static_matrix import StaticMatrix
-from matmojo.utils.indexing import get_offset
+from linamo.types.errors import ValueError
+from linamo.types.matrix import Matrix
+from linamo.types.matrix_view import MatrixView
+from linamo.types.static_matrix import StaticMatrix
+from linamo.utils.indexing import get_offset
 
 # ===---------------------------------------------------------------------- ===#
 # Matrix creation routines
@@ -37,7 +37,7 @@ def matrix[
 
     if len(list) == 0:
         raise ValueError(
-            file="src/matmojo/routines/creation.mojo",
+            file="src/linamo/routines/creation.mojo",
             function="matrix()",
             message="Data cannot be an empty list.",
             previous_error=None,
@@ -56,7 +56,7 @@ def matrix[
         row_stride = 1  # Column-major order
     else:
         raise ValueError(
-            file="src/matmojo/routines/creation.mojo",
+            file="src/linamo/routines/creation.mojo",
             function="matrix()",
             message="Invalid order. Must be 'C' or 'F'.",
             previous_error=None,
@@ -65,7 +65,7 @@ def matrix[
     for row in list:
         if len(row) != ncols:
             raise ValueError(
-                file="src/matmojo/routines/creation.mojo",
+                file="src/linamo/routines/creation.mojo",
                 function="matrix()",
                 message="All rows must have the same length.",
                 previous_error=None,
@@ -115,14 +115,14 @@ def matrix[
     """
     if len(flat_list) == 0:
         raise ValueError(
-            file="src/matmojo/routines/creation.mojo",
+            file="src/linamo/routines/creation.mojo",
             function="matrix()",
             message="Data cannot be an empty list.",
             previous_error=None,
         )
     if len(flat_list) != nrows * ncols:
         raise ValueError(
-            file="src/matmojo/routines/creation.mojo",
+            file="src/linamo/routines/creation.mojo",
             function="matrix()",
             message="Data length does not match the specified shape.",
             previous_error=None,
@@ -137,7 +137,7 @@ def matrix[
         col_stride = nrows
     else:
         raise ValueError(
-            file="src/matmojo/routines/creation.mojo",
+            file="src/linamo/routines/creation.mojo",
             function="matrix()",
             message="Invalid order. Must be 'C' or 'F'.",
             previous_error=None,
@@ -169,7 +169,7 @@ def smatrix[
 
     if len(list) != nrows:
         raise ValueError(
-            file="src/matmojo/routines/creation.mojo",
+            file="src/linamo/routines/creation.mojo",
             function="matrix()",
             message="Number of rows in list does not match nrows.",
             previous_error=None,
@@ -178,7 +178,7 @@ def smatrix[
     for row_index in range(len(list)):
         if len(list[row_index]) != ncols:
             raise ValueError(
-                file="src/matmojo/routines/creation.mojo",
+                file="src/linamo/routines/creation.mojo",
                 function="matrix()",
                 message="All rows must have the same length as ncols.",
                 previous_error=None,
@@ -207,7 +207,7 @@ def smatrix[
     """
     if len(flat_list) != nrows * ncols:
         raise ValueError(
-            file="src/matmojo/routines/creation.mojo",
+            file="src/linamo/routines/creation.mojo",
             function="matrix()",
             message="Number of rows in list does not match nrows.",
             previous_error=None,
@@ -384,7 +384,7 @@ def diag[dtype: DType](mat: Matrix[dtype]) raises -> List[Scalar[dtype]]:
     """
     if mat.nrows != mat.ncols:
         raise ValueError(
-            file="src/matmojo/routines/creation.mojo",
+            file="src/linamo/routines/creation.mojo",
             function="diag()",
             message="Matrix must be square to extract diagonal.",
             previous_error=None,

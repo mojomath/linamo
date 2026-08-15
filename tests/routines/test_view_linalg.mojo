@@ -4,9 +4,9 @@ det, solve, inv, lstsq on MatrixView inputs).
 """
 
 import std.testing as testing
-from matmojo.types.matrix import Matrix
-from matmojo.routines.creation import matrix, eye
-from matmojo.routines.linalg import (
+from linamo.types.matrix import Matrix
+from linamo.routines.creation import matrix, eye
+from linamo.routines.linalg import (
     transpose,
     trace,
     lu,
@@ -17,8 +17,8 @@ from matmojo.routines.linalg import (
     inv,
     lstsq,
 )
-from matmojo.routines.math import matmul
-from matmojo.utils.test_utils import assert_matrices_close
+from linamo.routines.math import matmul
+from linamo.utils.test_utils import assert_matrices_close
 
 
 # ===----------------------------------------------------------------------===#

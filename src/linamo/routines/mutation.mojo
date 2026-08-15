@@ -15,10 +15,10 @@ through the reference returned by `MatrixView.__getitem__`, where the caller's
 origin is concrete.
 """
 
-from matmojo.types.errors import IndexError, ValueError
-from matmojo.types.matrix import Matrix
-from matmojo.types.matrix_view import MatrixView
-from matmojo.utils.indexing import get_offset, indices_within_bounds
+from linamo.types.errors import IndexError, ValueError
+from linamo.types.matrix import Matrix
+from linamo.types.matrix_view import MatrixView
+from linamo.utils.indexing import get_offset, indices_within_bounds
 
 
 def store[
@@ -51,7 +51,7 @@ def store[
     """
     if row < 0 or row >= view.nrows or col < 0 or col + width > view.ncols:
         raise IndexError(
-            file="src/matmojo/routines/mutation.mojo",
+            file="src/linamo/routines/mutation.mojo",
             function="store[width](view, row: Int, col: Int, value)",
             message="SIMD store runs past the end of the view.",
             previous_error=None,
@@ -125,7 +125,7 @@ def assign[
     var target = view[rows, cols]
     if target.nrows != src.nrows or target.ncols != src.ncols:
         raise ValueError(
-            file="src/matmojo/routines/mutation.mojo",
+            file="src/linamo/routines/mutation.mojo",
             function="assign(view, rows, cols, src)",
             message="Shape mismatch in region assignment.",
             previous_error=None,

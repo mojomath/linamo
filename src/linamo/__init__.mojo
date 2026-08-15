@@ -1,4 +1,4 @@
-from matmojo.routines.creation import (
+from linamo.routines.creation import (
     matrix,
     smatrix,
     zeros,
@@ -8,7 +8,7 @@ from matmojo.routines.creation import (
     identity,
     diag,
 )
-from matmojo.routines.linalg import (
+from linamo.routines.linalg import (
     transpose,
     trace,
     lu,
@@ -19,8 +19,8 @@ from matmojo.routines.linalg import (
     inv,
     lstsq,
 )
-from matmojo.routines.numpy_interop import matrix_from_numpy, to_numpy
-from matmojo.utils.test_utils import (
+from linamo.routines.numpy_interop import matrix_from_numpy, to_numpy
+from linamo.utils.test_utils import (
     assert_matrices_equal,
     assert_matrices_close,
 )

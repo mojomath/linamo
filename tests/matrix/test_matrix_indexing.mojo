@@ -3,7 +3,7 @@ Tests for Matrix element access and indexing.
 """
 
 import std.testing as testing
-import matmojo as mm
+import linamo as mm
 
 
 def test_matrix_getitem_basic() raises:

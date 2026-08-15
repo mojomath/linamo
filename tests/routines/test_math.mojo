@@ -3,8 +3,8 @@ Tests for matrix arithmetic operations (elementwise and matmul).
 """
 
 import std.testing as testing
-import matmojo as mm
-from matmojo.routines.math import add, sub, mul, div, matmul
+import linamo as mm
+from linamo.routines.math import add, sub, mul, div, matmul
 
 
 # ===----------------------------------------------------------------------===#

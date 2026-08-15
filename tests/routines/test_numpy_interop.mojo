@@ -7,7 +7,7 @@ corresponding test_*_numpy.mojo files.
 """
 
 import std.testing as testing
-from matmojo.routines.numpy_interop import matrix_from_numpy, to_numpy
+from linamo.routines.numpy_interop import matrix_from_numpy, to_numpy
 from std.python import Python
 
 

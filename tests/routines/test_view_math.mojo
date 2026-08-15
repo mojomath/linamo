@@ -4,9 +4,9 @@ and view-based scalar operations.
 """
 
 import std.testing as testing
-import matmojo as mm
-from matmojo.routines.math import add, sub, mul, div
-from matmojo.routines.math import scalar_add, scalar_sub, scalar_mul, scalar_div
+import linamo as mm
+from linamo.routines.math import add, sub, mul, div
+from linamo.routines.math import scalar_add, scalar_sub, scalar_mul, scalar_div
 
 
 # ===----------------------------------------------------------------------===#

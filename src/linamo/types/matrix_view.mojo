@@ -3,13 +3,13 @@ This module defines the `MatrixView` type, which is a view on a `Matrix`.
 """
 
 import std.math as builtin_math
-import matmojo.routines.math
+import linamo.routines.math
 
-from matmojo.traits.matrix_like import MatrixLike
-from matmojo.types.errors import IndexError
-from matmojo.types.matrix import Matrix
-from matmojo.types.matrix_iter import MatrixAxisIter
-from matmojo.utils.indexing import get_offset, indices_within_bounds
+from linamo.traits.matrix_like import MatrixLike
+from linamo.types.errors import IndexError
+from linamo.types.matrix import Matrix
+from linamo.types.matrix_iter import MatrixAxisIter
+from linamo.utils.indexing import get_offset, indices_within_bounds
 from std.memory import Pointer
 
 
@@ -284,7 +284,7 @@ struct MatrixView[mut: Bool, //, dtype: DType, origin: Origin[mut=mut]](
         """
         if row < 0 or row >= self.nrows or col < 0 or col + width > self.ncols:
             raise IndexError(
-                file="src/matmojo/types/matrix_view.mojo",
+                file="src/linamo/types/matrix_view.mojo",
                 function="MatrixView.load[width](self, row: Int, col: Int)",
                 message="SIMD load runs past the end of the view.",
                 previous_error=None,
@@ -394,11 +394,11 @@ struct MatrixView[mut: Bool, //, dtype: DType, origin: Origin[mut=mut]](
         Self.dtype
     ]:
         """Performs element-wise addition of two matrix views."""
-        return matmojo.routines.math.add(self, other)
+        return linamo.routines.math.add(self, other)
 
     def __add__(self, other: Matrix[Self.dtype]) raises -> Matrix[Self.dtype]:
         """Performs element-wise addition of a matrix view and a matrix."""
-        return matmojo.routines.math.add(self, other)
+        return linamo.routines.math.add(self, other)
 
     def __sub__[
         origin_b: Origin
@@ -406,11 +406,11 @@ struct MatrixView[mut: Bool, //, dtype: DType, origin: Origin[mut=mut]](
         Self.dtype
     ]:
         """Performs element-wise subtraction of two matrix views."""
-        return matmojo.routines.math.sub(self, other)
+        return linamo.routines.math.sub(self, other)
 
     def __sub__(self, other: Matrix[Self.dtype]) raises -> Matrix[Self.dtype]:
         """Performs element-wise subtraction of a matrix view and a matrix."""
-        return matmojo.routines.math.sub(self, other)
+        return linamo.routines.math.sub(self, other)
 
     def __mul__[
         origin_b: Origin
@@ -418,12 +418,12 @@ struct MatrixView[mut: Bool, //, dtype: DType, origin: Origin[mut=mut]](
         Self.dtype
     ]:
         """Performs element-wise multiplication of two matrix views."""
-        return matmojo.routines.math.mul(self, other)
+        return linamo.routines.math.mul(self, other)
 
     def __mul__(self, other: Matrix[Self.dtype]) raises -> Matrix[Self.dtype]:
         """Performs element-wise multiplication of a matrix view and a matrix.
         """
-        return matmojo.routines.math.mul(self, other)
+        return linamo.routines.math.mul(self, other)
 
     def __truediv__[
         origin_b: Origin
@@ -431,13 +431,13 @@ struct MatrixView[mut: Bool, //, dtype: DType, origin: Origin[mut=mut]](
         Self.dtype
     ]:
         """Performs element-wise division of two matrix views."""
-        return matmojo.routines.math.div(self, other)
+        return linamo.routines.math.div(self, other)
 
     def __truediv__(
         self, other: Matrix[Self.dtype]
     ) raises -> Matrix[Self.dtype]:
         """Performs element-wise division of a matrix view and a matrix."""
-        return matmojo.routines.math.div(self, other)
+        return linamo.routines.math.div(self, other)
 
     def __matmul__[
         origin_b: Origin
@@ -445,10 +445,10 @@ struct MatrixView[mut: Bool, //, dtype: DType, origin: Origin[mut=mut]](
         Self.dtype
     ]:
         """Performs matrix multiplication of two matrix views."""
-        return matmojo.routines.math.matmul(self, other)
+        return linamo.routines.math.matmul(self, other)
 
     def __matmul__(
         self, other: Matrix[Self.dtype]
     ) raises -> Matrix[Self.dtype]:
         """Performs matrix multiplication of a matrix view and a matrix."""
-        return matmojo.routines.math.matmul(self, other)
+        return linamo.routines.math.matmul(self, other)

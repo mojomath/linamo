@@ -3,7 +3,7 @@ Tests for MatrixView creation and element access.
 """
 
 import std.testing as testing
-import matmojo as mm
+import linamo as mm
 
 
 def test_view_from_matrix_full() raises:
