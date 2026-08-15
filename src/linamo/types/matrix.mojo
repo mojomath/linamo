@@ -185,11 +185,28 @@ struct Matrix[dtype: DType](Copyable, MatrixLike, Movable, Sized, Writable):
     # reference returned by __getitem__ is mutable, allowing for both reading
     # and writing to the matrix elements.
     # Thus, `__setitem__` is not needed as a separate method.
+    #
+    # [Mojo Miji]
+    # The returned origin is `origin_of(self.data)` - the whole buffer - and
+    # not the finer `self.data[row * row_stride + col * col_stride]`, which is
+    # what this method used to name. A per-element origin sounds more precise,
+    # and it is, but forming a second one invalidated the first, so
+    #
+    #     var s = a[0, 0] + a[1, 1]
+    #
+    # did not compile on a `var` matrix. Naming the buffer instead lets any
+    # number of element references coexist. The reference has to be built from
+    # a pointer because `self.data[i]` would re-derive the narrow origin.
+    #
+    # `__setitem__` is deliberately absent, and not only because the mutable
+    # reference above makes it unnecessary. Defining `__setitem__` on this type
+    # makes the compiler pass `self` to `__getitem__` as a temporary copy in
+    # some positions, so a view sliced from it carries the origin of a dead
+    # temporary and `a[0:1, :] - a[1:2, :]` stops compiling. Region writes are
+    # spelled `assign(...)` from `routines.mutation` for the same reason.
     def __getitem__(
         ref self, row: Int, col: Int
-    ) raises -> ref[
-        self.data[row * self.row_stride + col * self.col_stride]
-    ] Self.ElementType:
+    ) raises -> ref[origin_of(self.data)] Self.ElementType:
         """Gets the element at the specified indices.
 
         Args:
@@ -204,15 +221,15 @@ struct Matrix[dtype: DType](Copyable, MatrixLike, Movable, Sized, Writable):
         """
         if row < 0 or row >= self.nrows or col < 0 or col >= self.ncols:
             raise IndexError(
-                file="src/linamo/types/matrix.mojo",
                 function=(
                     "Matrix.__getitem__(self, row: Int, col: Int) ->"
                     " Self.ElementType"
                 ),
                 message="Index out of bounds.",
-                previous_error=None,
             )
-        return self.data[row * self.row_stride + col * self.col_stride]
+        return self.data._data.unsafe_offset(
+            row * self.row_stride + col * self.col_stride
+        )[]
 
     # [Mojo Miji]
     # When you pass `Self.dtype` and `origin_of(self)` as parameters to the
@@ -226,10 +243,24 @@ struct Matrix[dtype: DType](Copyable, MatrixLike, Movable, Sized, Writable):
     # matrix view is still alive.
     # The approach of recording the origin, which is `a`, into the parameter of
     # the `MatrixView` type is called "parameterized origin".
+    # [Mojo Miji]
+    # Note that `self` is taken by `read` and not by `ref` here. That single
+    # word decides the mutability of every view slicing produces: with `ref`,
+    # `origin_of(self.data)` would inherit the caller's mutability, so slicing
+    # a `var` matrix would hand back a *mutable* view. Two mutable views of the
+    # same matrix cannot be passed to one call, which would make the most
+    # ordinary expressions in linear algebra illegal:
+    #
+    #     var d = a[0:1, :] - a[1:2, :]   # would not compile
+    #
+    # Reading two blocks of one matrix at the same time is always safe, so
+    # slicing yields a read-only view and the expression above compiles. When
+    # you do want to write through a sub-matrix, ask for it explicitly with
+    # `view(x, y)`, which does inherit mutability.
     def __getitem__(
-        ref self, x: Slice, y: Slice
+        self, x: Slice, y: Slice
     ) raises -> MatrixView[dtype=Self.dtype, origin=origin_of(self.data)]:
-        """Gets a view of the specified row with a slice of columns."""
+        """Gets a read-only view of the specified rows and columns."""
         return MatrixView(
             data=self.data,
             slice_x=x,
@@ -262,8 +293,22 @@ struct Matrix[dtype: DType](Copyable, MatrixLike, Movable, Sized, Writable):
         var offset = get_offset(row, col, self.row_stride, self.col_stride)
         return self.data._data.unsafe_offset(offset)[]
 
-    def view(ref self) -> MatrixView[Self.dtype, origin_of(self.data)]:
-        """Gets a view of the entire matrix."""
+    # [Mojo Miji]
+    # `read self`, not `ref self`. This method is the Matrix -> MatrixView
+    # conversion the routine layer uses about forty times to feed kernels, and
+    # every one of those uses is a read. Taking `ref self` made it hand back a
+    # *mutable* view whenever the receiver was a `var`, which meant
+    # `m.view() - m.view()` was rejected as two mutable borrows of one matrix,
+    # and meant an innocuous-looking call was a write door. It is now a
+    # shorthand for `m[:, :]` and nothing more.
+    def view(self) -> MatrixView[Self.dtype, origin_of(self.data)]:
+        """Gets a read-only view of the entire matrix.
+
+        This is the same thing `m[:, :]` produces, and is the conversion the
+        named routines use to accept a `Matrix` wherever a `MatrixView` is
+        expected. To write through a sub-matrix, use `view_mut` from
+        `linamo.routines.mutation`.
+        """
         return MatrixView(
             data=Span(self.data),
             nrows=self.nrows,
@@ -288,12 +333,13 @@ struct Matrix[dtype: DType](Copyable, MatrixLike, Movable, Sized, Writable):
 
     def rows[
         forward: Bool = True
-    ](ref self) -> MatrixAxisIter[Self.dtype, origin_of(self.data), 0, forward]:
+    ](self) -> MatrixAxisIter[Self.dtype, origin_of(self.data), 0, forward]:
         """Iterates over the rows, yielding each as a `1 x ncols` view.
 
-        Nothing is copied. Because `self` is taken by `ref`, iterating a
-        mutable matrix yields writable rows and iterating a borrowed one
-        yields read-only rows.
+        Nothing is copied. The rows are read-only regardless of how the
+        matrix was bound: iteration is an implicit path, and implicit paths do
+        not grant write access. Use `rows_mut` from `linamo.routines.mutation`
+        to walk a matrix writably.
 
         Parameters:
             forward: True for first-to-last, False for last-to-first.
@@ -302,7 +348,7 @@ struct Matrix[dtype: DType](Copyable, MatrixLike, Movable, Sized, Writable):
 
     def cols[
         forward: Bool = True
-    ](ref self) -> MatrixAxisIter[Self.dtype, origin_of(self.data), 1, forward]:
+    ](self) -> MatrixAxisIter[Self.dtype, origin_of(self.data), 1, forward]:
         """Iterates over the columns, yielding each as an `nrows x 1` view.
 
         Parameters:
@@ -311,7 +357,7 @@ struct Matrix[dtype: DType](Copyable, MatrixLike, Movable, Sized, Writable):
         return MatrixAxisIter[axis=1, forward=forward](self.view())
 
     def __iter__(
-        ref self,
+        self,
     ) -> MatrixAxisIter[Self.dtype, origin_of(self.data), 0, True]:
         """Iterates over the rows, so `for row in matrix` walks row views."""
         return self.rows()
@@ -321,7 +367,7 @@ struct Matrix[dtype: DType](Copyable, MatrixLike, Movable, Sized, Writable):
     # `matrix.rows[False]()` instead; this stays for when a protocol hook
     # lands.
     def __reversed__(
-        ref self,
+        self,
     ) -> MatrixAxisIter[Self.dtype, origin_of(self.data), 0, False]:
         """Iterates over the rows from last to first."""
         return self.rows[False]()
@@ -354,10 +400,8 @@ struct Matrix[dtype: DType](Copyable, MatrixLike, Movable, Sized, Writable):
         """
         if row < 0 or row >= self.nrows or col < 0 or col + width > self.ncols:
             raise IndexError(
-                file="src/linamo/types/matrix.mojo",
                 function="Matrix.load[width](self, row: Int, col: Int)",
                 message="SIMD load runs past the end of the matrix.",
-                previous_error=None,
             )
         var base = get_offset(row, col, self.row_stride, self.col_stride)
         if self.col_stride == 1:
@@ -378,7 +422,7 @@ struct Matrix[dtype: DType](Copyable, MatrixLike, Movable, Sized, Writable):
         """Stores `width` elements along row `row`, starting at column `col`.
 
         Unlike the view equivalent this can be a method, because a `Matrix`
-        owns a concretely mutable `List` -- there is no generic origin whose
+        owns a concretely mutable `List` - there is no generic origin whose
         read-only instantiation the body would also have to satisfy.
 
         Parameters:
@@ -394,10 +438,8 @@ struct Matrix[dtype: DType](Copyable, MatrixLike, Movable, Sized, Writable):
         """
         if row < 0 or row >= self.nrows or col < 0 or col + width > self.ncols:
             raise IndexError(
-                file="src/linamo/types/matrix.mojo",
                 function="Matrix.store[width](mut self, row, col, value)",
                 message="SIMD store runs past the end of the matrix.",
-                previous_error=None,
             )
         var base = get_offset(row, col, self.row_stride, self.col_stride)
         if self.col_stride == 1:
@@ -455,10 +497,8 @@ struct Matrix[dtype: DType](Copyable, MatrixLike, Movable, Sized, Writable):
         var target_ncols = builtin_math.ceildiv(end_col - start_col, step_col)
         if target_nrows != src.nrows or target_ncols != src.ncols:
             raise ValueError(
-                file="src/linamo/types/matrix.mojo",
                 function="Matrix.assign(mut self, rows, cols, src)",
                 message="Shape mismatch in region assignment.",
-                previous_error=None,
             )
         for i in range(target_nrows):
             for j in range(target_ncols):

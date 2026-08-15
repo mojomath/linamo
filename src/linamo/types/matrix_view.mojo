@@ -165,16 +165,18 @@ struct MatrixView[mut: Bool, //, dtype: DType, origin: Origin[mut=mut]](
         return self.data[index]
 
     # [Mojo Miji]
-    # The return type can also be written as:
-    # `MatrixView[Self.dtype, Self.origin]`
-    # It means that the view on view has the same data type and origin as the
-    # original view.
+    # `ImmOrigin(Self.origin)` demotes the origin to a read-only one, so a view
+    # of a view is always read-only even when the parent view is mutable. This
+    # matches `Matrix.__getitem__` and for the same reason: two mutable views
+    # of one matrix cannot both be passed to a single call, which would make
+    # `v[0:1, :] - v[1:2, :]` illegal. Use `routines.mutation` on the parent
+    # view when you need to write.
     def __getitem__(
         self, rows: Slice, cols: Slice
-    ) raises -> MatrixView[Self.dtype, Self.origin]:
-        """Gets a view of the specified row with a slice of columns."""
-        return Self(
-            data=self.data,
+    ) raises -> MatrixView[Self.dtype, ImmOrigin(Self.origin)]:
+        """Gets a read-only view of the specified rows and columns."""
+        return MatrixView[Self.dtype, ImmOrigin(Self.origin)](
+            data=self.data.as_imm(),
             slice_x=rows,
             slice_y=cols,
             initial_nrows=self.nrows,
@@ -182,6 +184,29 @@ struct MatrixView[mut: Bool, //, dtype: DType, origin: Origin[mut=mut]](
             initial_row_stride=self.row_stride,
             initial_col_stride=self.col_stride,
             initial_offset=self.offset,
+        )
+
+    # [Mojo Miji]
+    # The mirror of `Span.as_imm()`. A mutable view is an exclusive borrow, so
+    # it cannot appear twice in one expression; demoting it to a read-only view
+    # lifts that restriction, exactly as `&mut T` to `&T` does in Rust. There
+    # is no inverse: nothing in the library promotes a read-only view back to a
+    # mutable one.
+    def as_imm(self) -> MatrixView[Self.dtype, ImmOrigin(Self.origin)]:
+        """Returns a read-only view over the same elements.
+
+        Returns:
+            A view with the same shape, strides and offset, but a read-only
+            origin, so that it may be combined with other views of the same
+            matrix.
+        """
+        return MatrixView[Self.dtype, ImmOrigin(Self.origin)](
+            data=self.data.as_imm(),
+            nrows=self.nrows,
+            ncols=self.ncols,
+            row_stride=self.row_stride,
+            col_stride=self.col_stride,
+            offset=self.offset,
         )
 
     def get_unsafe(self, row: Int, col: Int) -> Scalar[Self.dtype]:
@@ -266,7 +291,7 @@ struct MatrixView[mut: Bool, //, dtype: DType, origin: Origin[mut=mut]](
         """Loads `width` elements along row `row`, starting at column `col`.
 
         When the row is contiguous (`col_stride == 1`) this is a single vector
-        load. Otherwise -- which is what slicing with a step produces -- it
+        load. Otherwise - which is what slicing with a step produces - it
         falls back to gathering element by element, so the call is always
         correct and only the speed changes.
 
@@ -285,10 +310,8 @@ struct MatrixView[mut: Bool, //, dtype: DType, origin: Origin[mut=mut]](
         """
         if row < 0 or row >= self.nrows or col < 0 or col + width > self.ncols:
             raise IndexError(
-                file="src/linamo/types/matrix_view.mojo",
                 function="MatrixView.load[width](self, row: Int, col: Int)",
                 message="SIMD load runs past the end of the view.",
-                previous_error=None,
             )
         var base = get_offset(
             row, col, self.row_stride, self.col_stride, self.offset

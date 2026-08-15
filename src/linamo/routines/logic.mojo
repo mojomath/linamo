@@ -46,10 +46,8 @@ def _compare_view[
     """
     if a.nrows != b.nrows or a.ncols != b.ncols:
         raise ValueError(
-            file="src/linamo/routines/logic.mojo",
             function="_compare_view()",
             message="Input matrices must have the same shape.",
-            previous_error=None,
         )
     var M = a.nrows
     var N = a.ncols

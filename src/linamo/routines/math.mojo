@@ -43,10 +43,8 @@ from linamo.utils.indexing import get_offset
 #     """
 #     if a.get_nrows() != b.get_nrows() or a.get_ncols() != b.get_ncols():
 #         raise ValueError(
-#             file="src/linamo/routines/math.mojo",
 #             function="add()",
 #             message="Input matrices must have the same shape.",
-#             previous_error=None,
 #         )
 #     var result = a.copy()
 #     for i in range(a.get_nrows()):
@@ -194,13 +192,11 @@ def _matmul_view_simd[
 
     if a.ncols != b.nrows:
         raise ValueError(
-            file="src/linamo/routines/math.mojo",
             function="matmul()",
             message=(
                 "Inner dimensions of a and b must match for matrix"
                 " multiplication."
             ),
-            previous_error=None,
         )
 
     var M = a.nrows
@@ -485,10 +481,8 @@ def _elementwise_view[
     """
     if a.nrows != b.nrows or a.ncols != b.ncols:
         raise ValueError(
-            file="src/linamo/routines/math.mojo",
             function="_elementwise_view()",
             message="Input matrices must have the same shape.",
-            previous_error=None,
         )
     var M = a.nrows
     var N = a.ncols
@@ -815,10 +809,8 @@ def _elementwise_inplace[
     """
     if a.nrows != b.nrows or a.ncols != b.ncols:
         raise ValueError(
-            file="src/linamo/routines/math.mojo",
             function="_elementwise_inplace()",
             message="Input matrices must have the same shape.",
-            previous_error=None,
         )
     var M = a.nrows
     var N = a.ncols

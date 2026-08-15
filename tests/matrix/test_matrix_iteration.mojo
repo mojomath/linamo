@@ -5,7 +5,13 @@ on Matrix and MatrixView.
 
 import std.testing as testing
 import linamo as la
-from linamo.routines.mutation import assign, fill, store
+from linamo.routines.mutation import (
+    assign,
+    fill,
+    rows_mut,
+    store,
+    view_mut,
+)
 
 
 def test_len_is_row_count() raises:
@@ -64,9 +70,13 @@ def test_column_iteration() raises:
 
 
 def test_iteration_over_view_is_zero_copy() raises:
-    """Writing through an iterated row reaches the parent matrix."""
+    """Writing through a row from `rows_mut` reaches the parent matrix.
+
+    Plain iteration (`for row in mat`) yields read-only rows, so the writable
+    walk has to be asked for by name.
+    """
     var mat = la.matrix[DType.float64]([[1.0, 2.0], [3.0, 4.0]])
-    for row in mat.view():
+    for row in rows_mut(mat):
         row[0, 0] = 99.0
     testing.assert_equal(mat[0, 0], 99.0)
     testing.assert_equal(mat[1, 0], 99.0)
@@ -112,11 +122,16 @@ def test_view_store_contiguous_and_strided() raises:
     var mat = la.matrix[DType.float64](
         [[0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0]]
     )
-    store[width=2](mat.view(), 0, 0, SIMD[DType.float64, 2](1.0, 2.0))
+    store[width=2](
+        view_mut(mat, Slice(0, 2), Slice(0, 4)),
+        0,
+        0,
+        SIMD[DType.float64, 2](1.0, 2.0),
+    )
     testing.assert_equal(mat[0, 0], 1.0)
     testing.assert_equal(mat[0, 1], 2.0)
 
-    var strided = mat[0:2, 0:4:2]
+    var strided = view_mut(mat, Slice(0, 2), Slice(0, 4, 2))
     store[width=2](strided, 1, 0, SIMD[DType.float64, 2](5.0, 6.0))
     testing.assert_equal(mat[1, 0], 5.0)
     testing.assert_equal(mat[1, 2], 6.0)
@@ -138,7 +153,12 @@ def test_fill_region() raises:
 def test_fill_region_through_view() raises:
     """The view `fill` routine writes through to the owner."""
     var mat = la.matrix[DType.float64]([[1.0, 2.0], [3.0, 4.0]])
-    fill(mat.view(), Slice(0, 1), Slice(0, 2), Float64(-1.0))
+    fill(
+        view_mut(mat, Slice(0, 2), Slice(0, 2)),
+        Slice(0, 1),
+        Slice(0, 2),
+        Float64(-1.0),
+    )
     testing.assert_equal(mat[0, 0], -1.0)
     testing.assert_equal(mat[0, 1], -1.0)
     testing.assert_equal(mat[1, 0], 3.0)
@@ -170,7 +190,12 @@ def test_assign_into_view() raises:
     """The view `assign` routine writes through to the owner."""
     var mat = la.matrix[DType.float64]([[0.0, 0.0, 0.0], [0.0, 0.0, 0.0]])
     var src = la.matrix[DType.float64]([[5.0, 6.0]])
-    assign(mat.view(), Slice(0, 1), Slice(1, 3), src)
+    assign(
+        view_mut(mat, Slice(0, 2), Slice(0, 3)),
+        Slice(0, 1),
+        Slice(1, 3),
+        src,
+    )
     testing.assert_equal(mat[0, 1], 5.0)
     testing.assert_equal(mat[0, 2], 6.0)
     testing.assert_equal(mat[0, 0], 0.0)
@@ -203,7 +228,7 @@ def test_to_matrix_is_independent_of_source() raises:
 def test_view_handle_copy_is_implicit() raises:
     """A view is an O(1) handle, so plain assignment copies the handle."""
     var mat = la.matrix[DType.float64]([[1.0, 2.0], [3.0, 4.0]])
-    var v = mat.view()
+    var v = view_mut(mat, Slice(0, 2), Slice(0, 2))
     var v2 = v
     v2[0, 0] = 42.0
     # Both handles see the same buffer.

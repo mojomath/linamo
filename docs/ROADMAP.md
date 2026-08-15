@@ -181,13 +181,16 @@ Where a port would fight that model, the API changes and we write down why.
 Three things came out differently than the original sketch, all of them forced
 by the language rather than chosen:
 
-**Mutable views had to be built before anything else.** `view()` and slice
-indexing took `self` as an immutable borrow, so every view they produced was
-read-only — the `mut` parameter on `MatrixView` could never be `True`. Taking
-`ref self` instead lets the caller's mutability flow into the origin, which is
-what makes `store` and region assignment possible at all. A mutable matrix now
-yields writable views, a borrowed one yields read-only views, and writing
-through a read-only view fails to compile.
+**Mutable views had to be built before anything else.** `view()` took `self`
+as an immutable borrow, so every view it produced was read-only — the `mut`
+parameter on `MatrixView` could never be `True`. Taking `ref self` instead lets
+the caller's mutability flow into the origin, which is what makes `store` and
+region assignment possible at all. A mutable matrix now yields writable views,
+a borrowed one yields read-only views, and writing through a read-only view
+fails to compile. (Both `view()` and slice indexing were given the same
+treatment here, and both had to be walked back in 5.2 — see *Slicing had to
+become read-only* below. Mutable views survive, but only as `view_mut` in
+`routines/mutation.mojo`; no method returns one.)
 
 **Bulk writes on views can't be methods.** `MatrixView` is generic over
 `origin`, and Mojo checks a method body against every instantiation including
@@ -240,6 +243,56 @@ went into a new `routines/logic.mojo` rather than `math.mojo`, which is where
 **`__pow__` is element-wise.** `A ** 2` squares each entry, matching NumPy.
 Matrix exponentiation is a different operation and will get a named routine
 rather than an operator.
+
+**Slicing had to become read-only.** 5.1 gave slice indexing `ref self`, along
+with `view()`, so `a[0:2, 0:2]` on a `var` matrix produced a *mutable* view.
+That turns out to be unusable once operators exist. A mutable view is an
+exclusive borrow, and Mojo refuses to pass two values that both borrow the same
+memory into one call — so `a[0:1, :] - a[1:2, :]`, `a + a[0:2, 0:2]` and
+`a[0:2, 0:2] @ a[0:2, 0:2]` were all rejected by the compiler. Nothing caught
+it because every view test until now paired views taken from two *different*
+matrices.
+
+Slicing therefore takes `self` by `read` and always yields a read-only view.
+Reading one matrix twice at once is always safe, so all of the above compile.
+
+Fixing slicing alone was not enough, and the first attempt kept `view()` and
+added `view(x, y)` as a mutable door on both types. That left `m.view()`
+returning a *mutable* view of a `var` matrix — a write door behind the most
+innocent-looking call in the API — and left the invariant as a set of
+remembered exceptions rather than a rule. The design that replaced it states
+one rule instead:
+
+> Nothing that carries a borrow in its type is ever handed out mutable, except
+> through a function in `linamo.routines.mutation`.
+
+A method can only propagate the caller's mutability by taking `ref self`, so
+that rule is checkable with `grep -rn "ref self" src/linamo/types/`, which now
+returns exactly one line: element access on `Matrix`. `view()`, `rows()`,
+`cols()` and iteration are all `read self`; `view(x, y)` is gone from both
+types; `view_mut`, `rows_mut` and `cols_mut` live in `routines/mutation.mojo`
+alongside `fill`, `store` and `assign`, so a caller who never imports that
+module cannot construct a mutable view at all.
+`tests/matrix_view/test_view_aliasing.mojo` exists so this blind spot cannot
+reopen.
+
+**Element access had a narrower bug.** `Matrix.__getitem__` returned a
+reference whose origin named one computed element,
+`self.data[row * row_stride + col * col_stride]`. Forming a second such
+reference invalidated the first, so `a[0, 0] + a[1, 1]` did not compile on a
+`var` matrix — adding two elements of a matrix. Returning through
+`origin_of(self.data)`, the whole buffer, lets any number of element
+references coexist.
+
+**`__setitem__` is not available.** The obvious way to make indexing and
+slicing symmetric is `m[a:b, c:d] = src` with a `mut self` setter, which lets
+no view escape and looked ideal. It cannot be used: merely defining
+`__setitem__` on `Matrix` makes the compiler pass `self` to `__getitem__` as a
+temporary copy in some positions, so a sliced view carries the origin of a dead
+temporary and `a[0:1, :] - a[1:2, :]` stops compiling again. Reproduced in
+twenty lines with no linamo involved, for both `Int` and `Slice` setters.
+Element writes therefore keep going through the reference `m[i, j]` returns,
+and region writes are spelled `assign(...)`.
 
 **`__rtruediv__` came along uninvited.** The table lists three reflected
 operators, but shipping `2.0 - A` without `2.0 / A` is a worse API than either
@@ -429,3 +482,16 @@ the library is built around.
 | 2026-08-15 | Phase 5.2 done: in-place, floordiv/mod/pow, reflected and     |
 |            | comparison operators; new `routines/logic.mojo`. 35 new       |
 |            | tests (266 total).                                            |
+| 2026-08-15 | Slicing now yields read-only views, so two views of one       |
+|            | matrix compose (`a[0:1, :] - a[1:2, :]`). Added               |
+|            | `MatrixView.as_imm()`. 13 new tests (280 total).              |
+| 2026-08-16 | Closed the last write door: `view()`, `rows()`, `cols()` and  |
+|            | iteration are `read self`; `view(x, y)` removed; `view_mut`,  |
+|            | `rows_mut`, `cols_mut` added to `routines/mutation.mojo`.     |
+|            | Fixed `a[0, 0] + a[1, 1]`, which did not compile. 7 new       |
+|            | tests (287 total).                                            |
+| 2026-08-16 | Reworked `types/errors.mojo` against Decimo's version:        |
+|            | file and line are captured with `call_location()`, paths are  |
+|            | shortened to `./src/...`, tracebacks are ANSI-coloured and    |
+|            | chain Python-style. Dropped the hand-written `file=` argument |
+|            | from all 33 raise sites. Restored the Apache-2.0 attribution. |

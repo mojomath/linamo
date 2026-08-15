@@ -53,10 +53,8 @@ def trace[
     """Computes the trace (sum of diagonal elements) of a square matrix view."""
     if view.nrows != view.ncols:
         raise ValueError(
-            file="src/linamo/routines/linalg.mojo",
             function="trace()",
             message="Matrix must be square to compute trace.",
-            previous_error=None,
         )
     var result: Scalar[dtype] = 0
     for i in range(view.nrows):
@@ -89,10 +87,8 @@ def lu[
     """
     if view.nrows != view.ncols:
         raise ValueError(
-            file="src/linamo/routines/linalg.mojo",
             function="lu()",
             message="Matrix must be square for LU decomposition.",
-            previous_error=None,
         )
     var n = view.nrows
 
@@ -188,10 +184,8 @@ def cholesky[
     """
     if view.nrows != view.ncols:
         raise ValueError(
-            file="src/linamo/routines/linalg.mojo",
             function="cholesky()",
             message="Matrix must be square for Cholesky decomposition.",
-            previous_error=None,
         )
     var n = view.nrows
     var l_data = List[Scalar[dtype]](length=n * n, fill=0)
@@ -206,13 +200,11 @@ def cholesky[
                 var diag_val = view[i, i] - s
                 if diag_val <= 0:
                     raise ValueError(
-                        file="src/linamo/routines/linalg.mojo",
                         function="cholesky()",
                         message=(
                             "Matrix is not positive-definite (non-positive"
                             " diagonal encountered)."
                         ),
-                        previous_error=None,
                     )
                 l_data[i * n + j] = sqrt(diag_val)
             else:
@@ -246,10 +238,8 @@ def qr[
     var n = view.ncols
     if m < n:
         raise ValueError(
-            file="src/linamo/routines/linalg.mojo",
             function="qr()",
             message="QR decomposition requires nrows >= ncols.",
-            previous_error=None,
         )
 
     # Copy A into row-major R workspace (m x n).
@@ -341,10 +331,8 @@ def det[
     """Computes the determinant of a square matrix view via LU decomposition."""
     if view.nrows != view.ncols:
         raise ValueError(
-            file="src/linamo/routines/linalg.mojo",
             function="det()",
             message="Matrix must be square to compute determinant.",
-            previous_error=None,
         )
     var n = view.nrows
     var lu_result = lu(view)
@@ -396,15 +384,12 @@ def solve[
     """
     if A.nrows != A.ncols:
         raise ValueError(
-            file="src/linamo/routines/linalg.mojo",
             function="solve()",
             message="Coefficient matrix A must be square.",
-            previous_error=None,
         )
     var n = A.nrows
     if b.nrows != n:
         raise ValueError(
-            file="src/linamo/routines/linalg.mojo",
             function="solve()",
             message="Dimensions of A and b do not match: A is "
             + String(n)
@@ -413,7 +398,6 @@ def solve[
             + " but b has "
             + String(b.nrows)
             + " rows.",
-            previous_error=None,
         )
 
     var k = b.ncols  # number of right-hand sides
@@ -495,10 +479,8 @@ def inv[
     """
     if view.nrows != view.ncols:
         raise ValueError(
-            file="src/linamo/routines/linalg.mojo",
             function="inv()",
             message="Matrix must be square to compute inverse.",
-            previous_error=None,
         )
     var n = view.nrows
 
@@ -542,21 +524,17 @@ def lstsq[
     var n = A.ncols
     if m < n:
         raise ValueError(
-            file="src/linamo/routines/linalg.mojo",
             function="lstsq()",
             message="Least squares requires nrows >= ncols (overdetermined).",
-            previous_error=None,
         )
     if b.nrows != m:
         raise ValueError(
-            file="src/linamo/routines/linalg.mojo",
             function="lstsq()",
             message="Dimensions of A and b do not match: A has "
             + String(m)
             + " rows but b has "
             + String(b.nrows)
             + " rows.",
-            previous_error=None,
         )
 
     var k = b.ncols  # number of right-hand sides

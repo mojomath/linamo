@@ -37,10 +37,8 @@ def matrix[
 
     if len(list) == 0:
         raise ValueError(
-            file="src/linamo/routines/creation.mojo",
             function="matrix()",
             message="Data cannot be an empty list.",
-            previous_error=None,
         )
 
     var nrows = len(list)
@@ -56,19 +54,15 @@ def matrix[
         row_stride = 1  # Column-major order
     else:
         raise ValueError(
-            file="src/linamo/routines/creation.mojo",
             function="matrix()",
             message="Invalid order. Must be 'C' or 'F'.",
-            previous_error=None,
         )
 
     for row in list:
         if len(row) != ncols:
             raise ValueError(
-                file="src/linamo/routines/creation.mojo",
                 function="matrix()",
                 message="All rows must have the same length.",
-                previous_error=None,
             )
 
     var data = List[Scalar[dtype]](unsafe_uninit_length=nrows * ncols)
@@ -115,17 +109,13 @@ def matrix[
     """
     if len(flat_list) == 0:
         raise ValueError(
-            file="src/linamo/routines/creation.mojo",
             function="matrix()",
             message="Data cannot be an empty list.",
-            previous_error=None,
         )
     if len(flat_list) != nrows * ncols:
         raise ValueError(
-            file="src/linamo/routines/creation.mojo",
             function="matrix()",
             message="Data length does not match the specified shape.",
-            previous_error=None,
         )
     var row_stride: Int
     var col_stride: Int
@@ -137,10 +127,8 @@ def matrix[
         col_stride = nrows
     else:
         raise ValueError(
-            file="src/linamo/routines/creation.mojo",
             function="matrix()",
             message="Invalid order. Must be 'C' or 'F'.",
-            previous_error=None,
         )
     return Matrix[dtype](
         data=flat_list^,
@@ -169,19 +157,15 @@ def smatrix[
 
     if len(list) != nrows:
         raise ValueError(
-            file="src/linamo/routines/creation.mojo",
             function="matrix()",
             message="Number of rows in list does not match nrows.",
-            previous_error=None,
         )
     var result = StaticMatrix[dtype, nrows, ncols]()  # Initialize with zeros
     for row_index in range(len(list)):
         if len(list[row_index]) != ncols:
             raise ValueError(
-                file="src/linamo/routines/creation.mojo",
                 function="matrix()",
                 message="All rows must have the same length as ncols.",
-                previous_error=None,
             )
         for col_index in range(ncols):
             result.data[
@@ -207,10 +191,8 @@ def smatrix[
     """
     if len(flat_list) != nrows * ncols:
         raise ValueError(
-            file="src/linamo/routines/creation.mojo",
             function="matrix()",
             message="Number of rows in list does not match nrows.",
-            previous_error=None,
         )
     var result = StaticMatrix[dtype, nrows, ncols]()  # Initialize with zeros
     var offset = 0
@@ -384,10 +366,8 @@ def diag[dtype: DType](mat: Matrix[dtype]) raises -> List[Scalar[dtype]]:
     """
     if mat.nrows != mat.ncols:
         raise ValueError(
-            file="src/linamo/routines/creation.mojo",
             function="diag()",
             message="Matrix must be square to extract diagonal.",
-            previous_error=None,
         )
     var n = mat.nrows
     var result = List[Scalar[dtype]](length=n, fill=0)
