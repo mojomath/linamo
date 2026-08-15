@@ -1,7 +1,7 @@
 from matmojo.prelude import *
 
 
-fn main() raises:
+def main() raises:
     var m = mm.matrix[int64](
         [
             [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
@@ -18,11 +18,11 @@ fn main() raises:
     print("A 8x10 matrix:")
     print(m)
 
-    v1 = m[1::2, 0:8:3]
+    var v1 = m[1::2, 0:8:3]
     print("A view of the matrix. Rows 1, 3, 5, 7. Columns 0, 3, 6:")
     print(v1)
 
-    v2 = v1[1::2, 1::]
+    var v2 = v1[1::2, 1::]
     print("A view of the previous view. Rows 1, 3. Columns 1, 2:")
     print(v2)
 

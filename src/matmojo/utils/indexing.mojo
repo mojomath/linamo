@@ -2,7 +2,7 @@
 
 
 @always_inline
-fn get_offset(
+def get_offset(
     row: Int, col: Int, row_stride: Int, col_stride: Int, initial_offset: Int
 ) -> Int:
     """Calculates the linear offset in a buffer for given indices.
@@ -32,7 +32,7 @@ fn get_offset(
 
 
 @always_inline
-fn get_offset(row: Int, col: Int, row_stride: Int, col_stride: Int) -> Int:
+def get_offset(row: Int, col: Int, row_stride: Int, col_stride: Int) -> Int:
     """Calculates the linear offset in a buffer for given indices.
 
     This function computes the position of an element in a 1D buffer
@@ -58,12 +58,12 @@ fn get_offset(row: Int, col: Int, row_stride: Int, col_stride: Int) -> Int:
 
 
 @always_inline
-fn indices_within_bounds(row: Int, col: Int, nrows: Int, ncols: Int) -> Bool:
+def indices_within_bounds(row: Int, col: Int, nrows: Int, ncols: Int) -> Bool:
     """Checks if the given row and column indices are within bounds."""
     return (row >= 0) and (row < nrows) and (col >= 0) and (col < ncols)
 
 
 @always_inline
-fn indices_out_of_bounds(row: Int, col: Int, nrows: Int, ncols: Int) -> Bool:
+def indices_out_of_bounds(row: Int, col: Int, nrows: Int, ncols: Int) -> Bool:
     """Checks if the given row and column indices are out of bounds."""
     return (row < 0) or (row >= nrows) or (col < 0) or (col >= ncols)

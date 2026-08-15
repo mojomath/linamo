@@ -2,7 +2,7 @@
 Defines linear algebra routines for matrices.
 """
 
-from math import sqrt
+from std.math import sqrt
 
 from matmojo.types.errors import ValueError
 from matmojo.types.matrix import Matrix
@@ -14,7 +14,7 @@ from matmojo.utils.indexing import get_offset
 # ===---------------------------------------------------------------------- ===#
 
 
-fn transpose[
+def transpose[
     dtype: DType, origin: Origin
 ](view: MatrixView[dtype, origin]) -> Matrix[dtype]:
     """Returns the transpose of a matrix view.
@@ -37,7 +37,7 @@ fn transpose[
     )
 
 
-fn transpose[dtype: DType](mat: Matrix[dtype]) -> Matrix[dtype]:
+def transpose[dtype: DType](mat: Matrix[dtype]) -> Matrix[dtype]:
     """Returns the transpose of a matrix."""
     return transpose(mat.view())
 
@@ -47,9 +47,9 @@ fn transpose[dtype: DType](mat: Matrix[dtype]) -> Matrix[dtype]:
 # ===---------------------------------------------------------------------- ===#
 
 
-fn trace[
+def trace[
     dtype: DType, origin: Origin
-](view: MatrixView[dtype, origin]) raises ValueError -> Scalar[dtype]:
+](view: MatrixView[dtype, origin]) raises -> Scalar[dtype]:
     """Computes the trace (sum of diagonal elements) of a square matrix view."""
     if view.nrows != view.ncols:
         raise ValueError(
@@ -64,7 +64,7 @@ fn trace[
     return result
 
 
-fn trace[dtype: DType](mat: Matrix[dtype]) raises ValueError -> Scalar[dtype]:
+def trace[dtype: DType](mat: Matrix[dtype]) raises -> Scalar[dtype]:
     """Computes the trace of a square matrix."""
     return trace(mat.view())
 
@@ -74,11 +74,11 @@ fn trace[dtype: DType](mat: Matrix[dtype]) raises ValueError -> Scalar[dtype]:
 # ===---------------------------------------------------------------------- ===#
 
 
-fn lu[
+def lu[
     dtype: DType, origin: Origin
 ](
     view: MatrixView[dtype, origin],
-) raises ValueError -> Tuple[
+) raises -> Tuple[
     Matrix[dtype], Matrix[dtype], List[Int]
 ]:
     """Computes the LU decomposition with partial pivoting: PA = LU.
@@ -165,13 +165,9 @@ fn lu[
     return (L^, U^, piv^)
 
 
-fn lu[
+def lu[
     dtype: DType
-](
-    mat: Matrix[dtype],
-) raises ValueError -> Tuple[
-    Matrix[dtype], Matrix[dtype], List[Int]
-]:
+](mat: Matrix[dtype],) raises -> Tuple[Matrix[dtype], Matrix[dtype], List[Int]]:
     """Computes the LU decomposition of a matrix. Delegates to the view-based
     core."""
     return lu(mat.view())
@@ -182,9 +178,9 @@ fn lu[
 # ===---------------------------------------------------------------------- ===#
 
 
-fn cholesky[
+def cholesky[
     dtype: DType, origin: Origin
-](view: MatrixView[dtype, origin]) raises ValueError -> Matrix[dtype]:
+](view: MatrixView[dtype, origin]) raises -> Matrix[dtype]:
     """Computes the Cholesky decomposition: A = L L^T.
 
     The input must be a symmetric positive-definite matrix view. The result is
@@ -227,9 +223,7 @@ fn cholesky[
     )
 
 
-fn cholesky[
-    dtype: DType
-](mat: Matrix[dtype]) raises ValueError -> Matrix[dtype]:
+def cholesky[dtype: DType](mat: Matrix[dtype]) raises -> Matrix[dtype]:
     """Computes the Cholesky decomposition of a matrix."""
     return cholesky(mat.view())
 
@@ -239,9 +233,9 @@ fn cholesky[
 # ===---------------------------------------------------------------------- ===#
 
 
-fn qr[
+def qr[
     dtype: DType, origin: Origin
-](view: MatrixView[dtype, origin]) raises ValueError -> Tuple[
+](view: MatrixView[dtype, origin]) raises -> Tuple[
     Matrix[dtype], Matrix[dtype]
 ]:
     """Computes the QR decomposition: A = Q R (Householder reflections).
@@ -329,9 +323,9 @@ fn qr[
     return (Q^, R^)
 
 
-fn qr[
+def qr[
     dtype: DType
-](mat: Matrix[dtype]) raises ValueError -> Tuple[Matrix[dtype], Matrix[dtype]]:
+](mat: Matrix[dtype]) raises -> Tuple[Matrix[dtype], Matrix[dtype]]:
     """Computes the QR decomposition of a matrix."""
     return qr(mat.view())
 
@@ -341,9 +335,9 @@ fn qr[
 # ===---------------------------------------------------------------------- ===#
 
 
-fn det[
+def det[
     dtype: DType, origin: Origin
-](view: MatrixView[dtype, origin]) raises ValueError -> Scalar[dtype]:
+](view: MatrixView[dtype, origin]) raises -> Scalar[dtype]:
     """Computes the determinant of a square matrix view via LU decomposition."""
     if view.nrows != view.ncols:
         raise ValueError(
@@ -379,7 +373,7 @@ fn det[
     return d
 
 
-fn det[dtype: DType](mat: Matrix[dtype]) raises ValueError -> Scalar[dtype]:
+def det[dtype: DType](mat: Matrix[dtype]) raises -> Scalar[dtype]:
     """Computes the determinant of a square matrix."""
     return det(mat.view())
 
@@ -389,12 +383,12 @@ fn det[dtype: DType](mat: Matrix[dtype]) raises ValueError -> Scalar[dtype]:
 # ===---------------------------------------------------------------------- ===#
 
 
-fn solve[
+def solve[
     dtype: DType, origin_a: Origin, origin_b: Origin
 ](
     A: MatrixView[dtype, origin_a],
     b: MatrixView[dtype, origin_b],
-) raises ValueError -> Matrix[dtype]:
+) raises -> Matrix[dtype]:
     """Solves the linear system Ax = b for x, using LU decomposition.
 
     Both A and b can be matrix views. The right-hand side b can be a
@@ -466,27 +460,23 @@ fn solve[
     )
 
 
-fn solve[
+def solve[
     dtype: DType
-](A: Matrix[dtype], b: Matrix[dtype]) raises ValueError -> Matrix[dtype]:
+](A: Matrix[dtype], b: Matrix[dtype]) raises -> Matrix[dtype]:
     """Solves Ax = b (matrix × matrix)."""
     return solve(A.view(), b.view())
 
 
-fn solve[
+def solve[
     dtype: DType, origin_b: Origin
-](A: Matrix[dtype], b: MatrixView[dtype, origin_b]) raises ValueError -> Matrix[
-    dtype
-]:
+](A: Matrix[dtype], b: MatrixView[dtype, origin_b]) raises -> Matrix[dtype]:
     """Solves Ax = b (matrix × view)."""
     return solve(A.view(), b)
 
 
-fn solve[
+def solve[
     dtype: DType, origin_a: Origin
-](A: MatrixView[dtype, origin_a], b: Matrix[dtype]) raises ValueError -> Matrix[
-    dtype
-]:
+](A: MatrixView[dtype, origin_a], b: Matrix[dtype]) raises -> Matrix[dtype]:
     """Solves Ax = b (view × matrix)."""
     return solve(A, b.view())
 
@@ -496,9 +486,9 @@ fn solve[
 # ===---------------------------------------------------------------------- ===#
 
 
-fn inv[
+def inv[
     dtype: DType, origin: Origin
-](view: MatrixView[dtype, origin]) raises ValueError -> Matrix[dtype]:
+](view: MatrixView[dtype, origin]) raises -> Matrix[dtype]:
     """Computes the inverse of a square matrix view using LU decomposition.
 
     Solves A @ X = I for X.
@@ -527,7 +517,7 @@ fn inv[
     return solve(view, I.view())
 
 
-fn inv[dtype: DType](mat: Matrix[dtype]) raises ValueError -> Matrix[dtype]:
+def inv[dtype: DType](mat: Matrix[dtype]) raises -> Matrix[dtype]:
     """Computes the inverse of a square matrix."""
     return inv(mat.view())
 
@@ -537,12 +527,12 @@ fn inv[dtype: DType](mat: Matrix[dtype]) raises ValueError -> Matrix[dtype]:
 # ===---------------------------------------------------------------------- ===#
 
 
-fn lstsq[
+def lstsq[
     dtype: DType, origin_a: Origin, origin_b: Origin
 ](
     A: MatrixView[dtype, origin_a],
     b: MatrixView[dtype, origin_b],
-) raises ValueError -> Matrix[dtype]:
+) raises -> Matrix[dtype]:
     """Solves the least squares problem min ||Ax - b||₂ via QR decomposition.
 
     Works for overdetermined systems (m >= n). For multiple right-hand
@@ -605,26 +595,22 @@ fn lstsq[
     )
 
 
-fn lstsq[
+def lstsq[
     dtype: DType
-](A: Matrix[dtype], b: Matrix[dtype]) raises ValueError -> Matrix[dtype]:
+](A: Matrix[dtype], b: Matrix[dtype]) raises -> Matrix[dtype]:
     """Solves least squares (matrix × matrix)."""
     return lstsq(A.view(), b.view())
 
 
-fn lstsq[
+def lstsq[
     dtype: DType, origin_b: Origin
-](A: Matrix[dtype], b: MatrixView[dtype, origin_b]) raises ValueError -> Matrix[
-    dtype
-]:
+](A: Matrix[dtype], b: MatrixView[dtype, origin_b]) raises -> Matrix[dtype]:
     """Solves least squares (matrix × view)."""
     return lstsq(A.view(), b)
 
 
-fn lstsq[
+def lstsq[
     dtype: DType, origin_a: Origin
-](A: MatrixView[dtype, origin_a], b: Matrix[dtype]) raises ValueError -> Matrix[
-    dtype
-]:
+](A: MatrixView[dtype, origin_a], b: Matrix[dtype]) raises -> Matrix[dtype]:
     """Solves least squares (view × matrix)."""
     return lstsq(A, b.view())

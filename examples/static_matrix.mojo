@@ -1,12 +1,12 @@
 from matmojo.prelude import *
 
 
-fn main() raises:
+def main() raises:
     creation()
     calculation()
 
 
-fn creation() raises:
+def creation() raises:
     var mat1 = mm.smatrix[6, 5, float64](
         [
             [1.1, 1.2, 1.3, 1.4, 1.5],
@@ -68,7 +68,7 @@ fn creation() raises:
     print(mat3.data)
 
 
-fn calculation() raises:
+def calculation() raises:
     var mat1 = mm.smatrix[6, 5, float64](
         [
             [1.1, 1.2, 1.3, 1.4, 1.5],

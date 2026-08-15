@@ -17,11 +17,9 @@ from matmojo.utils.indexing import get_offset
 # ===---------------------------------------------------------------------- ===#
 
 
-fn matrix[
+def matrix[
     dtype: DType = DType.float64
-](
-    list: List[List[Scalar[dtype]]], order: String = "C"
-) raises ValueError -> Matrix[dtype]:
+](list: List[List[Scalar[dtype]]], order: String = "C") raises -> Matrix[dtype]:
     """Initializes the matrix with a list of lists.
 
     Parameters:
@@ -45,9 +43,11 @@ fn matrix[
             previous_error=None,
         )
 
-    nrows = len(list)
-    ncols = len(list[0])
+    var nrows = len(list)
+    var ncols = len(list[0])
 
+    var row_stride: Int
+    var col_stride: Int
     if order == "C":
         row_stride = ncols
         col_stride = 1  # Row-major order
@@ -88,7 +88,7 @@ fn matrix[
     )
 
 
-fn matrix[
+def matrix[
     dtype: DType = DType.float64
 ](
     *,
@@ -96,7 +96,7 @@ fn matrix[
     nrows: Int,
     ncols: Int,
     order: String = "C",
-) raises ValueError -> Matrix[dtype]:
+) raises -> Matrix[dtype]:
     """Initializes the matrix with a list and shape.
 
     Parameters:
@@ -127,6 +127,8 @@ fn matrix[
             message="Data length does not match the specified shape.",
             previous_error=None,
         )
+    var row_stride: Int
+    var col_stride: Int
     if order == "C":
         row_stride = ncols  # Row-major order
         col_stride = 1
@@ -149,9 +151,9 @@ fn matrix[
     )
 
 
-fn smatrix[
+def smatrix[
     nrows: Int, ncols: Int, dtype: DType = DType.float64
-](var list: List[List[Scalar[dtype]]]) raises ValueError -> StaticMatrix[
+](var list: List[List[Scalar[dtype]]]) raises -> StaticMatrix[
     dtype, nrows, ncols
 ]:
     """Initializes the static matrix with a list of lists.
@@ -188,9 +190,9 @@ fn smatrix[
     return result^
 
 
-fn smatrix[
+def smatrix[
     nrows: Int, ncols: Int, dtype: DType = DType.float64
-](*, var flat_list: List[Scalar[dtype]]) raises ValueError -> StaticMatrix[
+](*, var flat_list: List[Scalar[dtype]]) raises -> StaticMatrix[
     dtype, nrows, ncols
 ]:
     """Initializes the static matrix with a list of values.
@@ -229,7 +231,9 @@ fn smatrix[
 # ===---------------------------------------------------------------------- ===#
 
 
-fn zeros[dtype: DType = DType.float64](nrows: Int, ncols: Int) -> Matrix[dtype]:
+def zeros[
+    dtype: DType = DType.float64
+](nrows: Int, ncols: Int) -> Matrix[dtype]:
     """Creates a matrix filled with zeros.
 
     Parameters:
@@ -251,7 +255,7 @@ fn zeros[dtype: DType = DType.float64](nrows: Int, ncols: Int) -> Matrix[dtype]:
     )
 
 
-fn ones[dtype: DType = DType.float64](nrows: Int, ncols: Int) -> Matrix[dtype]:
+def ones[dtype: DType = DType.float64](nrows: Int, ncols: Int) -> Matrix[dtype]:
     """Creates a matrix filled with ones.
 
     Parameters:
@@ -273,7 +277,7 @@ fn ones[dtype: DType = DType.float64](nrows: Int, ncols: Int) -> Matrix[dtype]:
     )
 
 
-fn full[
+def full[
     dtype: DType = DType.float64
 ](nrows: Int, ncols: Int, fill_value: Scalar[dtype]) -> Matrix[dtype]:
     """Creates a matrix filled with a specified value.
@@ -298,7 +302,7 @@ fn full[
     )
 
 
-fn eye[dtype: DType = DType.float64](n: Int) -> Matrix[dtype]:
+def eye[dtype: DType = DType.float64](n: Int) -> Matrix[dtype]:
     """Creates an n×n identity matrix.
 
     Parameters:
@@ -322,7 +326,7 @@ fn eye[dtype: DType = DType.float64](n: Int) -> Matrix[dtype]:
     )
 
 
-fn identity[dtype: DType = DType.float64](n: Int) -> Matrix[dtype]:
+def identity[dtype: DType = DType.float64](n: Int) -> Matrix[dtype]:
     """Creates an n×n identity matrix. Alias for `eye()`.
 
     Parameters:
@@ -337,7 +341,7 @@ fn identity[dtype: DType = DType.float64](n: Int) -> Matrix[dtype]:
     return eye[dtype](n)
 
 
-fn diag[dtype: DType](var values: List[Scalar[dtype]]) -> Matrix[dtype]:
+def diag[dtype: DType](var values: List[Scalar[dtype]]) -> Matrix[dtype]:
     """Creates a square diagonal matrix from a list of values.
 
     Parameters:
@@ -363,9 +367,7 @@ fn diag[dtype: DType](var values: List[Scalar[dtype]]) -> Matrix[dtype]:
     )
 
 
-fn diag[
-    dtype: DType
-](mat: Matrix[dtype]) raises ValueError -> List[Scalar[dtype]]:
+def diag[dtype: DType](mat: Matrix[dtype]) raises -> List[Scalar[dtype]]:
     """Extracts the diagonal elements from a matrix.
 
     Parameters:

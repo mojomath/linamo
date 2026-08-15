@@ -7,8 +7,8 @@ Provides functions to convert between numpy ndarrays and MatMojo matrices:
 - `to_numpy()`: Export a Matrix to a numpy ndarray (data copy).
 """
 
-from python import Python, PythonObject
-from memory import memcpy
+from std.python import Python, PythonObject
+from std.memory import unsafe_memcpy
 
 from matmojo.types.matrix import Matrix
 
@@ -18,7 +18,7 @@ from matmojo.types.matrix import Matrix
 # ===----------------------------------------------------------------------===#
 
 
-fn matrix_from_numpy[
+def matrix_from_numpy[
     dtype: DType = DType.float64
 ](data: PythonObject) raises -> Matrix[dtype]:
     """Create a Matrix from a numpy ndarray.
@@ -41,10 +41,10 @@ fn matrix_from_numpy[
 
     Example:
         ```mojo
-        from python import Python
+        from std.python import Python
         from matmojo.routines.numpy_interop import matrix_from_numpy
 
-        fn main() raises:
+        def main() raises:
             var np = Python.import_module("numpy")
             var np_arr = np.arange(6.0).reshape(2, 3)
             var mat = matrix_from_numpy(np_arr)
@@ -68,8 +68,7 @@ fn matrix_from_numpy[
     # Map Mojo DType to numpy dtype for correct interpretation
     var np_dtype = np.float64
 
-    @parameter
-    if dtype == DType.float32:
+    comptime if dtype == DType.float32:
         np_dtype = np.float32
     elif dtype == DType.float16:
         np_dtype = np.float16
@@ -92,7 +91,7 @@ fn matrix_from_numpy[
 
     # Create Matrix data buffer and copy from numpy memory
     var mat_data = List[Scalar[dtype]](length=nrows * ncols, fill=0)
-    memcpy(dest=mat_data._data, src=pointer, count=nrows * ncols)
+    unsafe_memcpy(dest=mat_data._data, src=pointer, count=nrows * ncols)
 
     return Matrix[dtype](
         data=mat_data^,
@@ -108,7 +107,7 @@ fn matrix_from_numpy[
 # ===----------------------------------------------------------------------===#
 
 
-fn to_numpy[dtype: DType](mat: Matrix[dtype]) raises -> PythonObject:
+def to_numpy[dtype: DType](mat: Matrix[dtype]) raises -> PythonObject:
     """Export a Matrix to a numpy ndarray.
 
     Data is always copied. The resulting numpy array is C-contiguous.
@@ -127,7 +126,7 @@ fn to_numpy[dtype: DType](mat: Matrix[dtype]) raises -> PythonObject:
         from matmojo import matrix
         from matmojo.routines.numpy_interop import to_numpy
 
-        fn main() raises:
+        def main() raises:
             var mat = matrix[DType.float64]([[1.0, 2.0], [3.0, 4.0]])
             var np_arr = to_numpy(mat)
         ```
@@ -137,8 +136,7 @@ fn to_numpy[dtype: DType](mat: Matrix[dtype]) raises -> PythonObject:
     # Map Mojo DType to numpy dtype
     var np_dtype = np.float64
 
-    @parameter
-    if dtype == DType.float32:
+    comptime if dtype == DType.float32:
         np_dtype = np.float32
     elif dtype == DType.float16:
         np_dtype = np.float16
@@ -163,12 +161,12 @@ fn to_numpy[dtype: DType](mat: Matrix[dtype]) raises -> PythonObject:
 
     # For C-contiguous matrix, straight memcpy
     if mat.is_c_contiguous():
-        memcpy(dest=np_ptr, src=mat.data._data, count=nrows * ncols)
+        unsafe_memcpy(dest=np_ptr, src=mat.data._data, count=nrows * ncols)
     else:
         # General case: copy element by element
         for i in range(nrows):
             for j in range(ncols):
-                np_ptr[i * ncols + j] = mat.data[
+                np_ptr[unsafe_offset=i * ncols + j] = mat.data[
                     i * mat.row_stride + j * mat.col_stride
                 ]
 

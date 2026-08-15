@@ -3,32 +3,32 @@ trait MatrixLike(Copyable):
     for matrix operations.
     """
 
-    fn get_nrows(self) -> Int:
+    def get_nrows(self) -> Int:
         """Returns the number of rows in the matrix-like object."""
         ...
 
-    fn get_ncols(self) -> Int:
+    def get_ncols(self) -> Int:
         """Returns the number of columns in the matrix-like object."""
         ...
 
-    fn get_row_stride(self) -> Int:
+    def get_row_stride(self) -> Int:
         """Returns the row stride of the matrix-like object."""
         ...
 
-    fn get_col_stride(self) -> Int:
+    def get_col_stride(self) -> Int:
         """Returns the column stride of the matrix-like object."""
         ...
 
-    fn get_offset(self) -> Int:
+    def get_offset(self) -> Int:
         """Returns the offset in the underlying data buffer for the matrix-like
         object."""
         ...
 
-    fn get_size(self) -> Int:
+    def get_size(self) -> Int:
         """Returns the total number of elements in the matrix-like object."""
         ...
 
-    fn is_c_contiguous(self) -> Bool:
+    def is_c_contiguous(self) -> Bool:
         """Returns True if the data is stored in row-major (C) contiguous order.
 
         A matrix is C-contiguous when `col_stride == 1` and
@@ -37,7 +37,7 @@ trait MatrixLike(Copyable):
         """
         ...
 
-    fn is_f_contiguous(self) -> Bool:
+    def is_f_contiguous(self) -> Bool:
         """Returns True if the data is stored in column-major (Fortran) contiguous order.
 
         A matrix is F-contiguous when `row_stride == 1` and
@@ -46,7 +46,7 @@ trait MatrixLike(Copyable):
         """
         ...
 
-    fn is_row_contiguous(self) -> Bool:
+    def is_row_contiguous(self) -> Bool:
         """Returns True if elements within each row are contiguous in memory.
 
         This requires `col_stride == 1`. Unlike `is_c_contiguous()`, this
@@ -55,7 +55,7 @@ trait MatrixLike(Copyable):
         """
         ...
 
-    fn is_col_contiguous(self) -> Bool:
+    def is_col_contiguous(self) -> Bool:
         """Returns True if elements within each column are contiguous in memory.
 
         This requires `row_stride == 1`. Unlike `is_f_contiguous()`, this
@@ -64,11 +64,11 @@ trait MatrixLike(Copyable):
         """
         ...
 
-    fn copy(self) -> Self:
+    def copy(self) -> Self:
         """Returns a copy of the matrix-like object."""
         ...
 
-    fn __str__(self) -> String:
+    def __str__(self) -> String:
         """Returns a string representation of the matrix-like object."""
         ...
 

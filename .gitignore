@@ -16,6 +16,7 @@ kgen.trace.*
 
 # Packages
 *.mojopkg
+*.mojoc
 
 # Local files
 local

@@ -1,13 +1,13 @@
 from matmojo.prelude import *
 
 
-fn main() raises:
+def main() raises:
     # creation()
     calculation()
 
 
-fn creation() raises:
-    var mat1 = mm.matrix(
+def creation() raises:
+    var mat1 = mm.matrix[float64](
         [
             [1.1, 1.2, 1.3, 1.4],
             [2.1, 2.2, 2.3, 2.4],
@@ -19,7 +19,7 @@ fn creation() raises:
     )
     print("Memory layout (row-major):\n", mat1.data)
 
-    var mat2 = mm.matrix(
+    var mat2 = mm.matrix[float64](
         [
             [1.1, 1.2, 1.3, 1.4],
             [2.1, 2.2, 2.3, 2.4],
@@ -48,8 +48,8 @@ fn creation() raises:
     print("Matrix (column-major with shape):\n", mat4)
 
 
-fn calculation() raises:
-    var a = mm.matrix(
+def calculation() raises:
+    var a = mm.matrix[float64](
         [
             [1.0, 1.0, 1.0, 1.0],
             [1.0, 1.0, 1.0, 1.0],
@@ -58,7 +58,7 @@ fn calculation() raises:
         ],
         order="C",
     )
-    var b = mm.matrix(
+    var b = mm.matrix[float64](
         [
             [1.0, 1.0, 1.0, 1.0],
             [1.0, 1.0, 1.0, 1.0],

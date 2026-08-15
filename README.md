@@ -14,15 +14,30 @@ A matrix and linear algebra library for Mojo.
   - [Linear algebra](#linear-algebra)
 - [Project structure](#project-structure)
 - [Status](#status)
+  - [Requirements](#requirements)
 - [License](#license)
 
 ## Overview
 
-MatMojo focuses on efficient matrix operations and provides the foundations for linear algebra workflows in Mojo.
+MatMojo focuses on efficient **matrix operations** and provides the foundations
+for **linear algebra** workflows in Mojo.
 
-Compared to a general-purpose multi-dimensional array library, MatMojo is more specialized and optimized for 2D matrices. This allows us to keep the API small, clean, and focused, while still providing powerful functionality for matrix computations. If you need multi-dimensional arrays, consider the [NuMojo package](https://github.com/Mojo-Numerics-and-Algorithms-group/NuMojo).
+The name **MatMojo** has a double meaning: **Mat**rix + Mojo (emphasizing the
+core type) and **Mat**h + Mojo (emphasizing the linear algebra focus). Both
+readings capture what this library is about.
 
-Below are some differences between **MatMojo** (this package) and **NuMojo** (a general-purpose multi-dimensional array library):
+Compared to a general-purpose multi-dimensional array library, MatMojo is more
+specialized and optimized for linear algebra of 2D matrices. This allows us to
+keep the API small, clean, and focused, while still providing powerful
+functionality for matrix computations. It is designed to be similar to
+`scipy.linalg` in Python and `nalgebra` in Rust, but with a more Mojo-idiomatic
+API.
+
+If you need multi-dimensional arrays, consider the
+[NuMojo package](https://github.com/Mojo-Numerics-and-Algorithms-group/NuMojo).
+
+Below are some differences between **MatMojo** (this package) and **NuMojo** (a
+general-purpose multi-dimensional array library):
 
 | Feature                  | **MatMojo**                                       | **NuMojo**                                         |
 | ------------------------ | ------------------------------------------------- | -------------------------------------------------- |
@@ -43,17 +58,32 @@ Below are some differences between **MatMojo** (this package) and **NuMojo** (a 
 
 ## Goals
 
-The initial goal is to support [Mojo Miji](https://mojo-lang.com/miji/) practice content, focus on two-dimensional matrix computing, provide simple and intuitive syntax, and apply a series of targeted optimizations. Throughout the source code, detailed comments and explanations are provided, under the tag `[Mojo Miji]` to help readers understand the design decisions and implementation details.
+The initial goal is to support [Mojo Miji](https://mojo-lang.com/miji/) practice
+content, focus on two-dimensional matrix computing, provide simple and intuitive
+syntax, and apply a series of targeted optimizations. Throughout the source
+code, detailed comments and explanations are provided, under the tag
+`[Mojo Miji]` to help readers understand the design decisions and implementation
+details.
 
 - Keep the API small and easy to read while learning Mojo and this package.
 - Provide simple and intuitive syntax for matrix creation and operations.
 - Use **safe Mojo** features and avoid unsafe code as much as possible.
-- Emphasize contiguous storage for 2D matrices, but also support non-contiguous views through strides.
-- Optimize core operations like matrix multiplication which makes this package a better tool if you want to only use 2D matrices.
+- Emphasize contiguous storage for 2D matrices, but also support non-contiguous
+  views through strides.
+- Optimize core operations like matrix multiplication which makes this package a
+  better tool if you want to only use 2D matrices.
 
 ## Background
 
-At the moment I am still building out the project scaffolding and solidifying the core functionality. Because Mojo has not yet reached v1.0, breaking changes are frequent across compiler releases, so **pull requests are not accepted at this time**. If you have any suggestions, questions, or feedback, please feel free to open an [issue](https://github.com/mojomath/stamojo/issues), start a [discussion](https://github.com/mojomath/stamojo/discussions), or reach out on our [Discord channel](https://discord.gg/3rGH87uZTk). Thank you for your understanding!
+At the moment I am still building out the project scaffolding and solidifying
+the core functionality. MatMojo targets **Mojo 1.0.0**; while the language is
+now stable, this package's own API is still moving quickly, so
+**pull requests are not accepted at this time**. If you have any suggestions,
+questions, or feedback, please feel free to open an
+[issue](https://github.com/mojomath/stamojo/issues), start a
+[discussion](https://github.com/mojomath/stamojo/discussions), or reach out on
+our [Discord channel](https://discord.gg/3rGH87uZTk). Thank you for your
+understanding!
 
 ## Install
 
@@ -133,7 +163,7 @@ fn main() raises:
 
 ## Project structure
 
-```sh
+```text
 matmojo
 ├── pixi.toml
 ├── src/matmojo
@@ -146,7 +176,7 @@ matmojo
 │   ├── routines/
 │   │   ├── creation.mojo        # matrix, zeros, ones, full, eye, diag
 │   │   ├── math.mojo            # add, sub, mul, div, matmul, scalar ops
-│   │   └── linalg.mojo          # transpose, trace, lu, cholesky, qr
+│   │   └── linalg.mojo          # transpose, trace, lu, cholesky, qr, det, solve, inv, lstsq
 │   ├── traits/
 │   │   └── matrix_like.mojo     # MatrixLike trait
 │   └── utils/
@@ -162,13 +192,14 @@ matmojo
 
 ## Status
 
-MatMojo is under active development. Current progress:
+MatMojo is under active development. See the [Roadmap](docs/ROADMAP.md) for
+upcoming phases (eigenvalues, statistics, norms, etc.).
 
-- **Phase 0** ✅ Core types (`Matrix`, `StaticMatrix`, `MatrixView`), basic ops, CI
-- **Phase 1** ✅ Creation routines, transpose, trace, element-wise & scalar ops
-- **Phase 2** ✅ LU, Cholesky, QR decompositions
+### Requirements
 
-See the [Roadmap](docs/ROADMAP.md) for upcoming phases (solvers, eigenvalues, statistics, etc.).
+- Mojo `>=1.0.0,<1.1.0`
+- MAX `>=26.5.0,<26.6` — supplies `parallelize()`, which moved out of the Mojo
+  standard library in 1.0.0
 
 ## License
 

@@ -4,12 +4,12 @@ Numpy-powered integration tests for Phase 3 — Solvers & Inverse.
 Tests det, solve, inv, lstsq against numpy.linalg as ground truth.
 """
 
-import testing
+import std.testing as testing
 from matmojo.routines.linalg import det, solve, inv, lstsq, transpose
 from matmojo.routines.math import matmul
 from matmojo.routines.numpy_interop import matrix_from_numpy, to_numpy
 from matmojo.utils.test_utils import assert_matrices_close
-from python import Python, PythonObject
+from std.python import Python, PythonObject
 
 
 # ===----------------------------------------------------------------------===#
@@ -17,7 +17,7 @@ from python import Python, PythonObject
 # ===----------------------------------------------------------------------===#
 
 
-fn _make_invertible(np: PythonObject, n: Int) raises -> PythonObject:
+def _make_invertible(np: PythonObject, n: Int) raises -> PythonObject:
     """Create a random n×n invertible matrix (diagonal boost)."""
     return np.random.rand(n, n) + np.eye(n) * Float64(n)
 
@@ -27,7 +27,7 @@ fn _make_invertible(np: PythonObject, n: Int) raises -> PythonObject:
 # ===----------------------------------------------------------------------===#
 
 
-fn _test_det(np: PythonObject, n: Int) raises:
+def _test_det(np: PythonObject, n: Int) raises:
     """Helper: compare det(A) vs np.linalg.det(A)."""
     var a_np = _make_invertible(np, n)
     var a = matrix_from_numpy(a_np)
@@ -55,7 +55,7 @@ fn _test_det(np: PythonObject, n: Int) raises:
     )
 
 
-fn test_det_random() raises:
+def test_det_random() raises:
     """Det(A) == np.linalg.det(A) for random invertible matrices."""
     var np = Python.import_module("numpy")
     _test_det(np, 1)
@@ -66,7 +66,7 @@ fn test_det_random() raises:
     _test_det(np, 10)
 
 
-fn test_det_permutation_sign() raises:
+def test_det_permutation_sign() raises:
     """Det correctly tracks sign through row permutations."""
     var np = Python.import_module("numpy")
     # Run several random matrices and compare signs
@@ -95,7 +95,7 @@ fn test_det_permutation_sign() raises:
 # ===----------------------------------------------------------------------===#
 
 
-fn _test_solve(np: PythonObject, n: Int, k: Int) raises:
+def _test_solve(np: PythonObject, n: Int, k: Int) raises:
     """Helper: compare solve(A, b) vs np.linalg.solve(A, b)."""
     var a_np = _make_invertible(np, n)
     var b_np = np.random.rand(n, k)
@@ -118,7 +118,7 @@ fn _test_solve(np: PythonObject, n: Int, k: Int) raises:
     )
 
 
-fn test_solve_random() raises:
+def test_solve_random() raises:
     """Solve(A, b) == np.linalg.solve(A, b) for random systems."""
     var np = Python.import_module("numpy")
     _test_solve(np, 2, 1)
@@ -128,7 +128,7 @@ fn test_solve_random() raises:
     _test_solve(np, 10, 1)
 
 
-fn test_solve_multiple_rhs_random() raises:
+def test_solve_multiple_rhs_random() raises:
     """Solve with multiple right-hand sides vs numpy."""
     var np = Python.import_module("numpy")
     _test_solve(np, 4, 3)
@@ -136,7 +136,7 @@ fn test_solve_multiple_rhs_random() raises:
     _test_solve(np, 8, 2)
 
 
-fn test_solve_reconstruction_random() raises:
+def test_solve_reconstruction_random() raises:
     """A @ solve(A, b) == b for random systems."""
     var np = Python.import_module("numpy")
     var a_np = _make_invertible(np, 6)
@@ -158,7 +158,7 @@ fn test_solve_reconstruction_random() raises:
 # ===----------------------------------------------------------------------===#
 
 
-fn _test_inv(np: PythonObject, n: Int) raises:
+def _test_inv(np: PythonObject, n: Int) raises:
     """Helper: compare inv(A) vs np.linalg.inv(A)."""
     var a_np = _make_invertible(np, n)
     var a = matrix_from_numpy(a_np)
@@ -173,7 +173,7 @@ fn _test_inv(np: PythonObject, n: Int) raises:
     )
 
 
-fn test_inv_random() raises:
+def test_inv_random() raises:
     """Inv(A) == np.linalg.inv(A) for random invertible matrices."""
     var np = Python.import_module("numpy")
     _test_inv(np, 2)
@@ -182,7 +182,7 @@ fn test_inv_random() raises:
     _test_inv(np, 8)
 
 
-fn test_inv_roundtrip_random() raises:
+def test_inv_roundtrip_random() raises:
     """A @ inv(A) == I for random matrices."""
     var np = Python.import_module("numpy")
     for _ in range(3):
@@ -205,7 +205,7 @@ fn test_inv_roundtrip_random() raises:
 # ===----------------------------------------------------------------------===#
 
 
-fn _test_lstsq(np: PythonObject, m: Int, n: Int, k: Int) raises:
+def _test_lstsq(np: PythonObject, m: Int, n: Int, k: Int) raises:
     """Helper: compare lstsq(A, b) vs np.linalg.lstsq(A, b)."""
     var a_np = np.random.rand(m, n)
     var b_np = np.random.rand(m, k)
@@ -228,7 +228,7 @@ fn _test_lstsq(np: PythonObject, m: Int, n: Int, k: Int) raises:
     )
 
 
-fn test_lstsq_random() raises:
+def test_lstsq_random() raises:
     """Lstsq(A, b) == np.linalg.lstsq(A, b) for random overdetermined."""
     var np = Python.import_module("numpy")
     _test_lstsq(np, 5, 2, 1)
@@ -237,14 +237,14 @@ fn test_lstsq_random() raises:
     _test_lstsq(np, 8, 4, 1)
 
 
-fn test_lstsq_multiple_rhs_random() raises:
+def test_lstsq_multiple_rhs_random() raises:
     """Lstsq with multiple RHS vs numpy."""
     var np = Python.import_module("numpy")
     _test_lstsq(np, 10, 3, 4)
     _test_lstsq(np, 15, 5, 3)
 
 
-fn test_lstsq_exact_fit_random() raises:
+def test_lstsq_exact_fit_random() raises:
     """Lstsq on consistent square system matches solve."""
     var np = Python.import_module("numpy")
     var a_np = _make_invertible(np, 5)
@@ -262,7 +262,7 @@ fn test_lstsq_exact_fit_random() raises:
     )
 
 
-fn test_lstsq_normal_equations_random() raises:
+def test_lstsq_normal_equations_random() raises:
     """A^T A x = A^T b for lstsq solution (normal equations)."""
     var np = Python.import_module("numpy")
     var a_np = np.random.rand(12, 4)
@@ -287,5 +287,5 @@ fn test_lstsq_normal_equations_random() raises:
 # ===----------------------------------------------------------------------===#
 
 
-fn main() raises:
+def main() raises:
     testing.TestSuite.discover_tests[__functions_in_module()]().run()

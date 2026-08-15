@@ -2,17 +2,18 @@
 This module defines the `MatrixView` type, which is a view on a `Matrix`.
 """
 
-import math as builtin_math
+import std.math as builtin_math
 import matmojo.routines.math
 
 from matmojo.traits.matrix_like import MatrixLike
+from matmojo.types.errors import ValueError
 from matmojo.types.matrix import Matrix
 from matmojo.utils.indexing import get_offset, indices_within_bounds
-from memory import Pointer
+from std.memory import Pointer
 
 
 struct MatrixView[mut: Bool, //, dtype: DType, origin: Origin[mut=mut]](
-    MatrixLike, Stringable, Writable
+    MatrixLike, Writable
 ):
     """A 2D matrix view type that references another Matrix.
 
@@ -42,50 +43,50 @@ struct MatrixView[mut: Bool, //, dtype: DType, origin: Origin[mut=mut]](
     # Retrieve attributes
     # ===--------------------------------------------------------------------===#
 
-    fn get_data(self) -> Span[Self.ElementType, Self.origin]:
+    def get_data(self) -> Span[Self.ElementType, Self.origin]:
         """Returns the underlying data of the matrix."""
         return self.data
 
-    fn get_nrows(self) -> Int:
+    def get_nrows(self) -> Int:
         """Returns the number of rows in the matrix."""
         return self.nrows
 
-    fn get_ncols(self) -> Int:
+    def get_ncols(self) -> Int:
         """Returns the number of columns in the matrix."""
         return self.ncols
 
-    fn get_row_stride(self) -> Int:
+    def get_row_stride(self) -> Int:
         """Returns the row stride of the matrix."""
         return self.row_stride
 
-    fn get_col_stride(self) -> Int:
+    def get_col_stride(self) -> Int:
         """Returns the column stride of the matrix."""
         return self.col_stride
 
-    fn get_offset(self) -> Int:
+    def get_offset(self) -> Int:
         """Returns the offset in the underlying data buffer for the matrix."""
         return self.offset
 
-    fn get_size(self) -> Int:
+    def get_size(self) -> Int:
         """Returns the total number of elements in the matrix."""
         return self.nrows * self.ncols
 
-    fn is_c_contiguous(self) -> Bool:
+    def is_c_contiguous(self) -> Bool:
         """Returns True if the view is C-contiguous (row-major, dense)."""
         return self.col_stride == 1 and self.row_stride == self.ncols
 
-    fn is_f_contiguous(self) -> Bool:
+    def is_f_contiguous(self) -> Bool:
         """Returns True if the view is F-contiguous (column-major, dense)."""
         return self.row_stride == 1 and self.col_stride == self.nrows
 
-    fn is_row_contiguous(self) -> Bool:
+    def is_row_contiguous(self) -> Bool:
         """Returns True if elements within each row are contiguous (col_stride == 1).
 
         Allows padding between rows (row_stride >= ncols).
         """
         return self.col_stride == 1
 
-    fn is_col_contiguous(self) -> Bool:
+    def is_col_contiguous(self) -> Bool:
         """Returns True if elements within each column are contiguous (row_stride == 1).
 
         Allows padding between columns (col_stride >= nrows).
@@ -96,7 +97,7 @@ struct MatrixView[mut: Bool, //, dtype: DType, origin: Origin[mut=mut]](
     # Life Cycle Management
     # ===--------------------------------------------------------------------===#
 
-    fn __init__(
+    def __init__(
         out self,
         data: Span[Self.ElementType, Self.origin],
         *,
@@ -123,7 +124,7 @@ struct MatrixView[mut: Bool, //, dtype: DType, origin: Origin[mut=mut]](
         self.col_stride = col_stride
         self.offset = offset
 
-    fn __init__(
+    def __init__(
         out self,
         data: Span[Self.ElementType, Self.origin],
         *,
@@ -153,7 +154,7 @@ struct MatrixView[mut: Bool, //, dtype: DType, origin: Origin[mut=mut]](
     # Element Access and Mutation
     # ===--------------------------------------------------------------------===#
 
-    fn __getitem__(self, row: Int, col: Int) -> Self.ElementType:
+    def __getitem__(self, row: Int, col: Int) -> Self.ElementType:
         """Accesses an element of the matrix view using row and column indices.
         """
         var index = self.offset + row * self.row_stride + col * self.col_stride
@@ -164,7 +165,7 @@ struct MatrixView[mut: Bool, //, dtype: DType, origin: Origin[mut=mut]](
     # `MatrixView[Self.dtype, Self.origin]`
     # It means that the view on view has the same data type and origin as the
     # original view.
-    fn __getitem__(
+    def __getitem__(
         self, rows: Slice, cols: Slice
     ) raises -> MatrixView[Self.dtype, Self.origin]:
         """Gets a view of the specified row with a slice of columns."""
@@ -179,7 +180,7 @@ struct MatrixView[mut: Bool, //, dtype: DType, origin: Origin[mut=mut]](
             initial_offset=self.offset,
         )
 
-    fn get_unsafe(self, row: Int, col: Int) -> Scalar[Self.dtype]:
+    def get_unsafe(self, row: Int, col: Int) -> Scalar[Self.dtype]:
         """Gets the element at the specified indices without bounds checking.
 
         This method is unsafe because it does not perform bounds checking on
@@ -206,9 +207,9 @@ struct MatrixView[mut: Bool, //, dtype: DType, origin: Origin[mut=mut]](
     # String Representation and Writing
     # ===--------------------------------------------------------------------===#
 
-    fn __str__(self) -> String:
+    def __str__(self) -> String:
         """Returns a string representation of the matrix."""
-        result = String("")
+        var result = String("")
         for i in range(self.nrows):
             for j in range(self.ncols):
                 result += (
@@ -225,7 +226,7 @@ struct MatrixView[mut: Bool, //, dtype: DType, origin: Origin[mut=mut]](
                 result += "\n"
         return result
 
-    fn write_to[W: Writer](self, mut writer: W):
+    def write_to[W: Writer](self, mut writer: W):
         """Writes the matrix view to a writer."""
         writer.write("MatrixView, ")
         writer.write(self.dtype)
@@ -262,7 +263,7 @@ struct MatrixView[mut: Bool, //, dtype: DType, origin: Origin[mut=mut]](
     # Basic math dunders
     # ===--------------------------------------------------------------------===#
 
-    fn __add__[
+    def __add__[
         origin_b: Origin
     ](self, other: MatrixView[Self.dtype, origin_b]) raises -> Matrix[
         Self.dtype
@@ -270,11 +271,11 @@ struct MatrixView[mut: Bool, //, dtype: DType, origin: Origin[mut=mut]](
         """Performs element-wise addition of two matrix views."""
         return matmojo.routines.math.add(self, other)
 
-    fn __add__(self, other: Matrix[Self.dtype]) raises -> Matrix[Self.dtype]:
+    def __add__(self, other: Matrix[Self.dtype]) raises -> Matrix[Self.dtype]:
         """Performs element-wise addition of a matrix view and a matrix."""
         return matmojo.routines.math.add(self, other)
 
-    fn __sub__[
+    def __sub__[
         origin_b: Origin
     ](self, other: MatrixView[Self.dtype, origin_b]) raises -> Matrix[
         Self.dtype
@@ -282,11 +283,11 @@ struct MatrixView[mut: Bool, //, dtype: DType, origin: Origin[mut=mut]](
         """Performs element-wise subtraction of two matrix views."""
         return matmojo.routines.math.sub(self, other)
 
-    fn __sub__(self, other: Matrix[Self.dtype]) raises -> Matrix[Self.dtype]:
+    def __sub__(self, other: Matrix[Self.dtype]) raises -> Matrix[Self.dtype]:
         """Performs element-wise subtraction of a matrix view and a matrix."""
         return matmojo.routines.math.sub(self, other)
 
-    fn __mul__[
+    def __mul__[
         origin_b: Origin
     ](self, other: MatrixView[Self.dtype, origin_b]) raises -> Matrix[
         Self.dtype
@@ -294,12 +295,12 @@ struct MatrixView[mut: Bool, //, dtype: DType, origin: Origin[mut=mut]](
         """Performs element-wise multiplication of two matrix views."""
         return matmojo.routines.math.mul(self, other)
 
-    fn __mul__(self, other: Matrix[Self.dtype]) raises -> Matrix[Self.dtype]:
+    def __mul__(self, other: Matrix[Self.dtype]) raises -> Matrix[Self.dtype]:
         """Performs element-wise multiplication of a matrix view and a matrix.
         """
         return matmojo.routines.math.mul(self, other)
 
-    fn __truediv__[
+    def __truediv__[
         origin_b: Origin
     ](self, other: MatrixView[Self.dtype, origin_b]) raises -> Matrix[
         Self.dtype
@@ -307,13 +308,13 @@ struct MatrixView[mut: Bool, //, dtype: DType, origin: Origin[mut=mut]](
         """Performs element-wise division of two matrix views."""
         return matmojo.routines.math.div(self, other)
 
-    fn __truediv__(
+    def __truediv__(
         self, other: Matrix[Self.dtype]
     ) raises -> Matrix[Self.dtype]:
         """Performs element-wise division of a matrix view and a matrix."""
         return matmojo.routines.math.div(self, other)
 
-    fn __matmul__[
+    def __matmul__[
         origin_b: Origin
     ](self, other: MatrixView[Self.dtype, origin_b]) raises -> Matrix[
         Self.dtype
@@ -321,6 +322,8 @@ struct MatrixView[mut: Bool, //, dtype: DType, origin: Origin[mut=mut]](
         """Performs matrix multiplication of two matrix views."""
         return matmojo.routines.math.matmul(self, other)
 
-    fn __matmul__(self, other: Matrix[Self.dtype]) raises -> Matrix[Self.dtype]:
+    def __matmul__(
+        self, other: Matrix[Self.dtype]
+    ) raises -> Matrix[Self.dtype]:
         """Performs matrix multiplication of a matrix view and a matrix."""
         return matmojo.routines.math.matmul(self, other)

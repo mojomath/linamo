@@ -6,9 +6,9 @@ For numpy-as-ground-truth tests of math/linalg/creation, see the
 corresponding test_*_numpy.mojo files.
 """
 
-import testing
+import std.testing as testing
 from matmojo.routines.numpy_interop import matrix_from_numpy, to_numpy
-from python import Python
+from std.python import Python
 
 
 # ===----------------------------------------------------------------------===#
@@ -16,7 +16,7 @@ from python import Python
 # ===----------------------------------------------------------------------===#
 
 
-fn test_matrix_from_numpy_basic() raises:
+def test_matrix_from_numpy_basic() raises:
     """Test basic creation of a Matrix from a numpy 2D array."""
     var np = Python.import_module("numpy")
     var np_arr = np.arange(1.0, 7.0).reshape(2, 3)
@@ -31,7 +31,7 @@ fn test_matrix_from_numpy_basic() raises:
     testing.assert_equal(mat[1, 2], 6.0)
 
 
-fn test_matrix_from_numpy_f_contiguous() raises:
+def test_matrix_from_numpy_f_contiguous() raises:
     """Test that F-contiguous numpy arrays are handled correctly."""
     var np = Python.import_module("numpy")
     var np_arr = np.asfortranarray(np.arange(1.0, 5.0).reshape(2, 2))
@@ -44,7 +44,7 @@ fn test_matrix_from_numpy_f_contiguous() raises:
     testing.assert_true(mat.is_c_contiguous())
 
 
-fn test_matrix_from_numpy_1d_raises() raises:
+def test_matrix_from_numpy_1d_raises() raises:
     """Test that a 1D numpy array raises an error."""
     var np = Python.import_module("numpy")
     var np_1d = np.arange(3.0)
@@ -56,7 +56,7 @@ fn test_matrix_from_numpy_1d_raises() raises:
     testing.assert_true(got_error, msg="Should raise for 1D array")
 
 
-fn test_matrix_from_numpy_3d_raises() raises:
+def test_matrix_from_numpy_3d_raises() raises:
     """Test that a 3D numpy array raises an error."""
     var np = Python.import_module("numpy")
     var np_3d = np.arange(24.0).reshape(2, 3, 4)
@@ -68,7 +68,7 @@ fn test_matrix_from_numpy_3d_raises() raises:
     testing.assert_true(got_error, msg="Should raise for 3D array")
 
 
-fn test_matrix_from_numpy_single_element() raises:
+def test_matrix_from_numpy_single_element() raises:
     """Test creation from a 1x1 numpy array."""
     var np = Python.import_module("numpy")
     var np_arr = np.arange(42.0, 43.0).reshape(1, 1)
@@ -83,7 +83,7 @@ fn test_matrix_from_numpy_single_element() raises:
 # ===----------------------------------------------------------------------===#
 
 
-fn test_to_numpy_round_trip() raises:
+def test_to_numpy_round_trip() raises:
     """Test numpy -> matrix -> numpy round-trip preserves data."""
     var np = Python.import_module("numpy")
     var np_arr = np.arange(1.0, 13.0).reshape(3, 4)
@@ -95,7 +95,7 @@ fn test_to_numpy_round_trip() raises:
     )
 
 
-fn test_to_numpy_round_trip_random() raises:
+def test_to_numpy_round_trip_random() raises:
     """Test round-trip with random data."""
     var np = Python.import_module("numpy")
     var np_arr = np.random.rand(5, 7)
@@ -112,5 +112,5 @@ fn test_to_numpy_round_trip_random() raises:
 # ===----------------------------------------------------------------------===#
 
 
-fn main() raises:
+def main() raises:
     testing.TestSuite.discover_tests[__functions_in_module()]().run()

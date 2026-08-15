@@ -7,12 +7,12 @@ Provides assertion functions for comparing matrices, including:
 - `assert_matrices_close()`: Approximate comparison with configurable tolerances.
 """
 
-from testing import assert_true
+from std.testing import assert_true
 
 from matmojo.types.matrix import Matrix
 
 
-fn assert_matrices_equal[
+def assert_matrices_equal[
     dtype: DType = DType.float64
 ](a: Matrix[dtype], b: Matrix[dtype], msg: String = "") raises:
     """Assert two C-contiguous matrices are exactly equal element-by-element.
@@ -57,18 +57,18 @@ fn assert_matrices_equal[
     var pb = b.data._data
     for i in range(n):
         assert_true(
-            pa[i] == pb[i],
+            pa[unsafe_offset=i] == pb[unsafe_offset=i],
             msg=msg
             + " element mismatch at flat index "
             + String(i)
             + ": "
-            + String(pa[i])
+            + String(pa[unsafe_offset=i])
             + " vs "
-            + String(pb[i]),
+            + String(pb[unsafe_offset=i]),
         )
 
 
-fn assert_matrices_close[
+def assert_matrices_close[
     dtype: DType = DType.float64
 ](
     a: Matrix[dtype],

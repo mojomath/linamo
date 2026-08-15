@@ -5,12 +5,12 @@ Uses numpy.random to generate arbitrary-sized matrices and compares
 matmojo results against numpy as ground truth.
 """
 
-import testing
+import std.testing as testing
 from matmojo.routines.math import add, sub, mul, div, matmul
 from matmojo.routines.math import scalar_add, scalar_sub, scalar_mul, scalar_div
 from matmojo.routines.numpy_interop import matrix_from_numpy, to_numpy
 from matmojo.utils.test_utils import assert_matrices_close
-from python import Python, PythonObject
+from std.python import Python, PythonObject
 
 
 # ===----------------------------------------------------------------------===#
@@ -18,7 +18,7 @@ from python import Python, PythonObject
 # ===----------------------------------------------------------------------===#
 
 
-fn _test_elementwise_op(
+def _test_elementwise_op(
     np: PythonObject,
     r: Int,
     c: Int,
@@ -60,7 +60,7 @@ fn _test_elementwise_op(
         )
 
 
-fn _test_matmul(np: PythonObject, m: Int, k: Int, n: Int) raises:
+def _test_matmul(np: PythonObject, m: Int, k: Int, n: Int) raises:
     """Helper: test matmul (m,k) @ (k,n) against numpy."""
     var a_np = np.random.rand(m, k)
     var b_np = np.random.rand(k, n)
@@ -87,7 +87,7 @@ fn _test_matmul(np: PythonObject, m: Int, k: Int, n: Int) raises:
 # ===----------------------------------------------------------------------===#
 
 
-fn test_add_random() raises:
+def test_add_random() raises:
     """Tests add(A, B) == np.add(A, B) with random matrices of various sizes."""
     var np = Python.import_module("numpy")
     _test_elementwise_op(np, 3, 4, "add")
@@ -98,7 +98,7 @@ fn test_add_random() raises:
     _test_elementwise_op(np, 50, 1, "add")
 
 
-fn test_sub_random() raises:
+def test_sub_random() raises:
     """Tests sub(A, B) == np.subtract(A, B) with random matrices."""
     var np = Python.import_module("numpy")
     _test_elementwise_op(np, 4, 5, "sub")
@@ -107,7 +107,7 @@ fn test_sub_random() raises:
     _test_elementwise_op(np, 8, 8, "sub")
 
 
-fn test_mul_random() raises:
+def test_mul_random() raises:
     """Tests mul(A, B) == np.multiply(A, B) (Hadamard) with random matrices."""
     var np = Python.import_module("numpy")
     _test_elementwise_op(np, 5, 6, "mul")
@@ -116,7 +116,7 @@ fn test_mul_random() raises:
     _test_elementwise_op(np, 20, 20, "mul")
 
 
-fn test_div_random() raises:
+def test_div_random() raises:
     """Tests div(A, B) == np.divide(A, B) with random positive matrices."""
     var np = Python.import_module("numpy")
     _test_elementwise_op(np, 3, 3, "div")
@@ -130,7 +130,7 @@ fn test_div_random() raises:
 # ===----------------------------------------------------------------------===#
 
 
-fn test_matmul_square_random() raises:
+def test_matmul_square_random() raises:
     """Tests matmul(A, B) == np.matmul(A, B) for random square matrices."""
     var np = Python.import_module("numpy")
     _test_matmul(np, 1, 1, 1)
@@ -141,7 +141,7 @@ fn test_matmul_square_random() raises:
     _test_matmul(np, 32, 32, 32)
 
 
-fn test_matmul_rect_random() raises:
+def test_matmul_rect_random() raises:
     """Tests matmul(A, B) == np.matmul(A, B) for random rectangular matrices."""
     var np = Python.import_module("numpy")
     _test_matmul(np, 2, 5, 3)
@@ -151,7 +151,7 @@ fn test_matmul_rect_random() raises:
     _test_matmul(np, 3, 1, 5)
 
 
-fn test_matmul_large_random() raises:
+def test_matmul_large_random() raises:
     """Tests matmul for larger matrices (64x48 @ 48x64)."""
     var np = Python.import_module("numpy")
     _test_matmul(np, 64, 48, 64)
@@ -162,7 +162,7 @@ fn test_matmul_large_random() raises:
 # ===----------------------------------------------------------------------===#
 
 
-fn test_scalar_add_random() raises:
+def test_scalar_add_random() raises:
     """Tests scalar_add(A, s) == A + s via numpy."""
     var np = Python.import_module("numpy")
     var a_np = np.random.rand(5, 7)
@@ -177,7 +177,7 @@ fn test_scalar_add_random() raises:
     )
 
 
-fn test_scalar_sub_random() raises:
+def test_scalar_sub_random() raises:
     """Tests scalar_sub(A, s) == A - s via numpy."""
     var np = Python.import_module("numpy")
     var a_np = np.random.rand(6, 4)
@@ -192,7 +192,7 @@ fn test_scalar_sub_random() raises:
     )
 
 
-fn test_scalar_mul_random() raises:
+def test_scalar_mul_random() raises:
     """Tests scalar_mul(A, s) == A * s via numpy."""
     var np = Python.import_module("numpy")
     var a_np = np.random.rand(8, 3)
@@ -207,7 +207,7 @@ fn test_scalar_mul_random() raises:
     )
 
 
-fn test_scalar_div_random() raises:
+def test_scalar_div_random() raises:
     """Tests scalar_div(A, s) == A / s via numpy."""
     var np = Python.import_module("numpy")
     var a_np = np.random.rand(4, 9)
@@ -227,5 +227,5 @@ fn test_scalar_div_random() raises:
 # ===----------------------------------------------------------------------===#
 
 
-fn main() raises:
+def main() raises:
     testing.TestSuite.discover_tests[__functions_in_module()]().run()

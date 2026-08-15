@@ -5,14 +5,14 @@ Uses numpy.random to generate matrices and compares matmojo's
 transpose, trace, LU, Cholesky, QR against numpy.linalg as ground truth.
 """
 
-import testing
+import std.testing as testing
 from matmojo.routines.creation import eye
 from matmojo.routines.linalg import transpose, trace, lu, cholesky, qr
 from matmojo.routines.math import matmul
 from matmojo.routines.numpy_interop import matrix_from_numpy, to_numpy
 from matmojo.types.matrix import Matrix
 from matmojo.utils.test_utils import assert_matrices_close
-from python import Python, PythonObject
+from std.python import Python, PythonObject
 
 
 # ===----------------------------------------------------------------------===#
@@ -20,13 +20,13 @@ from python import Python, PythonObject
 # ===----------------------------------------------------------------------===#
 
 
-fn _make_spd(np: PythonObject, n: Int) raises -> PythonObject:
+def _make_spd(np: PythonObject, n: Int) raises -> PythonObject:
     """Create a random n×n symmetric positive-definite numpy matrix."""
     var A = np.random.rand(n, n)
     return np.matmul(A, A.T) + np.eye(n) * Float64(n)
 
 
-fn _test_transpose(np: PythonObject, r: Int, c: Int) raises:
+def _test_transpose(np: PythonObject, r: Int, c: Int) raises:
     """Helper: test transpose for one shape."""
     var a_np = np.random.rand(r, c)
     var a = matrix_from_numpy(a_np)
@@ -39,7 +39,7 @@ fn _test_transpose(np: PythonObject, r: Int, c: Int) raises:
     )
 
 
-fn _test_trace(np: PythonObject, n: Int) raises:
+def _test_trace(np: PythonObject, n: Int) raises:
     """Helper: test trace for one size."""
     var a_np = np.random.rand(n, n)
     var a = matrix_from_numpy(a_np)
@@ -61,7 +61,7 @@ fn _test_trace(np: PythonObject, n: Int) raises:
     )
 
 
-fn _permute_rows_mm(
+def _permute_rows_mm(
     mat: Matrix[DType.float64],
     piv: List[Int],
 ) raises -> Matrix[DType.float64]:
@@ -81,7 +81,7 @@ fn _permute_rows_mm(
     )
 
 
-fn _test_cholesky(np: PythonObject, n: Int) raises:
+def _test_cholesky(np: PythonObject, n: Int) raises:
     """Helper: test Cholesky A == L @ L^T for one size."""
     var a_np = _make_spd(np, n)
     var a = matrix_from_numpy(a_np)
@@ -96,7 +96,7 @@ fn _test_cholesky(np: PythonObject, n: Int) raises:
     )
 
 
-fn _test_qr_square(np: PythonObject, n: Int) raises:
+def _test_qr_square(np: PythonObject, n: Int) raises:
     """Helper: test QR A == Q @ R for one square size."""
     var a_np = np.random.rand(n, n)
     var a = matrix_from_numpy(a_np)
@@ -112,7 +112,7 @@ fn _test_qr_square(np: PythonObject, n: Int) raises:
     )
 
 
-fn _test_qr_tall(np: PythonObject, m: Int, n: Int) raises:
+def _test_qr_tall(np: PythonObject, m: Int, n: Int) raises:
     """Helper: test QR A == Q @ R for one tall shape."""
     var a_np = np.random.rand(m, n)
     var a = matrix_from_numpy(a_np)
@@ -128,7 +128,7 @@ fn _test_qr_tall(np: PythonObject, m: Int, n: Int) raises:
     )
 
 
-fn _test_qr_orthogonality(np: PythonObject, n: Int) raises:
+def _test_qr_orthogonality(np: PythonObject, n: Int) raises:
     """Helper: test Q^T @ Q == I for one square size."""
     var a_np = np.random.rand(n, n)
     var a = matrix_from_numpy(a_np)
@@ -150,7 +150,7 @@ fn _test_qr_orthogonality(np: PythonObject, n: Int) raises:
 # ===----------------------------------------------------------------------===#
 
 
-fn test_transpose_random() raises:
+def test_transpose_random() raises:
     """Transpose(A) == A.T via numpy for various shapes."""
     var np = Python.import_module("numpy")
     _test_transpose(np, 1, 1)
@@ -166,7 +166,7 @@ fn test_transpose_random() raises:
 # ===----------------------------------------------------------------------===#
 
 
-fn test_trace_random() raises:
+def test_trace_random() raises:
     """Trace(A) == np.trace(A) for random square matrices."""
     var np = Python.import_module("numpy")
     _test_trace(np, 1)
@@ -181,7 +181,7 @@ fn test_trace_random() raises:
 # ===----------------------------------------------------------------------===#
 
 
-fn test_lu_random_small() raises:
+def test_lu_random_small() raises:
     """LU: PA == LU for random 4x4 matrices."""
     var np = Python.import_module("numpy")
     for _ in range(5):
@@ -196,7 +196,7 @@ fn test_lu_random_small() raises:
         assert_matrices_close(PA, LU_result, msg="LU 4x4", atol=1e-10)
 
 
-fn test_lu_random_medium() raises:
+def test_lu_random_medium() raises:
     """LU: PA == LU for random 10x10 matrix."""
     var np = Python.import_module("numpy")
     var a_np = np.random.rand(10, 10) + np.eye(10) * 0.1
@@ -215,7 +215,7 @@ fn test_lu_random_medium() raises:
 # ===----------------------------------------------------------------------===#
 
 
-fn test_cholesky_random() raises:
+def test_cholesky_random() raises:
     """Cholesky: A == L @ L^T for random SPD matrices of various sizes."""
     var np = Python.import_module("numpy")
     _test_cholesky(np, 2)
@@ -224,7 +224,7 @@ fn test_cholesky_random() raises:
     _test_cholesky(np, 8)
 
 
-fn test_cholesky_vs_numpy() raises:
+def test_cholesky_vs_numpy() raises:
     """Cholesky L matches np.linalg.cholesky(A) for a 5x5 SPD matrix."""
     var np = Python.import_module("numpy")
     var a_np = _make_spd(np, 5)
@@ -245,7 +245,7 @@ fn test_cholesky_vs_numpy() raises:
 # ===----------------------------------------------------------------------===#
 
 
-fn test_qr_random_square() raises:
+def test_qr_random_square() raises:
     """QR: A == Q @ R for random square matrices."""
     var np = Python.import_module("numpy")
     _test_qr_square(np, 2)
@@ -254,7 +254,7 @@ fn test_qr_random_square() raises:
     _test_qr_square(np, 8)
 
 
-fn test_qr_random_tall() raises:
+def test_qr_random_tall() raises:
     """QR: A == Q @ R for random tall matrices (m > n)."""
     var np = Python.import_module("numpy")
     _test_qr_tall(np, 6, 3)
@@ -262,7 +262,7 @@ fn test_qr_random_tall() raises:
     _test_qr_tall(np, 20, 5)
 
 
-fn test_qr_orthogonality_random() raises:
+def test_qr_orthogonality_random() raises:
     """QR: Q^T @ Q == I for random matrices."""
     var np = Python.import_module("numpy")
     _test_qr_orthogonality(np, 3)
@@ -275,5 +275,5 @@ fn test_qr_orthogonality_random() raises:
 # ===----------------------------------------------------------------------===#
 
 
-fn main() raises:
+def main() raises:
     testing.TestSuite.discover_tests[__functions_in_module()]().run()

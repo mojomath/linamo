@@ -1,13 +1,13 @@
 [workspace]
 authors = ["ZHU Yuhao 朱宇浩 <dr.yuhao.zhu@outlook.com>"]
-channels = ["https://conda.modular.com/max-nightly", "https://repo.prefix.dev/modular-community", "conda-forge"]
+channels = ["https://conda.modular.com/max", "https://repo.prefix.dev/modular-community", "conda-forge"]
 name = "matmojo"
-platforms = ["osx-arm64"]
-version = "0.1.0"
+platforms = ["osx-arm64", "linux-64"]
+version = "0.2.0"
 
 [tasks]
 # Build the package into the test directory
-pack = "pixi run mojo package -o tests/matmojo.mojopkg src/matmojo"
+pack = "pixi run mojo precompile -o tests/matmojo.mojoc src/matmojo"
 
 # Run the test files (uses -I src to import directly, no package build needed)
 test = "bash ./tests/test_all.sh"
@@ -15,6 +15,26 @@ test = "bash ./tests/test_all.sh"
 # format the code
 format = "pixi run mojo format ./src && pixi run mojo format ./tests"
 
+# Wrap Markdown prose at 80 columns (rules + reflow config in rumdl.toml)
+formatmd = "pixi run rumdl fmt ."
+
+# Install the git pre-commit hook into .git/hooks (run once per clone)
+hooks = "pixi run pre-commit install"
+
 [dependencies]
-mojo = ">0.26.1"
+mojo = ">=1.0.0, <1.1.0"
+# `parallelize()` moved from the Mojo stdlib to the MAX package in Mojo 1.0.0.
+# MAX 26.5.x is the release paired with Mojo 1.0.0.
+max = ">=26.5.0, <26.6"
 numpy = "*"
+
+# Formatting / lint toolchain driven by .pre-commit-config.yaml. These live
+# in the workspace env (not a global install) so a fresh clone gets the
+# hooks working after `pixi install && pixi run hooks`.
+pre-commit = "*"
+ruff = "*"
+
+# rumdl has no osx-arm64 build on conda-forge (linux-64 only), so it comes
+# from PyPI, where upstream ships wheels for both workspace platforms.
+[pypi-dependencies]
+rumdl = "*"

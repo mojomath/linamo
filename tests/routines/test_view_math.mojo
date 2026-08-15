@@ -3,7 +3,7 @@ Tests for view-based element-wise operations (view×view, mat×view, view×mat)
 and view-based scalar operations.
 """
 
-import testing
+import std.testing as testing
 import matmojo as mm
 from matmojo.routines.math import add, sub, mul, div
 from matmojo.routines.math import scalar_add, scalar_sub, scalar_mul, scalar_div
@@ -14,7 +14,7 @@ from matmojo.routines.math import scalar_add, scalar_sub, scalar_mul, scalar_div
 # ===----------------------------------------------------------------------===#
 
 
-fn test_add_view_view() raises:
+def test_add_view_view() raises:
     """Test add on two views (sub-matrices)."""
     var a = mm.matrix[DType.float64](
         [[1.0, 2.0, 3.0], [4.0, 5.0, 6.0], [7.0, 8.0, 9.0]]
@@ -32,7 +32,7 @@ fn test_add_view_view() raises:
     testing.assert_equal(c[1, 1], 55.0)
 
 
-fn test_sub_view_view() raises:
+def test_sub_view_view() raises:
     """Test sub on two views."""
     var a = mm.matrix[DType.float64]([[10.0, 20.0], [30.0, 40.0]])
     var b = mm.matrix[DType.float64]([[1.0, 2.0], [3.0, 4.0]])
@@ -41,7 +41,7 @@ fn test_sub_view_view() raises:
     testing.assert_equal(c[1, 1], 36.0)
 
 
-fn test_mul_view_view() raises:
+def test_mul_view_view() raises:
     """Test mul on two views."""
     var a = mm.matrix[DType.float64]([[2.0, 3.0], [4.0, 5.0]])
     var b = mm.matrix[DType.float64]([[10.0, 20.0], [30.0, 40.0]])
@@ -52,7 +52,7 @@ fn test_mul_view_view() raises:
     testing.assert_equal(c[1, 1], 200.0)
 
 
-fn test_div_view_view() raises:
+def test_div_view_view() raises:
     """Test div on two views."""
     var a = mm.matrix[DType.float64]([[10.0, 20.0], [30.0, 40.0]])
     var b = mm.matrix[DType.float64]([[2.0, 4.0], [5.0, 8.0]])
@@ -66,7 +66,7 @@ fn test_div_view_view() raises:
 # ===----------------------------------------------------------------------===#
 
 
-fn test_add_mat_view() raises:
+def test_add_mat_view() raises:
     """Test add: Matrix + MatrixView."""
     var a = mm.matrix[DType.float64]([[1.0, 2.0], [3.0, 4.0]])
     var big = mm.matrix[DType.float64](
@@ -80,7 +80,7 @@ fn test_add_mat_view() raises:
     testing.assert_equal(c[1, 1], 54.0)
 
 
-fn test_sub_mat_view() raises:
+def test_sub_mat_view() raises:
     """Test sub: Matrix - MatrixView."""
     var a = mm.matrix[DType.float64]([[100.0, 200.0], [300.0, 400.0]])
     var big = mm.matrix[DType.float64](
@@ -97,7 +97,7 @@ fn test_sub_mat_view() raises:
 # ===----------------------------------------------------------------------===#
 
 
-fn test_add_view_mat() raises:
+def test_add_view_mat() raises:
     """Test add: MatrixView + Matrix."""
     var big = mm.matrix[DType.float64](
         [[1.0, 2.0, 3.0], [4.0, 5.0, 6.0], [7.0, 8.0, 9.0]]
@@ -111,7 +111,7 @@ fn test_add_view_mat() raises:
     testing.assert_equal(c[1, 1], 45.0)
 
 
-fn test_mul_view_mat() raises:
+def test_mul_view_mat() raises:
     """Test mul: MatrixView * Matrix."""
     var big = mm.matrix[DType.float64]([[2.0, 3.0, 99.0], [4.0, 5.0, 99.0]])
     var va = big[0:2, 0:2]  # [[2, 3], [4, 5]]
@@ -128,7 +128,7 @@ fn test_mul_view_mat() raises:
 # ===----------------------------------------------------------------------===#
 
 
-fn test_add_strided_views() raises:
+def test_add_strided_views() raises:
     """Test add on views with step > 1 (non-contiguous)."""
     var a = mm.matrix[DType.float64](
         [
@@ -161,7 +161,7 @@ fn test_add_strided_views() raises:
 # ===----------------------------------------------------------------------===#
 
 
-fn test_scalar_add_view() raises:
+def test_scalar_add_view() raises:
     """Test scalar_add on a MatrixView."""
     var big = mm.matrix[DType.float64](
         [[1.0, 2.0, 3.0], [4.0, 5.0, 6.0], [7.0, 8.0, 9.0]]
@@ -174,7 +174,7 @@ fn test_scalar_add_view() raises:
     testing.assert_equal(c[1, 1], 105.0)
 
 
-fn test_scalar_mul_view() raises:
+def test_scalar_mul_view() raises:
     """Test scalar_mul on a MatrixView."""
     var big = mm.matrix[DType.float64](
         [[1.0, 2.0, 3.0], [4.0, 5.0, 6.0], [7.0, 8.0, 9.0]]
@@ -187,7 +187,7 @@ fn test_scalar_mul_view() raises:
     testing.assert_equal(c[1, 1], 50.0)
 
 
-fn test_scalar_sub_view() raises:
+def test_scalar_sub_view() raises:
     """Test scalar_sub on a MatrixView."""
     var big = mm.matrix[DType.float64]([[10.0, 20.0], [30.0, 40.0]])
     var v = big[0:2, 0:2]
@@ -196,7 +196,7 @@ fn test_scalar_sub_view() raises:
     testing.assert_equal(c[1, 1], 35.0)
 
 
-fn test_scalar_div_view() raises:
+def test_scalar_div_view() raises:
     """Test scalar_div on a MatrixView."""
     var big = mm.matrix[DType.float64]([[10.0, 20.0], [30.0, 40.0]])
     var v = big[0:2, 0:2]
@@ -205,5 +205,5 @@ fn test_scalar_div_view() raises:
     testing.assert_equal(c[1, 1], 4.0)
 
 
-fn main() raises:
+def main() raises:
     testing.TestSuite.discover_tests[__functions_in_module()]().run()

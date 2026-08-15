@@ -2,7 +2,7 @@
 Tests for matrix arithmetic operations (elementwise and matmul).
 """
 
-import testing
+import std.testing as testing
 import matmojo as mm
 from matmojo.routines.math import add, sub, mul, div, matmul
 
@@ -12,7 +12,7 @@ from matmojo.routines.math import add, sub, mul, div, matmul
 # ===----------------------------------------------------------------------===#
 
 
-fn test_static_add() raises:
+def test_static_add() raises:
     """Test element-wise addition of two static matrices."""
     var a = mm.smatrix[2, 3, DType.float64]([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]])
     var b = mm.smatrix[2, 3, DType.float64](
@@ -27,7 +27,7 @@ fn test_static_add() raises:
     testing.assert_equal(c[1, 2], 66.0)
 
 
-fn test_static_add_dunder() raises:
+def test_static_add_dunder() raises:
     """Test element-wise addition using __add__ operator."""
     var a = mm.smatrix[2, 2, DType.float64]([[1.0, 2.0], [3.0, 4.0]])
     var b = mm.smatrix[2, 2, DType.float64]([[5.0, 6.0], [7.0, 8.0]])
@@ -38,7 +38,7 @@ fn test_static_add_dunder() raises:
     testing.assert_equal(c[1, 1], 12.0)
 
 
-fn test_static_sub() raises:
+def test_static_sub() raises:
     """Test element-wise subtraction of two static matrices."""
     var a = mm.smatrix[2, 2, DType.float64]([[10.0, 20.0], [30.0, 40.0]])
     var b = mm.smatrix[2, 2, DType.float64]([[1.0, 2.0], [3.0, 4.0]])
@@ -49,7 +49,7 @@ fn test_static_sub() raises:
     testing.assert_equal(c[1, 1], 36.0)
 
 
-fn test_static_mul() raises:
+def test_static_mul() raises:
     """Test element-wise multiplication of two static matrices."""
     var a = mm.smatrix[2, 2, DType.float64]([[2.0, 3.0], [4.0, 5.0]])
     var b = mm.smatrix[2, 2, DType.float64]([[10.0, 20.0], [30.0, 40.0]])
@@ -60,7 +60,7 @@ fn test_static_mul() raises:
     testing.assert_equal(c[1, 1], 200.0)
 
 
-fn test_static_div() raises:
+def test_static_div() raises:
     """Test element-wise division of two static matrices."""
     var a = mm.smatrix[2, 2, DType.float64]([[10.0, 20.0], [30.0, 40.0]])
     var b = mm.smatrix[2, 2, DType.float64]([[2.0, 4.0], [5.0, 8.0]])
@@ -71,7 +71,7 @@ fn test_static_div() raises:
     testing.assert_equal(c[1, 1], 5.0)
 
 
-fn test_static_matmul() raises:
+def test_static_matmul() raises:
     """Test static matrix multiplication."""
     var a = mm.smatrix[2, 3, DType.float64]([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]])
     var b = mm.smatrix[3, 2, DType.float64](
@@ -88,7 +88,7 @@ fn test_static_matmul() raises:
     testing.assert_equal(c[1, 1], 154.0)
 
 
-fn test_static_matmul_dunder() raises:
+def test_static_matmul_dunder() raises:
     """Test static matrix multiplication using @ operator."""
     var a = mm.smatrix[2, 2, DType.float64]([[1.0, 0.0], [0.0, 1.0]])
     var b = mm.smatrix[2, 2, DType.float64]([[5.0, 6.0], [7.0, 8.0]])
@@ -105,7 +105,7 @@ fn test_static_matmul_dunder() raises:
 # ===----------------------------------------------------------------------===#
 
 
-fn test_dynamic_matmul() raises:
+def test_dynamic_matmul() raises:
     """Test dynamic matrix multiplication."""
     var a = mm.matrix[DType.float64]([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]])
     var b = mm.matrix[DType.float64]([[7.0, 8.0], [9.0, 10.0], [11.0, 12.0]])
@@ -116,7 +116,7 @@ fn test_dynamic_matmul() raises:
     testing.assert_equal(c[1, 1], 154.0)
 
 
-fn test_dynamic_matmul_dunder() raises:
+def test_dynamic_matmul_dunder() raises:
     """Test dynamic matrix multiplication using @ operator."""
     var a = mm.matrix[DType.float64]([[1.0, 0.0], [0.0, 1.0]])
     var b = mm.matrix[DType.float64]([[5.0, 6.0], [7.0, 8.0]])
@@ -127,7 +127,7 @@ fn test_dynamic_matmul_dunder() raises:
     testing.assert_equal(c[1, 1], 8.0)
 
 
-fn test_dynamic_matmul_dimension_mismatch_raises() raises:
+def test_dynamic_matmul_dimension_mismatch_raises() raises:
     """Test that matmul with incompatible shapes raises ValueError."""
     var a = mm.matrix[DType.float64]([[1.0, 2.0], [3.0, 4.0]])
     var b = mm.matrix[DType.float64](
@@ -143,7 +143,7 @@ fn test_dynamic_matmul_dimension_mismatch_raises() raises:
     )
 
 
-fn test_dynamic_matmul_identity() raises:
+def test_dynamic_matmul_identity() raises:
     """Test multiplying by identity matrix."""
     var a = mm.matrix[DType.float64](
         [[1.0, 2.0, 3.0], [4.0, 5.0, 6.0], [7.0, 8.0, 9.0]]
@@ -157,5 +157,5 @@ fn test_dynamic_matmul_identity() raises:
             testing.assert_equal(c[i, j], a[i, j])
 
 
-fn main() raises:
+def main() raises:
     testing.TestSuite.discover_tests[__functions_in_module()]().run()

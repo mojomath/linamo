@@ -3,7 +3,7 @@ Tests for view-based linalg operations (transpose, trace, lu, cholesky, qr,
 det, solve, inv, lstsq on MatrixView inputs).
 """
 
-import testing
+import std.testing as testing
 from matmojo.types.matrix import Matrix
 from matmojo.routines.creation import matrix, eye
 from matmojo.routines.linalg import (
@@ -26,7 +26,7 @@ from matmojo.utils.test_utils import assert_matrices_close
 # ===----------------------------------------------------------------------===#
 
 
-fn test_transpose_view() raises:
+def test_transpose_view() raises:
     """Transpose a 2x2 sub-view of a 3x3 matrix."""
     var a = matrix[DType.float64](
         [[1.0, 2.0, 3.0], [4.0, 5.0, 6.0], [7.0, 8.0, 9.0]]
@@ -39,7 +39,7 @@ fn test_transpose_view() raises:
     testing.assert_equal(t[1, 1], 5.0)
 
 
-fn test_transpose_view_rectangular() raises:
+def test_transpose_view_rectangular() raises:
     """Transpose a 2x3 sub-view."""
     var a = matrix[DType.float64](
         [[1.0, 2.0, 3.0], [4.0, 5.0, 6.0], [7.0, 8.0, 9.0]]
@@ -58,7 +58,7 @@ fn test_transpose_view_rectangular() raises:
 # ===----------------------------------------------------------------------===#
 
 
-fn test_trace_view() raises:
+def test_trace_view() raises:
     """Trace of a 2x2 sub-view."""
     var a = matrix[DType.float64](
         [[1.0, 2.0, 3.0], [4.0, 5.0, 6.0], [7.0, 8.0, 9.0]]
@@ -73,7 +73,7 @@ fn test_trace_view() raises:
 # ===----------------------------------------------------------------------===#
 
 
-fn test_lu_view() raises:
+def test_lu_view() raises:
     """LU decomposition on a 2x2 sub-view, then verify PA=LU."""
     var a = matrix[DType.float64](
         [[4.0, 3.0, 99.0], [6.0, 3.0, 99.0], [99.0, 99.0, 99.0]]
@@ -107,7 +107,7 @@ fn test_lu_view() raises:
 # ===----------------------------------------------------------------------===#
 
 
-fn test_cholesky_view() raises:
+def test_cholesky_view() raises:
     """Cholesky decomposition on a 2x2 sub-view of an SPD matrix."""
     # Build 3x3 with a 2x2 SPD top-left block: [[4, 2], [2, 5]]
     var a = matrix[DType.float64](
@@ -130,7 +130,7 @@ fn test_cholesky_view() raises:
 # ===----------------------------------------------------------------------===#
 
 
-fn test_qr_view() raises:
+def test_qr_view() raises:
     """QR decomposition on a 2x2 sub-view."""
     var a = matrix[DType.float64](
         [[1.0, 2.0, 99.0], [3.0, 4.0, 99.0], [99.0, 99.0, 99.0]]
@@ -157,7 +157,7 @@ fn test_qr_view() raises:
 # ===----------------------------------------------------------------------===#
 
 
-fn test_det_view() raises:
+def test_det_view() raises:
     """Determinant of a 2x2 sub-view."""
     var a = matrix[DType.float64](
         [[1.0, 2.0, 99.0], [3.0, 4.0, 99.0], [99.0, 99.0, 99.0]]
@@ -175,7 +175,7 @@ fn test_det_view() raises:
 # ===----------------------------------------------------------------------===#
 
 
-fn test_solve_view_view() raises:
+def test_solve_view_view() raises:
     """Solve Ax = b where A and b are views."""
     var big_a = matrix[DType.float64](
         [[2.0, 1.0, 99.0], [5.0, 3.0, 99.0], [99.0, 99.0, 99.0]]
@@ -188,7 +188,7 @@ fn test_solve_view_view() raises:
     assert_matrices_close(x, expected, msg="solve vv", atol=1e-10)
 
 
-fn test_solve_mat_view() raises:
+def test_solve_mat_view() raises:
     """Solve Ax = b where A is Matrix, b is view."""
     var A = matrix[DType.float64]([[2.0, 1.0], [5.0, 3.0]])
     var big_b = matrix[DType.float64]([[5.0, 99.0], [13.0, 99.0]])
@@ -198,7 +198,7 @@ fn test_solve_mat_view() raises:
     assert_matrices_close(x, expected, msg="solve mv", atol=1e-10)
 
 
-fn test_solve_view_mat() raises:
+def test_solve_view_mat() raises:
     """Solve Ax = b where A is view, b is Matrix."""
     var big_a = matrix[DType.float64](
         [[2.0, 1.0, 99.0], [5.0, 3.0, 99.0], [99.0, 99.0, 99.0]]
@@ -215,7 +215,7 @@ fn test_solve_view_mat() raises:
 # ===----------------------------------------------------------------------===#
 
 
-fn test_inv_view() raises:
+def test_inv_view() raises:
     """Inverse of a 2x2 sub-view."""
     var big = matrix[DType.float64](
         [[2.0, 1.0, 99.0], [5.0, 3.0, 99.0], [99.0, 99.0, 99.0]]
@@ -232,7 +232,7 @@ fn test_inv_view() raises:
 # ===----------------------------------------------------------------------===#
 
 
-fn test_lstsq_view_view() raises:
+def test_lstsq_view_view() raises:
     """Least-squares on two views (exact system: square)."""
     var big_a = matrix[DType.float64](
         [[1.0, 1.0, 99.0], [1.0, 2.0, 99.0], [99.0, 99.0, 99.0]]
@@ -245,7 +245,7 @@ fn test_lstsq_view_view() raises:
     assert_matrices_close(x, expected, msg="lstsq view exact", atol=1e-9)
 
 
-fn test_lstsq_overdetermined_view() raises:
+def test_lstsq_overdetermined_view() raises:
     """Least-squares on an overdetermined system using views."""
     var A = matrix[DType.float64]([[1.0, 1.0], [1.0, 2.0], [1.0, 3.0]])
     var b = matrix[DType.float64]([[1.0], [2.0], [2.0]])
@@ -259,5 +259,5 @@ fn test_lstsq_overdetermined_view() raises:
     testing.assert_true(ssr < 1.0, "lstsq overdetermined residual small")
 
 
-fn main() raises:
+def main() raises:
     testing.TestSuite.discover_tests[__functions_in_module()]().run()

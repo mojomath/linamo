@@ -2,8 +2,9 @@
 Defines mathematical routines for matrices.
 """
 
-from algorithm import vectorize, parallelize
-from sys import simd_width_of
+from std.algorithm import vectorize
+from max.algorithm import parallelize
+from std.sys import simd_width_of
 
 from matmojo.types.errors import ValueError
 from matmojo.types.static_matrix import StaticMatrix
@@ -24,7 +25,7 @@ from matmojo.utils.indexing import get_offset
 
 
 # FIXME: When Mojo support parameterized traits.
-# fn add[M: MatrixLike](a: M, b: M) raises ValueError -> M:
+# fn add[M: MatrixLike](a: M, b: M) raises -> M:
 #     """Performs element-wise addition of two matrices.
 
 #     Parameters:
@@ -54,7 +55,7 @@ from matmojo.utils.indexing import get_offset
 #     return result^
 
 
-fn add[
+def add[
     dtype: DType, nrows: Int, ncols: Int
 ](
     a: StaticMatrix[dtype, nrows, ncols], b: StaticMatrix[dtype, nrows, ncols]
@@ -71,7 +72,7 @@ fn add[
     return StaticMatrix[dtype, nrows, ncols](a.data + b.data)
 
 
-fn sub[
+def sub[
     dtype: DType, nrows: Int, ncols: Int
 ](
     a: StaticMatrix[dtype, nrows, ncols], b: StaticMatrix[dtype, nrows, ncols]
@@ -88,7 +89,7 @@ fn sub[
     return StaticMatrix[dtype, nrows, ncols](a.data - b.data)
 
 
-fn mul[
+def mul[
     dtype: DType, nrows: Int, ncols: Int
 ](
     a: StaticMatrix[dtype, nrows, ncols], b: StaticMatrix[dtype, nrows, ncols]
@@ -105,7 +106,7 @@ fn mul[
     return StaticMatrix[dtype, nrows, ncols](a.data * b.data)
 
 
-fn div[
+def div[
     dtype: DType, nrows: Int, ncols: Int
 ](
     a: StaticMatrix[dtype, nrows, ncols], b: StaticMatrix[dtype, nrows, ncols]
@@ -122,7 +123,7 @@ fn div[
     return StaticMatrix[dtype, nrows, ncols](a.data / b.data)
 
 
-fn matmul[
+def matmul[
     dtype: DType, nrows: Int, ncols: Int, inner_dim: Int
 ](
     a: StaticMatrix[dtype, nrows, inner_dim],
@@ -157,14 +158,14 @@ fn matmul[
 # This avoids duplicating the implementation for every Matrix/View combination.
 
 
-fn _matmul_view_simd[
+def _matmul_view_simd[
     dtype: DType,
     origin_a: Origin,
     origin_b: Origin,
 ](
     a: MatrixView[dtype, origin_a],
     b: MatrixView[dtype, origin_b],
-) raises ValueError -> Matrix[dtype]:
+) raises -> Matrix[dtype]:
     """Core matrix multiplication on MatrixView operands.
 
     Dispatches to one of four SIMD-optimised paths based on the memory layout
@@ -227,33 +228,34 @@ fn _matmul_view_simd[
     if b.is_row_contiguous():
 
         @parameter
-        fn process_row_br(i: Int):
+        def process_row_br(i: Int):
             for k in range(K):
                 # [Mojo Miji]
                 # Broadcast A[i,k] (scalar) and SIMD-multiply with row k of B,
                 # accumulating into row i of result.
-                @parameter
-                fn vec_col_br[
+                def vec_col_br[
                     w: Int
-                ](j: Int) unified {
+                ](j: Int) {
                     mut result,
-                    read a_ptr,
-                    read b_ptr,
-                    read a_off,
-                    read b_off,
-                    read a_rs,
-                    read a_cs,
-                    read b_rs,
-                    read N,
-                    read i,
-                    read k,
+                    imm a_ptr,
+                    imm b_ptr,
+                    imm a_off,
+                    imm b_off,
+                    imm a_rs,
+                    imm a_cs,
+                    imm b_rs,
+                    imm N,
+                    imm i,
+                    imm k,
                 }:
                     var r_idx = i * N + j
-                    result.data._data.store[width=w](
+                    result.data._data.unsafe_store[width=w](
                         r_idx,
-                        result.data._data.load[width=w](r_idx)
-                        + a_ptr.load[width=1](a_off + i * a_rs + k * a_cs)
-                        * b_ptr.load[width=w](b_off + k * b_rs + j),
+                        result.data._data.unsafe_load[width=w](r_idx)
+                        + a_ptr.unsafe_load[width=1](
+                            a_off + i * a_rs + k * a_cs
+                        )
+                        * b_ptr.unsafe_load[width=w](b_off + k * b_rs + j),
                     )
 
                 vectorize[simd_w](N, vec_col_br)
@@ -268,31 +270,30 @@ fn _matmul_view_simd[
     elif a.is_row_contiguous() and b.is_col_contiguous():
 
         @parameter
-        fn process_row_cxf(i: Int):
+        def process_row_cxf(i: Int):
             for j in range(N):
                 var dot_sum: Scalar[dtype] = 0
 
-                @parameter
-                fn dot_k[
+                def dot_k[
                     w: Int
-                ](k: Int) unified {
+                ](k: Int) {
                     mut dot_sum,
-                    read a_ptr,
-                    read b_ptr,
-                    read a_off,
-                    read b_off,
-                    read a_rs,
-                    read b_cs,
-                    read i,
-                    read j,
+                    imm a_ptr,
+                    imm b_ptr,
+                    imm a_off,
+                    imm b_off,
+                    imm a_rs,
+                    imm b_cs,
+                    imm i,
+                    imm j,
                 }:
                     dot_sum += (
-                        a_ptr.load[width=w](a_off + i * a_rs + k)
-                        * b_ptr.load[width=w](b_off + j * b_cs + k)
+                        a_ptr.unsafe_load[width=w](a_off + i * a_rs + k)
+                        * b_ptr.unsafe_load[width=w](b_off + j * b_cs + k)
                     ).reduce_add()
 
                 vectorize[simd_w](K, dot_k)
-                result.data._data.store[width=1](i * N + j, dot_sum)
+                result.data._data.unsafe_store[width=1](i * N + j, dot_sum)
 
         parallelize[process_row_cxf](M, M)
 
@@ -305,37 +306,39 @@ fn _matmul_view_simd[
     elif a.is_col_contiguous():
 
         @parameter
-        fn process_col_ff(j: Int):
+        def process_col_ff(j: Int):
             # Temporary column buffer for SIMD accumulation.
             var temp = List[Scalar[dtype]](length=M, fill=0)
             var temp_ptr = temp._data
 
             for k in range(K):
-                var b_kj = b_ptr.load[width=1](b_off + k * b_rs + j * b_cs)
+                var b_kj = b_ptr.unsafe_load[width=1](
+                    b_off + k * b_rs + j * b_cs
+                )
 
-                @parameter
-                fn vec_rows_ff[
+                def vec_rows_ff[
                     w: Int
-                ](i: Int) unified {
-                    read temp_ptr,
-                    read a_ptr,
-                    read a_off,
-                    read a_cs,
-                    read b_kj,
-                    read k,
+                ](i: Int) {
+                    imm temp_ptr,
+                    imm a_ptr,
+                    imm a_off,
+                    imm a_cs,
+                    imm b_kj,
+                    imm k,
                 }:
-                    temp_ptr.store[width=w](
+                    temp_ptr.unsafe_store[width=w](
                         i,
-                        temp_ptr.load[width=w](i)
-                        + a_ptr.load[width=w](a_off + k * a_cs + i) * b_kj,
+                        temp_ptr.unsafe_load[width=w](i)
+                        + a_ptr.unsafe_load[width=w](a_off + k * a_cs + i)
+                        * b_kj,
                     )
 
                 vectorize[simd_w](M, vec_rows_ff)
 
             # Scatter temp column into result's column j.
             for i in range(M):
-                result.data._data.store[width=1](
-                    i * N + j, temp_ptr.load[width=1](i)
+                result.data._data.unsafe_store[width=1](
+                    i * N + j, temp_ptr.unsafe_load[width=1](i)
                 )
 
         parallelize[process_col_ff](N, N)
@@ -346,7 +349,7 @@ fn _matmul_view_simd[
     else:
 
         @parameter
-        fn process_row_general(i: Int):
+        def process_row_general(i: Int):
             for j in range(N):
                 var sum: Scalar[dtype] = 0
                 for k in range(K):
@@ -354,7 +357,7 @@ fn _matmul_view_simd[
                         a.data[a_off + i * a_rs + k * a_cs]
                         * b.data[b_off + k * b_rs + j * b_cs]
                     )
-                result.data._data.store[width=1](i * N + j, sum)
+                result.data._data.unsafe_store[width=1](i * N + j, sum)
 
         parallelize[process_row_general](M, M)
 
@@ -366,9 +369,9 @@ fn _matmul_view_simd[
 # --------------------------------------------------------------------------- #
 
 
-fn matmul[
+def matmul[
     dtype: DType
-](a: Matrix[dtype], b: Matrix[dtype]) raises ValueError -> Matrix[dtype]:
+](a: Matrix[dtype], b: Matrix[dtype]) raises -> Matrix[dtype]:
     """Performs matrix multiplication of two dynamic matrices.
 
     Delegates to the SIMD-optimised, view-based core implementation.
@@ -384,14 +387,14 @@ fn matmul[
     return _matmul_view_simd(a.view(), b.view())
 
 
-fn matmul[
+def matmul[
     dtype: DType,
     origin_a: Origin,
     origin_b: Origin,
 ](
     a: MatrixView[dtype, origin_a],
     b: MatrixView[dtype, origin_b],
-) raises ValueError -> Matrix[dtype]:
+) raises -> Matrix[dtype]:
     """Performs matrix multiplication of two matrix views.
 
     This is the canonical entry-point for view × view multiplication.
@@ -406,13 +409,10 @@ fn matmul[
     return _matmul_view_simd(a, b)
 
 
-fn matmul[
+def matmul[
     dtype: DType,
     origin_b: Origin,
-](
-    a: Matrix[dtype],
-    b: MatrixView[dtype, origin_b],
-) raises ValueError -> Matrix[dtype]:
+](a: Matrix[dtype], b: MatrixView[dtype, origin_b],) raises -> Matrix[dtype]:
     """Performs matrix multiplication of a matrix and a matrix view.
 
     Args:
@@ -425,13 +425,10 @@ fn matmul[
     return _matmul_view_simd(a.view(), b)
 
 
-fn matmul[
+def matmul[
     dtype: DType,
     origin_a: Origin,
-](
-    a: MatrixView[dtype, origin_a],
-    b: Matrix[dtype],
-) raises ValueError -> Matrix[dtype]:
+](a: MatrixView[dtype, origin_a], b: Matrix[dtype],) raises -> Matrix[dtype]:
     """Performs matrix multiplication of a matrix view and a matrix.
 
     Args:
@@ -449,7 +446,7 @@ fn matmul[
 # ===---------------------------------------------------------------------- ===#
 # [Mojo Miji]
 # We define a single, generic `_elementwise_view` function that takes a
-# `func: fn(Scalar, Scalar) -> Scalar` compile-time parameter. This avoids
+# `func: def(Scalar, Scalar) thin -> Scalar` compile-time parameter. This avoids
 # duplicating near-identical code for add, sub, mul, div. Each public function
 # is a thin wrapper that plugs in the right SIMD dunder method directly
 # (e.g. `Scalar[dtype].__add__`).
@@ -469,15 +466,15 @@ fn matmul[
 # --------------------------------------------------------------------------- #
 
 
-fn _elementwise_view[
+def _elementwise_view[
     dtype: DType,
-    func: fn(Scalar[dtype], Scalar[dtype]) -> Scalar[dtype],
+    func: def(Scalar[dtype], Scalar[dtype]) thin -> Scalar[dtype],
     origin_a: Origin,
     origin_b: Origin,
 ](
     a: MatrixView[dtype, origin_a],
     b: MatrixView[dtype, origin_b],
-) raises ValueError -> Matrix[dtype]:
+) raises -> Matrix[dtype]:
     """Core element-wise binary operation on two MatrixView operands.
 
     When both operands are C-contiguous, a SIMD-vectorised fast path is
@@ -507,24 +504,16 @@ fn _elementwise_view[
         var a_off = a.offset
         var b_off = b.offset
 
-        @parameter
-        fn vec_op[
+        def vec_op[
             w: Int
-        ](idx: Int) unified {
-            mut result,
-            read a_ptr,
-            read b_ptr,
-            read a_off,
-            read b_off,
-        }:
-            var a_chunk = a_ptr.load[width=w](a_off + idx)
-            var b_chunk = b_ptr.load[width=w](b_off + idx)
+        ](idx: Int) {mut result, imm a_ptr, imm b_ptr, imm a_off, imm b_off,}:
+            var a_chunk = a_ptr.unsafe_load[width=w](a_off + idx)
+            var b_chunk = b_ptr.unsafe_load[width=w](b_off + idx)
             var res = SIMD[dtype, w](0)
 
-            @parameter
-            for lane in range(w):
+            comptime for lane in range(w):
                 res[lane] = func(a_chunk[lane], b_chunk[lane])
-            result.data._data.store[width=w](idx, res)
+            result.data._data.unsafe_store[width=w](idx, res)
 
         vectorize[simd_w](total, vec_op)
     else:
@@ -541,9 +530,9 @@ fn _elementwise_view[
 # --------------------------------------------------------------------------- #
 
 
-fn _scalar_elementwise_view[
+def _scalar_elementwise_view[
     dtype: DType,
-    func: fn(Scalar[dtype], Scalar[dtype]) -> Scalar[dtype],
+    func: def(Scalar[dtype], Scalar[dtype]) thin -> Scalar[dtype],
     origin: Origin,
 ](mat: MatrixView[dtype, origin], scalar: Scalar[dtype],) -> Matrix[dtype]:
     """Core scalar–matrix element-wise operation on a MatrixView operand.
@@ -563,18 +552,16 @@ fn _scalar_elementwise_view[
         var m_ptr = mat.data.unsafe_ptr()
         var m_off = mat.offset
 
-        @parameter
-        fn vec_scalar[
+        def vec_scalar[
             w: Int
-        ](idx: Int) unified {mut result, read m_ptr, read m_off, read scalar,}:
-            var m_chunk = m_ptr.load[width=w](m_off + idx)
+        ](idx: Int) {mut result, imm m_ptr, imm m_off, imm scalar,}:
+            var m_chunk = m_ptr.unsafe_load[width=w](m_off + idx)
             var s_chunk = SIMD[dtype, w](scalar)
             var res = SIMD[dtype, w](0)
 
-            @parameter
-            for lane in range(w):
+            comptime for lane in range(w):
                 res[lane] = func(m_chunk[lane], s_chunk[lane])
-            result.data._data.store[width=w](idx, res)
+            result.data._data.unsafe_store[width=w](idx, res)
 
         vectorize[simd_w](total, vec_scalar)
     else:
@@ -597,38 +584,34 @@ fn _scalar_elementwise_view[
 # --------------------------------------------------------------------------- #
 
 
-fn add[
+def add[
     dtype: DType, origin_a: Origin, origin_b: Origin
 ](
     a: MatrixView[dtype, origin_a], b: MatrixView[dtype, origin_b]
-) raises ValueError -> Matrix[dtype]:
+) raises -> Matrix[dtype]:
     """Element-wise addition of two matrix views."""
-    return _elementwise_view[func = Scalar[dtype].__add__](a, b)
+    return _elementwise_view[func=Scalar[dtype].__add__](a, b)
 
 
-fn add[
+def add[
     dtype: DType
-](a: Matrix[dtype], b: Matrix[dtype]) raises ValueError -> Matrix[dtype]:
+](a: Matrix[dtype], b: Matrix[dtype]) raises -> Matrix[dtype]:
     """Element-wise addition of two dynamic matrices."""
-    return _elementwise_view[func = Scalar[dtype].__add__](a.view(), b.view())
+    return _elementwise_view[func=Scalar[dtype].__add__](a.view(), b.view())
 
 
-fn add[
+def add[
     dtype: DType, origin_b: Origin
-](a: Matrix[dtype], b: MatrixView[dtype, origin_b]) raises ValueError -> Matrix[
-    dtype
-]:
+](a: Matrix[dtype], b: MatrixView[dtype, origin_b]) raises -> Matrix[dtype]:
     """Element-wise addition of a matrix and a matrix view."""
-    return _elementwise_view[func = Scalar[dtype].__add__](a.view(), b)
+    return _elementwise_view[func=Scalar[dtype].__add__](a.view(), b)
 
 
-fn add[
+def add[
     dtype: DType, origin_a: Origin
-](a: MatrixView[dtype, origin_a], b: Matrix[dtype]) raises ValueError -> Matrix[
-    dtype
-]:
+](a: MatrixView[dtype, origin_a], b: Matrix[dtype]) raises -> Matrix[dtype]:
     """Element-wise addition of a matrix view and a matrix."""
-    return _elementwise_view[func = Scalar[dtype].__add__](a, b.view())
+    return _elementwise_view[func=Scalar[dtype].__add__](a, b.view())
 
 
 # --------------------------------------------------------------------------- #
@@ -636,38 +619,34 @@ fn add[
 # --------------------------------------------------------------------------- #
 
 
-fn sub[
+def sub[
     dtype: DType, origin_a: Origin, origin_b: Origin
 ](
     a: MatrixView[dtype, origin_a], b: MatrixView[dtype, origin_b]
-) raises ValueError -> Matrix[dtype]:
+) raises -> Matrix[dtype]:
     """Element-wise subtraction of two matrix views."""
-    return _elementwise_view[func = Scalar[dtype].__sub__](a, b)
+    return _elementwise_view[func=Scalar[dtype].__sub__](a, b)
 
 
-fn sub[
+def sub[
     dtype: DType
-](a: Matrix[dtype], b: Matrix[dtype]) raises ValueError -> Matrix[dtype]:
+](a: Matrix[dtype], b: Matrix[dtype]) raises -> Matrix[dtype]:
     """Element-wise subtraction of two dynamic matrices."""
-    return _elementwise_view[func = Scalar[dtype].__sub__](a.view(), b.view())
+    return _elementwise_view[func=Scalar[dtype].__sub__](a.view(), b.view())
 
 
-fn sub[
+def sub[
     dtype: DType, origin_b: Origin
-](a: Matrix[dtype], b: MatrixView[dtype, origin_b]) raises ValueError -> Matrix[
-    dtype
-]:
+](a: Matrix[dtype], b: MatrixView[dtype, origin_b]) raises -> Matrix[dtype]:
     """Element-wise subtraction of a matrix and a matrix view."""
-    return _elementwise_view[func = Scalar[dtype].__sub__](a.view(), b)
+    return _elementwise_view[func=Scalar[dtype].__sub__](a.view(), b)
 
 
-fn sub[
+def sub[
     dtype: DType, origin_a: Origin
-](a: MatrixView[dtype, origin_a], b: Matrix[dtype]) raises ValueError -> Matrix[
-    dtype
-]:
+](a: MatrixView[dtype, origin_a], b: Matrix[dtype]) raises -> Matrix[dtype]:
     """Element-wise subtraction of a matrix view and a matrix."""
-    return _elementwise_view[func = Scalar[dtype].__sub__](a, b.view())
+    return _elementwise_view[func=Scalar[dtype].__sub__](a, b.view())
 
 
 # --------------------------------------------------------------------------- #
@@ -675,38 +654,34 @@ fn sub[
 # --------------------------------------------------------------------------- #
 
 
-fn mul[
+def mul[
     dtype: DType, origin_a: Origin, origin_b: Origin
 ](
     a: MatrixView[dtype, origin_a], b: MatrixView[dtype, origin_b]
-) raises ValueError -> Matrix[dtype]:
+) raises -> Matrix[dtype]:
     """Element-wise multiplication of two matrix views."""
-    return _elementwise_view[func = Scalar[dtype].__mul__](a, b)
+    return _elementwise_view[func=Scalar[dtype].__mul__](a, b)
 
 
-fn mul[
+def mul[
     dtype: DType
-](a: Matrix[dtype], b: Matrix[dtype]) raises ValueError -> Matrix[dtype]:
+](a: Matrix[dtype], b: Matrix[dtype]) raises -> Matrix[dtype]:
     """Element-wise multiplication of two dynamic matrices."""
-    return _elementwise_view[func = Scalar[dtype].__mul__](a.view(), b.view())
+    return _elementwise_view[func=Scalar[dtype].__mul__](a.view(), b.view())
 
 
-fn mul[
+def mul[
     dtype: DType, origin_b: Origin
-](a: Matrix[dtype], b: MatrixView[dtype, origin_b]) raises ValueError -> Matrix[
-    dtype
-]:
+](a: Matrix[dtype], b: MatrixView[dtype, origin_b]) raises -> Matrix[dtype]:
     """Element-wise multiplication of a matrix and a matrix view."""
-    return _elementwise_view[func = Scalar[dtype].__mul__](a.view(), b)
+    return _elementwise_view[func=Scalar[dtype].__mul__](a.view(), b)
 
 
-fn mul[
+def mul[
     dtype: DType, origin_a: Origin
-](a: MatrixView[dtype, origin_a], b: Matrix[dtype]) raises ValueError -> Matrix[
-    dtype
-]:
+](a: MatrixView[dtype, origin_a], b: Matrix[dtype]) raises -> Matrix[dtype]:
     """Element-wise multiplication of a matrix view and a matrix."""
-    return _elementwise_view[func = Scalar[dtype].__mul__](a, b.view())
+    return _elementwise_view[func=Scalar[dtype].__mul__](a, b.view())
 
 
 # --------------------------------------------------------------------------- #
@@ -714,40 +689,34 @@ fn mul[
 # --------------------------------------------------------------------------- #
 
 
-fn div[
+def div[
     dtype: DType, origin_a: Origin, origin_b: Origin
 ](
     a: MatrixView[dtype, origin_a], b: MatrixView[dtype, origin_b]
-) raises ValueError -> Matrix[dtype]:
+) raises -> Matrix[dtype]:
     """Element-wise division of two matrix views."""
-    return _elementwise_view[func = Scalar[dtype].__truediv__](a, b)
+    return _elementwise_view[func=Scalar[dtype].__truediv__](a, b)
 
 
-fn div[
+def div[
     dtype: DType
-](a: Matrix[dtype], b: Matrix[dtype]) raises ValueError -> Matrix[dtype]:
+](a: Matrix[dtype], b: Matrix[dtype]) raises -> Matrix[dtype]:
     """Element-wise division of two dynamic matrices."""
-    return _elementwise_view[func = Scalar[dtype].__truediv__](
-        a.view(), b.view()
-    )
+    return _elementwise_view[func=Scalar[dtype].__truediv__](a.view(), b.view())
 
 
-fn div[
+def div[
     dtype: DType, origin_b: Origin
-](a: Matrix[dtype], b: MatrixView[dtype, origin_b]) raises ValueError -> Matrix[
-    dtype
-]:
+](a: Matrix[dtype], b: MatrixView[dtype, origin_b]) raises -> Matrix[dtype]:
     """Element-wise division of a matrix and a matrix view."""
-    return _elementwise_view[func = Scalar[dtype].__truediv__](a.view(), b)
+    return _elementwise_view[func=Scalar[dtype].__truediv__](a.view(), b)
 
 
-fn div[
+def div[
     dtype: DType, origin_a: Origin
-](a: MatrixView[dtype, origin_a], b: Matrix[dtype]) raises ValueError -> Matrix[
-    dtype
-]:
+](a: MatrixView[dtype, origin_a], b: Matrix[dtype]) raises -> Matrix[dtype]:
     """Element-wise division of a matrix view and a matrix."""
-    return _elementwise_view[func = Scalar[dtype].__truediv__](a, b.view())
+    return _elementwise_view[func=Scalar[dtype].__truediv__](a, b.view())
 
 
 # ===---------------------------------------------------------------------- ===#
@@ -756,67 +725,65 @@ fn div[
 # Each scalar operation has 2 overloads: Matrix and MatrixView.
 
 
-fn scalar_add[
+def scalar_add[
     dtype: DType
 ](mat: Matrix[dtype], scalar: Scalar[dtype]) -> Matrix[dtype]:
     """Adds a scalar to every element of a matrix."""
-    return _scalar_elementwise_view[func = Scalar[dtype].__add__](
+    return _scalar_elementwise_view[func=Scalar[dtype].__add__](
         mat.view(), scalar
     )
 
 
-fn scalar_add[
+def scalar_add[
     dtype: DType, origin: Origin
 ](mat: MatrixView[dtype, origin], scalar: Scalar[dtype]) -> Matrix[dtype]:
     """Adds a scalar to every element of a matrix view."""
-    return _scalar_elementwise_view[func = Scalar[dtype].__add__](mat, scalar)
+    return _scalar_elementwise_view[func=Scalar[dtype].__add__](mat, scalar)
 
 
-fn scalar_sub[
+def scalar_sub[
     dtype: DType
 ](mat: Matrix[dtype], scalar: Scalar[dtype]) -> Matrix[dtype]:
     """Subtracts a scalar from every element of a matrix."""
-    return _scalar_elementwise_view[func = Scalar[dtype].__sub__](
+    return _scalar_elementwise_view[func=Scalar[dtype].__sub__](
         mat.view(), scalar
     )
 
 
-fn scalar_sub[
+def scalar_sub[
     dtype: DType, origin: Origin
 ](mat: MatrixView[dtype, origin], scalar: Scalar[dtype]) -> Matrix[dtype]:
     """Subtracts a scalar from every element of a matrix view."""
-    return _scalar_elementwise_view[func = Scalar[dtype].__sub__](mat, scalar)
+    return _scalar_elementwise_view[func=Scalar[dtype].__sub__](mat, scalar)
 
 
-fn scalar_mul[
+def scalar_mul[
     dtype: DType
 ](mat: Matrix[dtype], scalar: Scalar[dtype]) -> Matrix[dtype]:
     """Multiplies every element of a matrix by a scalar."""
-    return _scalar_elementwise_view[func = Scalar[dtype].__mul__](
+    return _scalar_elementwise_view[func=Scalar[dtype].__mul__](
         mat.view(), scalar
     )
 
 
-fn scalar_mul[
+def scalar_mul[
     dtype: DType, origin: Origin
 ](mat: MatrixView[dtype, origin], scalar: Scalar[dtype]) -> Matrix[dtype]:
     """Multiplies every element of a matrix view by a scalar."""
-    return _scalar_elementwise_view[func = Scalar[dtype].__mul__](mat, scalar)
+    return _scalar_elementwise_view[func=Scalar[dtype].__mul__](mat, scalar)
 
 
-fn scalar_div[
+def scalar_div[
     dtype: DType
 ](mat: Matrix[dtype], scalar: Scalar[dtype]) -> Matrix[dtype]:
     """Divides every element of a matrix by a scalar."""
-    return _scalar_elementwise_view[func = Scalar[dtype].__truediv__](
+    return _scalar_elementwise_view[func=Scalar[dtype].__truediv__](
         mat.view(), scalar
     )
 
 
-fn scalar_div[
+def scalar_div[
     dtype: DType, origin: Origin
 ](mat: MatrixView[dtype, origin], scalar: Scalar[dtype]) -> Matrix[dtype]:
     """Divides every element of a matrix view by a scalar."""
-    return _scalar_elementwise_view[func = Scalar[dtype].__truediv__](
-        mat, scalar
-    )
+    return _scalar_elementwise_view[func=Scalar[dtype].__truediv__](mat, scalar)

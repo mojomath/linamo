@@ -2,7 +2,7 @@
 Tests for matrix decompositions: LU, Cholesky, QR.
 """
 
-import testing
+import std.testing as testing
 import matmojo as mm
 from matmojo.types.matrix import Matrix
 from matmojo.routines.linalg import lu, cholesky, qr, transpose
@@ -14,7 +14,7 @@ from matmojo.routines.math import matmul
 # ===----------------------------------------------------------------------===#
 
 
-fn assert_matrix_close(
+def assert_matrix_close(
     a: Matrix[DType.float64],
     b: Matrix[DType.float64],
     tol: Float64 = 1e-10,
@@ -47,7 +47,7 @@ fn assert_matrix_close(
 # ===----------------------------------------------------------------------===#
 
 
-fn permute_rows(
+def permute_rows(
     mat: Matrix[DType.float64], piv: List[Int]
 ) raises -> Matrix[DType.float64]:
     """Return a new matrix with rows reordered according to piv."""
@@ -71,7 +71,7 @@ fn permute_rows(
 # ===----------------------------------------------------------------------===#
 
 
-fn test_lu_basic() raises:
+def test_lu_basic() raises:
     """Test LU decomposition of a 3x3 matrix: PA = LU."""
     var a = mm.matrix[DType.float64](
         [[2.0, 3.0, 1.0], [4.0, 7.0, 5.0], [6.0, 18.0, 22.0]]
@@ -87,7 +87,7 @@ fn test_lu_basic() raises:
     assert_matrix_close(PA, LU)
 
 
-fn test_lu_identity() raises:
+def test_lu_identity() raises:
     """LU of identity should give L=I, U=I."""
     var a = mm.eye[DType.float64](3)
     var result = lu(a)
@@ -99,7 +99,7 @@ fn test_lu_identity() raises:
     assert_matrix_close(U, I)
 
 
-fn test_lu_2x2() raises:
+def test_lu_2x2() raises:
     """Test LU on a simple 2x2 matrix."""
     var a = mm.matrix[DType.float64]([[4.0, 3.0], [6.0, 3.0]])
     var result = lu(a)
@@ -112,7 +112,7 @@ fn test_lu_2x2() raises:
     assert_matrix_close(PA, LU)
 
 
-fn test_lu_lower_triangular() raises:
+def test_lu_lower_triangular() raises:
     """L should be unit lower-triangular (ones on diagonal)."""
     var a = mm.matrix[DType.float64](
         [[1.0, 2.0, 3.0], [4.0, 5.0, 6.0], [7.0, 8.0, 10.0]]
@@ -128,7 +128,7 @@ fn test_lu_lower_triangular() raises:
             testing.assert_equal(L[i, j], 0.0)
 
 
-fn test_lu_upper_triangular() raises:
+def test_lu_upper_triangular() raises:
     """U should be upper-triangular (zeros below diagonal)."""
     var a = mm.matrix[DType.float64](
         [[1.0, 2.0, 3.0], [4.0, 5.0, 6.0], [7.0, 8.0, 10.0]]
@@ -141,7 +141,7 @@ fn test_lu_upper_triangular() raises:
             testing.assert_equal(U[i, j], 0.0)
 
 
-fn test_lu_nonsquare_raises() raises:
+def test_lu_nonsquare_raises() raises:
     """LU should raise ValueError for non-square matrix."""
     var a = mm.matrix[DType.float64]([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]])
     var raised = False
@@ -152,7 +152,7 @@ fn test_lu_nonsquare_raises() raises:
     testing.assert_true(raised, msg="Expected ValueError for non-square")
 
 
-fn test_lu_col_major() raises:
+def test_lu_col_major() raises:
     """LU should work on column-major matrices."""
     var a = mm.matrix[DType.float64]([[2.0, 1.0], [5.0, 3.0]], order="F")
     var result = lu(a)
@@ -170,7 +170,7 @@ fn test_lu_col_major() raises:
 # ===----------------------------------------------------------------------===#
 
 
-fn test_cholesky_basic() raises:
+def test_cholesky_basic() raises:
     """Test Cholesky on a 3x3 positive-definite matrix: A = L L^T."""
     var a = mm.matrix[DType.float64](
         [[4.0, 12.0, -16.0], [12.0, 37.0, -43.0], [-16.0, -43.0, 98.0]]
@@ -188,14 +188,14 @@ fn test_cholesky_basic() raises:
     assert_matrix_close(a, LLt)
 
 
-fn test_cholesky_identity() raises:
+def test_cholesky_identity() raises:
     """Cholesky of identity should give identity."""
     var I = mm.eye[DType.float64](4)
     var L = cholesky(I)
     assert_matrix_close(L, I)
 
 
-fn test_cholesky_2x2() raises:
+def test_cholesky_2x2() raises:
     """Test Cholesky on a simple 2x2 SPD matrix."""
     var a = mm.matrix[DType.float64]([[25.0, 15.0], [15.0, 13.0]])
     var L = cholesky(a)
@@ -205,7 +205,7 @@ fn test_cholesky_2x2() raises:
     assert_matrix_close(a, LLt)
 
 
-fn test_cholesky_not_positive_definite_raises() raises:
+def test_cholesky_not_positive_definite_raises() raises:
     """Cholesky should raise for non-positive-definite matrix."""
     var a = mm.matrix[DType.float64](
         [[1.0, 2.0], [2.0, 1.0]]  # eigenvalues: 3 and -1
@@ -220,7 +220,7 @@ fn test_cholesky_not_positive_definite_raises() raises:
     )
 
 
-fn test_cholesky_nonsquare_raises() raises:
+def test_cholesky_nonsquare_raises() raises:
     """Cholesky should raise for non-square matrix."""
     var a = mm.matrix[DType.float64]([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]])
     var raised = False
@@ -231,7 +231,7 @@ fn test_cholesky_nonsquare_raises() raises:
     testing.assert_true(raised, msg="Expected ValueError for non-square")
 
 
-fn test_cholesky_col_major() raises:
+def test_cholesky_col_major() raises:
     """Cholesky should work with column-major input."""
     var a = mm.matrix[DType.float64](
         [[4.0, 12.0, -16.0], [12.0, 37.0, -43.0], [-16.0, -43.0, 98.0]],
@@ -248,7 +248,7 @@ fn test_cholesky_col_major() raises:
 # ===----------------------------------------------------------------------===#
 
 
-fn test_qr_basic() raises:
+def test_qr_basic() raises:
     """Test QR decomposition: A = QR."""
     var a = mm.matrix[DType.float64](
         [[1.0, -1.0, 4.0], [1.0, 4.0, -2.0], [1.0, 4.0, 2.0]]
@@ -262,7 +262,7 @@ fn test_qr_basic() raises:
     assert_matrix_close(a, QR, tol=1e-9)
 
 
-fn test_qr_orthogonal_q() raises:
+def test_qr_orthogonal_q() raises:
     """Q should be orthogonal: Q^T Q = I."""
     var a = mm.matrix[DType.float64]([[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]])
     var result = qr(a)
@@ -275,7 +275,7 @@ fn test_qr_orthogonal_q() raises:
     assert_matrix_close(QtQ, I, tol=1e-9)
 
 
-fn test_qr_upper_triangular_r() raises:
+def test_qr_upper_triangular_r() raises:
     """R should be upper-triangular."""
     var a = mm.matrix[DType.float64](
         [[12.0, -51.0, 4.0], [6.0, 167.0, -68.0], [-4.0, 24.0, -41.0]]
@@ -302,7 +302,7 @@ fn test_qr_upper_triangular_r() raises:
             )
 
 
-fn test_qr_identity() raises:
+def test_qr_identity() raises:
     """QR of identity: Q @ R should equal I."""
     var I = mm.eye[DType.float64](3)
     var result = qr(I)
@@ -313,7 +313,7 @@ fn test_qr_identity() raises:
     assert_matrix_close(QR, I, tol=1e-10)
 
 
-fn test_qr_rectangular() raises:
+def test_qr_rectangular() raises:
     """QR decomposition for a tall rectangular matrix (m > n)."""
     var a = mm.matrix[DType.float64]([[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]])
     var result = qr(a)
@@ -329,7 +329,7 @@ fn test_qr_rectangular() raises:
     assert_matrix_close(a, QR, tol=1e-9)
 
 
-fn test_qr_m_less_than_n_raises() raises:
+def test_qr_m_less_than_n_raises() raises:
     """QR should raise when m < n."""
     var a = mm.matrix[DType.float64]([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]])
     var raised = False
@@ -340,7 +340,7 @@ fn test_qr_m_less_than_n_raises() raises:
     testing.assert_true(raised, msg="Expected ValueError for m < n")
 
 
-fn test_qr_col_major() raises:
+def test_qr_col_major() raises:
     """QR should work with column-major input."""
     var a = mm.matrix[DType.float64](
         [[1.0, -1.0, 4.0], [1.0, 4.0, -2.0], [1.0, 4.0, 2.0]], order="F"
@@ -352,5 +352,5 @@ fn test_qr_col_major() raises:
     assert_matrix_close(a, QR, tol=1e-9)
 
 
-fn main() raises:
+def main() raises:
     testing.TestSuite.discover_tests[__functions_in_module()]().run()

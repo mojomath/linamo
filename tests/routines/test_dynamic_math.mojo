@@ -2,7 +2,7 @@
 Tests for dynamic Matrix element-wise operations: add, sub, mul, div.
 """
 
-import testing
+import std.testing as testing
 import matmojo as mm
 from matmojo.routines.math import add, sub, mul, div
 
@@ -12,7 +12,7 @@ from matmojo.routines.math import add, sub, mul, div
 # ===----------------------------------------------------------------------===#
 
 
-fn test_dynamic_add() raises:
+def test_dynamic_add() raises:
     """Test element-wise addition of two dynamic matrices."""
     var a = mm.matrix[DType.float64]([[1.0, 2.0], [3.0, 4.0]])
     var b = mm.matrix[DType.float64]([[10.0, 20.0], [30.0, 40.0]])
@@ -23,7 +23,7 @@ fn test_dynamic_add() raises:
     testing.assert_equal(c[1, 1], 44.0)
 
 
-fn test_dynamic_add_dunder() raises:
+def test_dynamic_add_dunder() raises:
     """Test element-wise addition using + operator."""
     var a = mm.matrix[DType.float64]([[1.0, 2.0], [3.0, 4.0]])
     var b = mm.matrix[DType.float64]([[5.0, 6.0], [7.0, 8.0]])
@@ -32,7 +32,7 @@ fn test_dynamic_add_dunder() raises:
     testing.assert_equal(c[1, 1], 12.0)
 
 
-fn test_dynamic_add_shape_mismatch_raises() raises:
+def test_dynamic_add_shape_mismatch_raises() raises:
     """Test that adding matrices of different shapes raises ValueError."""
     var a = mm.matrix[DType.float64]([[1.0, 2.0]])
     var b = mm.matrix[DType.float64]([[1.0], [2.0]])
@@ -49,7 +49,7 @@ fn test_dynamic_add_shape_mismatch_raises() raises:
 # ===----------------------------------------------------------------------===#
 
 
-fn test_dynamic_sub() raises:
+def test_dynamic_sub() raises:
     """Test element-wise subtraction of two dynamic matrices."""
     var a = mm.matrix[DType.float64]([[10.0, 20.0], [30.0, 40.0]])
     var b = mm.matrix[DType.float64]([[1.0, 2.0], [3.0, 4.0]])
@@ -60,7 +60,7 @@ fn test_dynamic_sub() raises:
     testing.assert_equal(c[1, 1], 36.0)
 
 
-fn test_dynamic_sub_dunder() raises:
+def test_dynamic_sub_dunder() raises:
     """Test element-wise subtraction using - operator."""
     var a = mm.matrix[DType.float64]([[5.0, 6.0], [7.0, 8.0]])
     var b = mm.matrix[DType.float64]([[1.0, 2.0], [3.0, 4.0]])
@@ -74,7 +74,7 @@ fn test_dynamic_sub_dunder() raises:
 # ===----------------------------------------------------------------------===#
 
 
-fn test_dynamic_mul() raises:
+def test_dynamic_mul() raises:
     """Test element-wise multiplication of two dynamic matrices."""
     var a = mm.matrix[DType.float64]([[2.0, 3.0], [4.0, 5.0]])
     var b = mm.matrix[DType.float64]([[10.0, 20.0], [30.0, 40.0]])
@@ -85,7 +85,7 @@ fn test_dynamic_mul() raises:
     testing.assert_equal(c[1, 1], 200.0)
 
 
-fn test_dynamic_mul_dunder() raises:
+def test_dynamic_mul_dunder() raises:
     """Test element-wise multiplication using * operator."""
     var a = mm.matrix[DType.float64]([[2.0, 3.0], [4.0, 5.0]])
     var b = mm.matrix[DType.float64]([[2.0, 2.0], [2.0, 2.0]])
@@ -99,7 +99,7 @@ fn test_dynamic_mul_dunder() raises:
 # ===----------------------------------------------------------------------===#
 
 
-fn test_dynamic_div() raises:
+def test_dynamic_div() raises:
     """Test element-wise division of two dynamic matrices."""
     var a = mm.matrix[DType.float64]([[10.0, 20.0], [30.0, 40.0]])
     var b = mm.matrix[DType.float64]([[2.0, 4.0], [5.0, 8.0]])
@@ -110,7 +110,7 @@ fn test_dynamic_div() raises:
     testing.assert_equal(c[1, 1], 5.0)
 
 
-fn test_dynamic_div_dunder() raises:
+def test_dynamic_div_dunder() raises:
     """Test element-wise division using / operator."""
     var a = mm.matrix[DType.float64]([[10.0, 20.0], [30.0, 40.0]])
     var b = mm.matrix[DType.float64]([[5.0, 5.0], [5.0, 5.0]])
@@ -124,7 +124,7 @@ fn test_dynamic_div_dunder() raises:
 # ===----------------------------------------------------------------------===#
 
 
-fn test_dynamic_add_col_major() raises:
+def test_dynamic_add_col_major() raises:
     """Test addition with column-major matrices."""
     var a = mm.matrix[DType.float64]([[1.0, 2.0], [3.0, 4.0]], order="F")
     var b = mm.matrix[DType.float64]([[10.0, 20.0], [30.0, 40.0]], order="F")
@@ -135,5 +135,5 @@ fn test_dynamic_add_col_major() raises:
     testing.assert_equal(c[1, 1], 44.0)
 
 
-fn main() raises:
+def main() raises:
     testing.TestSuite.discover_tests[__functions_in_module()]().run()

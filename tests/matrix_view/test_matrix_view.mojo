@@ -2,11 +2,11 @@
 Tests for MatrixView creation and element access.
 """
 
-import testing
+import std.testing as testing
 import matmojo as mm
 
 
-fn test_view_from_matrix_full() raises:
+def test_view_from_matrix_full() raises:
     """Test creating a full view from a matrix."""
     var mat = mm.matrix[DType.float64](
         [
@@ -23,7 +23,7 @@ fn test_view_from_matrix_full() raises:
     testing.assert_equal(v[2, 2], 9.0)
 
 
-fn test_view_slice_rows_and_cols() raises:
+def test_view_slice_rows_and_cols() raises:
     """Test creating a slice view with row and column ranges."""
     var mat = mm.matrix[DType.float64](
         [
@@ -42,7 +42,7 @@ fn test_view_slice_rows_and_cols() raises:
     testing.assert_equal(v[1, 1], 7.0)
 
 
-fn test_view_slice_with_step() raises:
+def test_view_slice_with_step() raises:
     """Test creating a slice view with step > 1."""
     var mat = mm.matrix[DType.float64](
         [
@@ -62,7 +62,7 @@ fn test_view_slice_with_step() raises:
     testing.assert_equal(v[1, 1], 11.0)
 
 
-fn test_view_shares_data() raises:
+def test_view_shares_data() raises:
     """Test that a view shares data with the original matrix."""
     var mat = mm.matrix[DType.float64]([[1.0, 2.0], [3.0, 4.0]])
     var v = mat.view()
@@ -74,7 +74,7 @@ fn test_view_shares_data() raises:
     testing.assert_equal(v[0, 0], 99.0)
 
 
-fn test_view_on_view() raises:
+def test_view_on_view() raises:
     """Test creating a view from another view."""
     var mat = mm.matrix[DType.float64](
         [
@@ -98,7 +98,7 @@ fn test_view_on_view() raises:
     testing.assert_equal(v2[1, 1], 13.0)
 
 
-fn test_view_str() raises:
+def test_view_str() raises:
     """Test MatrixView string representation."""
     var mat = mm.matrix[DType.float64]([[1.0, 2.0], [3.0, 4.0]])
     var v = mat.view()
@@ -107,7 +107,7 @@ fn test_view_str() raises:
     testing.assert_true("4.0" in s, "View str should contain 4.0")
 
 
-fn test_view_write_to_metadata() raises:
+def test_view_write_to_metadata() raises:
     """Test that MatrixView write_to includes metadata."""
     var mat = mm.matrix[DType.float64]([[1.0, 2.0], [3.0, 4.0]])
     var v = mat.view()
@@ -119,7 +119,7 @@ fn test_view_write_to_metadata() raises:
     testing.assert_true("float64" in s, "write_to should include dtype")
 
 
-fn test_view_get_unsafe() raises:
+def test_view_get_unsafe() raises:
     """Test unsafe element access on a view."""
     var mat = mm.matrix[DType.float64](
         [
@@ -134,5 +134,5 @@ fn test_view_get_unsafe() raises:
     testing.assert_equal(v.get_unsafe(1, 1), 6.0)
 
 
-fn main() raises:
+def main() raises:
     testing.TestSuite.discover_tests[__functions_in_module()]().run()

@@ -2,11 +2,11 @@
 Tests for Matrix element access and indexing.
 """
 
-import testing
+import std.testing as testing
 import matmojo as mm
 
 
-fn test_matrix_getitem_basic() raises:
+def test_matrix_getitem_basic() raises:
     """Test basic element access with __getitem__."""
     var mat = mm.matrix[DType.float64](
         [
@@ -22,7 +22,7 @@ fn test_matrix_getitem_basic() raises:
     testing.assert_equal(mat[2, 2], 9.0)
 
 
-fn test_matrix_getitem_col_major() raises:
+def test_matrix_getitem_col_major() raises:
     """Test element access on column-major matrix."""
     var mat = mm.matrix[DType.float64](
         [
@@ -40,7 +40,7 @@ fn test_matrix_getitem_col_major() raises:
     testing.assert_equal(mat[2, 1], 6.0)
 
 
-fn test_matrix_getitem_out_of_bounds_raises() raises:
+def test_matrix_getitem_out_of_bounds_raises() raises:
     """Test that out-of-bounds access raises IndexError."""
     var mat = mm.matrix[DType.float64]([[1.0, 2.0], [3.0, 4.0]])
     var raised = False
@@ -69,7 +69,7 @@ fn test_matrix_getitem_out_of_bounds_raises() raises:
     testing.assert_true(raised, "Negative row index should raise IndexError")
 
 
-fn test_matrix_setitem_via_ref() raises:
+def test_matrix_setitem_via_ref() raises:
     """Test element mutation via __getitem__ returning a mutable ref."""
     var mat = mm.matrix[DType.float64]([[1.0, 2.0], [3.0, 4.0]])
     mat[0, 0] = 99.0
@@ -81,7 +81,7 @@ fn test_matrix_setitem_via_ref() raises:
     testing.assert_equal(mat[1, 0], 3.0)
 
 
-fn test_matrix_get_unsafe() raises:
+def test_matrix_get_unsafe() raises:
     """Test unsafe element access (no bounds checking)."""
     var mat = mm.matrix[DType.float64](
         [
@@ -95,7 +95,7 @@ fn test_matrix_get_unsafe() raises:
     testing.assert_equal(mat.get_unsafe(1, 2), 60.0)
 
 
-fn test_matrix_attributes() raises:
+def test_matrix_attributes() raises:
     """Test that matrix attribute getters work correctly."""
     var mat = mm.matrix[DType.float64](
         [
@@ -111,5 +111,5 @@ fn test_matrix_attributes() raises:
     testing.assert_equal(mat.get_size(), 6)
 
 
-fn main() raises:
+def main() raises:
     testing.TestSuite.discover_tests[__functions_in_module()]().run()

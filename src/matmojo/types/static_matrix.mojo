@@ -11,7 +11,7 @@ from matmojo.utils.indexing import (
 )
 
 
-fn next_power_of_two(x: Int) -> Int:
+def next_power_of_two(x: Int) -> Int:
     """Returns the next power of two greater than or equal to x."""
     if x <= 1:
         return 1
@@ -26,7 +26,7 @@ fn next_power_of_two(x: Int) -> Int:
 
 
 struct StaticMatrix[dtype: DType, nrows: Int, ncols: Int](
-    Copyable, MatrixLike, Stringable, Writable
+    Copyable, MatrixLike, Writable
 ):
 
     """A statically sized 2D matrix type.
@@ -52,31 +52,31 @@ struct StaticMatrix[dtype: DType, nrows: Int, ncols: Int](
     # ===--------------------------------------------------------------------===#
     # Retrieve attributes
     # ===--------------------------------------------------------------------===#
-    fn get_nrows(self) -> Int:
+    def get_nrows(self) -> Int:
         """Returns the number of rows in the matrix."""
         return self.nrows
 
-    fn get_ncols(self) -> Int:
+    def get_ncols(self) -> Int:
         """Returns the number of columns in the matrix."""
         return self.ncols
 
-    fn get_row_stride(self) -> Int:
+    def get_row_stride(self) -> Int:
         """Returns the row stride of the matrix."""
         return self.row_stride
 
-    fn get_col_stride(self) -> Int:
+    def get_col_stride(self) -> Int:
         """Returns the column stride of the matrix."""
         return self.col_stride
 
-    fn get_offset(self) -> Int:
+    def get_offset(self) -> Int:
         """Returns the offset in the underlying data buffer for the matrix."""
         return 0
 
-    fn get_size(self) -> Int:
+    def get_size(self) -> Int:
         """Returns the total number of elements in the matrix."""
         return self.nrows * self.ncols
 
-    fn is_c_contiguous(self) -> Bool:
+    def is_c_contiguous(self) -> Bool:
         """Returns True if the matrix is C-contiguous (row-major, dense).
 
         StaticMatrix uses power-of-2 padding for SIMD alignment, so it is
@@ -84,7 +84,7 @@ struct StaticMatrix[dtype: DType, nrows: Int, ncols: Int](
         """
         return self.row_stride == self.ncols
 
-    fn is_f_contiguous(self) -> Bool:
+    def is_f_contiguous(self) -> Bool:
         """Returns True if the matrix is F-contiguous (column-major, dense).
 
         StaticMatrix is always row-major with col_stride=1, so it is never
@@ -92,14 +92,14 @@ struct StaticMatrix[dtype: DType, nrows: Int, ncols: Int](
         """
         return self.row_stride == 1 and self.col_stride == self.nrows
 
-    fn is_row_contiguous(self) -> Bool:
+    def is_row_contiguous(self) -> Bool:
         """Returns True if elements within each row are contiguous.
 
         StaticMatrix always has col_stride=1, so rows are always contiguous.
         """
         return True
 
-    fn is_col_contiguous(self) -> Bool:
+    def is_col_contiguous(self) -> Bool:
         """Returns True if elements within each column are contiguous.
 
         StaticMatrix has row_stride = BUFFER_COL_LEN (power-of-2 padded),
@@ -111,18 +111,18 @@ struct StaticMatrix[dtype: DType, nrows: Int, ncols: Int](
     # Life Cycle Management
     # ===--------------------------------------------------------------------===#
 
-    fn __init__(out self):
+    def __init__(out self):
         """Initializes the matrix with all zeros."""
         # [Mojo Miji]
         # SIMD() initializes the buffer with zeros at compile time, so we don't
         # need to explicitly fill it with zeros here.
         self.data = SIMD[Self.dtype, Self.BUFFER_SIZE]()
 
-    fn __init__(out self, simd: SIMD[Self.dtype, Self.BUFFER_SIZE]):
+    def __init__(out self, simd: SIMD[Self.dtype, Self.BUFFER_SIZE]):
         """Initializes the matrix with SIMD that match the size of buffer."""
         self.data = simd
 
-    fn __copyinit__(out self, copy: Self):
+    def __init__(out self, *, copy: Self):
         """Initializes the matrix by copying another matrix."""
         self.data = copy.data
 
@@ -130,7 +130,7 @@ struct StaticMatrix[dtype: DType, nrows: Int, ncols: Int](
     # Element Access and Mutation
     # ===--------------------------------------------------------------------===#
 
-    fn __getitem__(self, row: Int, col: Int) -> Self.ElementType:
+    def __getitem__(self, row: Int, col: Int) -> Self.ElementType:
         """Accesses an element of the matrix view using row and column indices.
         """
         return self.data[row * self.row_stride + col * self.col_stride]
@@ -139,9 +139,9 @@ struct StaticMatrix[dtype: DType, nrows: Int, ncols: Int](
     # String Representation and Writing
     # ===--------------------------------------------------------------------===#
 
-    fn __str__(self) -> String:
+    def __str__(self) -> String:
         """Returns a string representation of the matrix."""
-        result = String("")
+        var result = String("")
         for i in range(self.nrows):
             for j in range(self.ncols):
                 result += (
@@ -152,7 +152,7 @@ struct StaticMatrix[dtype: DType, nrows: Int, ncols: Int](
                 result += "\n"
         return result
 
-    fn write_to[W: Writer](self, mut writer: W):
+    def write_to[W: Writer](self, mut writer: W):
         """Writes the matrix to a writer."""
         writer.write("StaticMatrix, ")
         writer.write(self.dtype)
@@ -183,11 +183,11 @@ struct StaticMatrix[dtype: DType, nrows: Int, ncols: Int](
     # Basic math dunders
     # ===------------------------------------------------------------------ ===#
 
-    fn __add__(self, other: Self) -> Self:
+    def __add__(self, other: Self) -> Self:
         """Performs element-wise addition of two matrices."""
         return matmojo.routines.math.add(self, other)
 
-    fn __matmul__[
+    def __matmul__[
         other_ncols: Int
     ](
         self, other: StaticMatrix[Self.dtype, Self.ncols, other_ncols]
