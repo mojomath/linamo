@@ -1,3 +1,6 @@
+from linamo.types.matrix import Matrix
+from linamo.types.matrix_view import MatrixView
+
 from linamo.routines.creation import (
     matrix,
     smatrix,

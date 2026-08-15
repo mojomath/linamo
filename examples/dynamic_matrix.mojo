@@ -68,6 +68,6 @@ def calculation() raises:
         order="C",
     )
     var c = a.copy()
-    for _ in range(10000):
+    for _ in range(10):
         c = c @ b
     print("Result of matrix multiplication:\n", c)

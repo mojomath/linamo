@@ -105,6 +105,60 @@ Note that region assignment is spelled as a named method rather than
 would force the right-hand side to be a view carrying the *target's* own
 origin -- making assignment from any other matrix inexpressible.
 
+## Operators
+
+Both `Matrix` and `MatrixView` carry the full arithmetic operator set. Every
+binary operator accepts a `Matrix`, a `MatrixView`, or a scalar on the right,
+and always returns a **new** `Matrix` that owns its data -- an operator never
+writes into an operand.
+
+| Operator                        | Meaning                                 |
+| ------------------------------- | --------------------------------------- |
+| `+` `-` `*` `/`                 | Element-wise arithmetic                 |
+| `//` `%`                        | Element-wise floor division and modulo  |
+| `**`                            | Element-wise power (**not** matrix power) |
+| `@`                             | Matrix multiplication                   |
+| `<` `<=` `>` `>=` `==` `!=`     | Element-wise mask, `Matrix[DType.bool]` |
+
+`**` follows NumPy: `A ** 2` squares each entry. Matrix exponentiation is a
+different operation and gets a named routine, not an operator.
+
+### Comparisons return masks
+
+`a == b` is an element-wise `Matrix[DType.bool]` of the same shape, not a single
+`Bool`. `Matrix` therefore does not conform to `EqualityComparable` on purpose.
+To ask whether two matrices are wholly identical, use
+`assert_matrices_equal` / `assert_matrices_close` from `utils/test_utils.mojo`.
+
+### Reflected operators
+
+Scalars work on the left as well: `2.0 + A`, `2.0 * A`, `2.0 - A`, `2.0 / A`.
+The subtraction and division forms keep the operand order you would expect --
+`2.0 - A` subtracts each element from 2.0, not the reverse.
+
+### In-place operators
+
+`+=`, `-=`, `*=`, `/=`, `//=` and `%=` are defined on `Matrix` only, and accept
+a matrix, a view, or a scalar. Unlike the out-of-place operators they allocate
+nothing: they write back through the matrix's own strides, so a transposed or
+column-major matrix keeps its layout.
+
+`MatrixView` has no in-place operators, for the same reason it has no `store`
+method: the type is generic over its origin, and Mojo checks a method body
+against the read-only instantiation too, so nothing that writes through
+`self.data` can be defined on it. Mutate a view through the free functions in
+`routines/mutation.mojo`.
+
+Aliasing is a compile error rather than a silent wrong answer:
+
+```mojo
+a += a[:, :]   # does not compile
+```
+
+The borrow checker will not produce a mutable reference to `a` while a view
+borrowing `a` is still alive. This is the same mechanism that makes views safe
+in general -- no runtime flag, no defensive copy.
+
 ## Inter-operability of Matrix and MatrixView
 
 The `Matrix` and `MatrixView` classes are designed to inter-operate seamlessly.

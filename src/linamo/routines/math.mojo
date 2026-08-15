@@ -787,3 +787,311 @@ def scalar_div[
 ](mat: MatrixView[dtype, origin], scalar: Scalar[dtype]) -> Matrix[dtype]:
     """Divides every element of a matrix view by a scalar."""
     return _scalar_elementwise_view[func=Scalar[dtype].__truediv__](mat, scalar)
+
+
+# ===---------------------------------------------------------------------- ===#
+# Core in-place element-wise implementations
+# ===---------------------------------------------------------------------- ===#
+# The out-of-place cores above always allocate a fresh C-contiguous result.
+# The in-place operators (`+=`, `-=`, ...) must not: they write back through
+# the left operand's own strides, so a matrix that is a transpose or a
+# non-contiguous buffer stays exactly where it is.
+#
+# The target is a `Matrix` rather than a `MatrixView`. A view is generic over
+# `origin`, and Mojo checks a body against every instantiation including the
+# read-only one, so nothing writing through `self.data` can be defined on it —
+# the same constraint that pushed bulk writes into `routines/mutation.mojo`.
+
+
+def _elementwise_inplace[
+    dtype: DType,
+    func: def(Scalar[dtype], Scalar[dtype]) thin -> Scalar[dtype],
+    origin_b: Origin,
+](mut a: Matrix[dtype], b: MatrixView[dtype, origin_b]) raises:
+    """Core in-place element-wise binary operation, writing into `a`.
+
+    When both operands are C-contiguous, a SIMD-vectorised fast path is taken.
+    Otherwise a stride-aware double loop writes through `a`'s own strides.
+    """
+    if a.nrows != b.nrows or a.ncols != b.ncols:
+        raise ValueError(
+            file="src/linamo/routines/math.mojo",
+            function="_elementwise_inplace()",
+            message="Input matrices must have the same shape.",
+            previous_error=None,
+        )
+    var M = a.nrows
+    var N = a.ncols
+
+    if a.is_c_contiguous() and b.is_c_contiguous():
+        comptime simd_w = simd_width_of[dtype]()
+        var a_ptr = a.data._data
+        var b_ptr = b.data.unsafe_ptr()
+        var b_off = b.offset
+
+        def vec_op[
+            w: Int
+        ](idx: Int) {imm a_ptr, imm b_ptr, imm b_off,}:
+            var a_chunk = a_ptr.unsafe_load[width=w](idx)
+            var b_chunk = b_ptr.unsafe_load[width=w](b_off + idx)
+            var res = SIMD[dtype, w](0)
+
+            comptime for lane in range(w):
+                res[lane] = func(a_chunk[lane], b_chunk[lane])
+            a_ptr.unsafe_store[width=w](idx, res)
+
+        vectorize[simd_w](M * N, vec_op)
+    else:
+        for i in range(M):
+            for j in range(N):
+                var idx = get_offset(i, j, a.row_stride, a.col_stride)
+                a.data[idx] = func(a.data[idx], b[i, j])
+
+
+def _scalar_elementwise_inplace[
+    dtype: DType,
+    func: def(Scalar[dtype], Scalar[dtype]) thin -> Scalar[dtype],
+](mut mat: Matrix[dtype], scalar: Scalar[dtype]):
+    """Core in-place scalar element-wise operation, writing into `mat`."""
+    var M = mat.nrows
+    var N = mat.ncols
+
+    if mat.is_c_contiguous():
+        comptime simd_w = simd_width_of[dtype]()
+        var m_ptr = mat.data._data
+
+        def vec_scalar[
+            w: Int
+        ](idx: Int) {imm m_ptr, imm scalar,}:
+            var m_chunk = m_ptr.unsafe_load[width=w](idx)
+            var s_chunk = SIMD[dtype, w](scalar)
+            var res = SIMD[dtype, w](0)
+
+            comptime for lane in range(w):
+                res[lane] = func(m_chunk[lane], s_chunk[lane])
+            m_ptr.unsafe_store[width=w](idx, res)
+
+        vectorize[simd_w](M * N, vec_scalar)
+    else:
+        for i in range(M):
+            for j in range(N):
+                var idx = get_offset(i, j, mat.row_stride, mat.col_stride)
+                mat.data[idx] = func(mat.data[idx], scalar)
+
+
+# ===---------------------------------------------------------------------- ===#
+# Reflected scalar operand order
+# ===---------------------------------------------------------------------- ===#
+# `_scalar_elementwise_view` always calls `func(element, scalar)`. For the
+# non-commutative reflected operators (`2.0 - A`, `2.0 / A`) the operands have
+# to arrive the other way round, so the order is flipped in the kernel rather
+# than by threading a `reverse` flag through the core.
+
+
+def _rsub_op[dtype: DType](a: Scalar[dtype], b: Scalar[dtype]) -> Scalar[dtype]:
+    """Returns `b - a`, the operand order `__rsub__` needs."""
+    return b - a
+
+
+def _rdiv_op[dtype: DType](a: Scalar[dtype], b: Scalar[dtype]) -> Scalar[dtype]:
+    """Returns `b / a`, the operand order `__rtruediv__` needs."""
+    return b / a
+
+
+# ===---------------------------------------------------------------------- ===#
+# Element-wise floordiv, mod, pow
+# ===---------------------------------------------------------------------- ===#
+# Same 4-overload shape as add/sub/mul/div above: view×view, mat×mat,
+# mat×view, view×mat, all delegating to `_elementwise_view`.
+
+
+# --------------------------------------------------------------------------- #
+# floordiv
+# --------------------------------------------------------------------------- #
+
+
+def floordiv[
+    dtype: DType, origin_a: Origin, origin_b: Origin
+](
+    a: MatrixView[dtype, origin_a], b: MatrixView[dtype, origin_b]
+) raises -> Matrix[dtype]:
+    """Element-wise floor division of two matrix views."""
+    return _elementwise_view[func=Scalar[dtype].__floordiv__](a, b)
+
+
+def floordiv[
+    dtype: DType
+](a: Matrix[dtype], b: Matrix[dtype]) raises -> Matrix[dtype]:
+    """Element-wise floor division of two dynamic matrices."""
+    return _elementwise_view[func=Scalar[dtype].__floordiv__](
+        a.view(), b.view()
+    )
+
+
+def floordiv[
+    dtype: DType, origin_b: Origin
+](a: Matrix[dtype], b: MatrixView[dtype, origin_b]) raises -> Matrix[dtype]:
+    """Element-wise floor division of a matrix and a matrix view."""
+    return _elementwise_view[func=Scalar[dtype].__floordiv__](a.view(), b)
+
+
+def floordiv[
+    dtype: DType, origin_a: Origin
+](a: MatrixView[dtype, origin_a], b: Matrix[dtype]) raises -> Matrix[dtype]:
+    """Element-wise floor division of a matrix view and a matrix."""
+    return _elementwise_view[func=Scalar[dtype].__floordiv__](a, b.view())
+
+
+# --------------------------------------------------------------------------- #
+# mod
+# --------------------------------------------------------------------------- #
+
+
+def mod[
+    dtype: DType, origin_a: Origin, origin_b: Origin
+](
+    a: MatrixView[dtype, origin_a], b: MatrixView[dtype, origin_b]
+) raises -> Matrix[dtype]:
+    """Element-wise modulo of two matrix views."""
+    return _elementwise_view[func=Scalar[dtype].__mod__](a, b)
+
+
+def mod[
+    dtype: DType
+](a: Matrix[dtype], b: Matrix[dtype]) raises -> Matrix[dtype]:
+    """Element-wise modulo of two dynamic matrices."""
+    return _elementwise_view[func=Scalar[dtype].__mod__](a.view(), b.view())
+
+
+def mod[
+    dtype: DType, origin_b: Origin
+](a: Matrix[dtype], b: MatrixView[dtype, origin_b]) raises -> Matrix[dtype]:
+    """Element-wise modulo of a matrix and a matrix view."""
+    return _elementwise_view[func=Scalar[dtype].__mod__](a.view(), b)
+
+
+def mod[
+    dtype: DType, origin_a: Origin
+](a: MatrixView[dtype, origin_a], b: Matrix[dtype]) raises -> Matrix[dtype]:
+    """Element-wise modulo of a matrix view and a matrix."""
+    return _elementwise_view[func=Scalar[dtype].__mod__](a, b.view())
+
+
+# --------------------------------------------------------------------------- #
+# pow
+# --------------------------------------------------------------------------- #
+
+
+def pow[
+    dtype: DType, origin_a: Origin, origin_b: Origin
+](
+    a: MatrixView[dtype, origin_a], b: MatrixView[dtype, origin_b]
+) raises -> Matrix[dtype]:
+    """Element-wise exponentiation of two matrix views."""
+    return _elementwise_view[func=Scalar[dtype].__pow__](a, b)
+
+
+def pow[
+    dtype: DType
+](a: Matrix[dtype], b: Matrix[dtype]) raises -> Matrix[dtype]:
+    """Element-wise exponentiation of two dynamic matrices."""
+    return _elementwise_view[func=Scalar[dtype].__pow__](a.view(), b.view())
+
+
+def pow[
+    dtype: DType, origin_b: Origin
+](a: Matrix[dtype], b: MatrixView[dtype, origin_b]) raises -> Matrix[dtype]:
+    """Element-wise exponentiation of a matrix and a matrix view."""
+    return _elementwise_view[func=Scalar[dtype].__pow__](a.view(), b)
+
+
+def pow[
+    dtype: DType, origin_a: Origin
+](a: MatrixView[dtype, origin_a], b: Matrix[dtype]) raises -> Matrix[dtype]:
+    """Element-wise exponentiation of a matrix view and a matrix."""
+    return _elementwise_view[func=Scalar[dtype].__pow__](a, b.view())
+
+
+# ===---------------------------------------------------------------------- ===#
+# Scalar–Matrix operations: floordiv, mod, pow, and reflected sub / div
+# ===---------------------------------------------------------------------- ===#
+# Each scalar operation has 2 overloads: Matrix and MatrixView.
+
+
+def scalar_floordiv[
+    dtype: DType
+](mat: Matrix[dtype], scalar: Scalar[dtype]) -> Matrix[dtype]:
+    """Floor-divides every element of a matrix by a scalar."""
+    return _scalar_elementwise_view[func=Scalar[dtype].__floordiv__](
+        mat.view(), scalar
+    )
+
+
+def scalar_floordiv[
+    dtype: DType, origin: Origin
+](mat: MatrixView[dtype, origin], scalar: Scalar[dtype]) -> Matrix[dtype]:
+    """Floor-divides every element of a matrix view by a scalar."""
+    return _scalar_elementwise_view[func=Scalar[dtype].__floordiv__](
+        mat, scalar
+    )
+
+
+def scalar_mod[
+    dtype: DType
+](mat: Matrix[dtype], scalar: Scalar[dtype]) -> Matrix[dtype]:
+    """Takes every element of a matrix modulo a scalar."""
+    return _scalar_elementwise_view[func=Scalar[dtype].__mod__](
+        mat.view(), scalar
+    )
+
+
+def scalar_mod[
+    dtype: DType, origin: Origin
+](mat: MatrixView[dtype, origin], scalar: Scalar[dtype]) -> Matrix[dtype]:
+    """Takes every element of a matrix view modulo a scalar."""
+    return _scalar_elementwise_view[func=Scalar[dtype].__mod__](mat, scalar)
+
+
+def scalar_pow[
+    dtype: DType
+](mat: Matrix[dtype], scalar: Scalar[dtype]) -> Matrix[dtype]:
+    """Raises every element of a matrix to a scalar power."""
+    return _scalar_elementwise_view[func=Scalar[dtype].__pow__](
+        mat.view(), scalar
+    )
+
+
+def scalar_pow[
+    dtype: DType, origin: Origin
+](mat: MatrixView[dtype, origin], scalar: Scalar[dtype]) -> Matrix[dtype]:
+    """Raises every element of a matrix view to a scalar power."""
+    return _scalar_elementwise_view[func=Scalar[dtype].__pow__](mat, scalar)
+
+
+def scalar_rsub[
+    dtype: DType
+](mat: Matrix[dtype], scalar: Scalar[dtype]) -> Matrix[dtype]:
+    """Subtracts every element of a matrix from a scalar (`scalar - mat`)."""
+    return _scalar_elementwise_view[func=_rsub_op[dtype]](mat.view(), scalar)
+
+
+def scalar_rsub[
+    dtype: DType, origin: Origin
+](mat: MatrixView[dtype, origin], scalar: Scalar[dtype]) -> Matrix[dtype]:
+    """Subtracts every element of a matrix view from a scalar (`scalar - mat`).
+    """
+    return _scalar_elementwise_view[func=_rsub_op[dtype]](mat, scalar)
+
+
+def scalar_rdiv[
+    dtype: DType
+](mat: Matrix[dtype], scalar: Scalar[dtype]) -> Matrix[dtype]:
+    """Divides a scalar by every element of a matrix (`scalar / mat`)."""
+    return _scalar_elementwise_view[func=_rdiv_op[dtype]](mat.view(), scalar)
+
+
+def scalar_rdiv[
+    dtype: DType, origin: Origin
+](mat: MatrixView[dtype, origin], scalar: Scalar[dtype]) -> Matrix[dtype]:
+    """Divides a scalar by every element of a matrix view (`scalar / mat`)."""
+    return _scalar_elementwise_view[func=_rdiv_op[dtype]](mat, scalar)

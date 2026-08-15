@@ -153,7 +153,7 @@ Mojo 1.0.0 (released 2026-08-11) landed a large set of breaking changes. See the
 
 ## Phase 5 — NuMojo Matrix Consolidation
 
-> **Status: 🚧 In progress — 5.1 done**
+> **Status: 🚧 In progress — 5.1 and 5.2 done**
 >
 > NuMojo is dropping its `Matrix` type (`numojo/core/matrix/`), and it lives
 > here from now on. So Linamo needs to cover what NuMojo users are losing.
@@ -212,12 +212,43 @@ containers, so it won't dispatch to `__reversed__` — use `rows[False]()`.
 
 ### 5.2 — Operators
 
-| Item                                                             | Module              | Status |
-| ---------------------------------------------------------------- | ------------------- | ------ |
-| In-place ops `+=`, `-=`, `*=`, `/=`, `//=`, `%=`                 | `types/matrix.mojo` | □      |
-| `__pow__`, `__floordiv__`, `__mod__`                             | `types/matrix.mojo` | □      |
-| Reflected ops `__radd__`, `__rsub__`, `__rmul__`                 | `types/matrix.mojo` | □      |
-| Comparison ops `<`, `<=`, `>`, `>=`, `==`, `!=` → `Matrix[bool]` | `types/matrix.mojo` | □      |
+| Item                                                             | Module                | Status |
+| ---------------------------------------------------------------- | --------------------- | ------ |
+| In-place ops `+=`, `-=`, `*=`, `/=`, `//=`, `%=`                 | `types/matrix.mojo`   | ✓      |
+| `__pow__`, `__floordiv__`, `__mod__`                             | `types/matrix.mojo`   | ✓      |
+| Reflected ops `__radd__`, `__rsub__`, `__rmul__`                 | `types/matrix.mojo`   | ✓      |
+| Comparison ops `<`, `<=`, `>`, `>=`, `==`, `!=` → `Matrix[bool]` | `routines/logic.mojo` | ✓      |
+
+Four notes on how this landed.
+
+**In-place operators exist on `Matrix` only.** They write back through the
+matrix's own strides instead of allocating, so a transposed or column-major
+matrix keeps its layout. `MatrixView` gets no `+=`: it's generic over `origin`
+and Mojo checks the body against the read-only instantiation too, which is the
+same wall 5.1 hit. Mutating a view still goes through
+`routines/mutation.mojo`. Aliasing like `a += a[:, :]` never compiles — the
+borrow checker won't hand out a mutable reference to `a` while a view of it is
+alive, which is exactly the guarantee the two-type split is for.
+
+**Comparisons return a mask, not a verdict.** `a == b` is an element-wise
+`Matrix[DType.bool]`, as in NumPy, so `Matrix` deliberately does not conform to
+`EqualityComparable`. Asking whether two matrices are wholly identical stays a
+separate question, answered by `assert_matrices_equal`. The comparison kernels
+went into a new `routines/logic.mojo` rather than `math.mojo`, which is where
+5.3 wants `all` / `any` anyway.
+
+**`__pow__` is element-wise.** `A ** 2` squares each entry, matching NumPy.
+Matrix exponentiation is a different operation and will get a named routine
+rather than an operator.
+
+**`__rtruediv__` came along uninvited.** The table lists three reflected
+operators, but shipping `2.0 - A` without `2.0 / A` is a worse API than either
+having all four or none, so division is in too.
+
+One deviation worth recording: the reflected and scalar forms are mirrored onto
+`MatrixView` as well. The view already had `__add__` and friends, and leaving it
+with arithmetic but no comparisons would have been an odd gap in the type that
+the library is built around.
 
 ### 5.3 — Reductions & search
 
@@ -393,3 +424,8 @@ containers, so it won't dispatch to `__reversed__` — use `rows[False]()`.
 |            | All tests pass, zero warnings.                                |
 | 2026-08-15 | Phase 5.1 done: mutable views via `ref self`, axis iterators, |
 |            | SIMD load/store, region assignment. 17 new tests.             |
+| 2026-08-15 | Renamed the package from MatMojo to Linamo; import alias      |
+|            | `mm` -> `la`.                                                 |
+| 2026-08-15 | Phase 5.2 done: in-place, floordiv/mod/pow, reflected and     |
+|            | comparison operators; new `routines/logic.mojo`. 35 new       |
+|            | tests (266 total).                                            |
