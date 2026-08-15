@@ -40,12 +40,6 @@ jobs:
           echo "PIXI_HOME=$HOME/.pixi" >> $GITHUB_ENV
           echo "$HOME/.pixi/bin"  >> $GITHUB_PATH
 
-      - name: Activate virtualenv
-        run: |
-          python3 -m venv $HOME/venv/
-          . $HOME/venv/bin/activate
-          echo PATH=$PATH >> $GITHUB_ENV
-
       - name: Pixi install
         run: |
           pixi install
@@ -54,12 +48,6 @@ jobs:
         run: |
           bash ./tests/test_all.sh
 
-      - name: Install pre-commit
-        run: |
-          pip install pre-commit
-          pre-commit install
-
       - name: Run pre-commit
         run: |
-          pixi install
-          pre-commit run --all-files
+          pixi run pre-commit run --all-files

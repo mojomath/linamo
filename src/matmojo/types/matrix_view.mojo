@@ -6,14 +6,15 @@ import std.math as builtin_math
 import matmojo.routines.math
 
 from matmojo.traits.matrix_like import MatrixLike
-from matmojo.types.errors import ValueError
+from matmojo.types.errors import IndexError
 from matmojo.types.matrix import Matrix
+from matmojo.types.matrix_iter import MatrixAxisIter
 from matmojo.utils.indexing import get_offset, indices_within_bounds
 from std.memory import Pointer
 
 
 struct MatrixView[mut: Bool, //, dtype: DType, origin: Origin[mut=mut]](
-    MatrixLike, Writable
+    ImplicitlyCopyable, MatrixLike, Movable, Sized, Writable
 ):
     """A 2D matrix view type that references another Matrix.
 
@@ -154,7 +155,9 @@ struct MatrixView[mut: Bool, //, dtype: DType, origin: Origin[mut=mut]](
     # Element Access and Mutation
     # ===--------------------------------------------------------------------===#
 
-    def __getitem__(self, row: Int, col: Int) -> Self.ElementType:
+    def __getitem__(
+        self, row: Int, col: Int
+    ) -> ref[Self.origin] Self.ElementType:
         """Accesses an element of the matrix view using row and column indices.
         """
         var index = self.offset + row * self.row_stride + col * self.col_stride
@@ -202,6 +205,128 @@ struct MatrixView[mut: Bool, //, dtype: DType, origin: Origin[mut=mut]](
             row, col, self.row_stride, self.col_stride, self.offset
         )
         return self.data[offset]
+
+    # ===--------------------------------------------------------------------===#
+    # Length and iteration
+    # ===--------------------------------------------------------------------===#
+
+    def __len__(self) -> Int:
+        """Returns the number of rows.
+
+        This is the row count rather than the element count so that `len()`
+        agrees with what `__iter__` yields, the way it does for any Python
+        sequence. Use `get_size()` for `nrows * ncols`.
+        """
+        return self.nrows
+
+    def rows[
+        forward: Bool = True
+    ](self) -> MatrixAxisIter[Self.dtype, Self.origin, 0, forward]:
+        """Iterates over the rows, yielding each as a `1 x ncols` view.
+
+        Nothing is copied: each row borrows the parent buffer and inherits its
+        mutability, so rows of a mutable view can be written through.
+
+        Parameters:
+            forward: True for first-to-last, False for last-to-first.
+        """
+        return MatrixAxisIter[axis=0, forward=forward](self)
+
+    def cols[
+        forward: Bool = True
+    ](self) -> MatrixAxisIter[Self.dtype, Self.origin, 1, forward]:
+        """Iterates over the columns, yielding each as an `nrows x 1` view.
+
+        Parameters:
+            forward: True for first-to-last, False for last-to-first.
+        """
+        return MatrixAxisIter[axis=1, forward=forward](self)
+
+    def __iter__(self) -> MatrixAxisIter[Self.dtype, Self.origin, 0, True]:
+        """Iterates over the rows, so `for row in view` walks row views."""
+        return self.rows()
+
+    # Mojo 1.0's builtin `reversed()` only accepts specific stdlib containers,
+    # so it will not route here. Call `view.__reversed__()` or the clearer
+    # `view.rows[False]()` instead; this stays for when a protocol hook lands.
+    def __reversed__(
+        self,
+    ) -> MatrixAxisIter[Self.dtype, Self.origin, 0, False]:
+        """Iterates over the rows from last to first."""
+        return self.rows[False]()
+
+    # ===--------------------------------------------------------------------===#
+    # SIMD access
+    # ===--------------------------------------------------------------------===#
+
+    def load[
+        width: Int = 1
+    ](self, row: Int, col: Int) raises -> SIMD[Self.dtype, width]:
+        """Loads `width` elements along row `row`, starting at column `col`.
+
+        When the row is contiguous (`col_stride == 1`) this is a single vector
+        load. Otherwise -- which is what slicing with a step produces -- it
+        falls back to gathering element by element, so the call is always
+        correct and only the speed changes.
+
+        Parameters:
+            width: How many elements to load.
+
+        Args:
+            row: The row to read from.
+            col: The column at which the run starts.
+
+        Raises:
+            IndexError: If the run would leave the view.
+
+        Returns:
+            The `width` elements as a SIMD vector.
+        """
+        if row < 0 or row >= self.nrows or col < 0 or col + width > self.ncols:
+            raise IndexError(
+                file="src/matmojo/types/matrix_view.mojo",
+                function="MatrixView.load[width](self, row: Int, col: Int)",
+                message="SIMD load runs past the end of the view.",
+                previous_error=None,
+            )
+        var base = get_offset(
+            row, col, self.row_stride, self.col_stride, self.offset
+        )
+        if self.col_stride == 1:
+            return (
+                self.data.unsafe_ptr()
+                .unsafe_offset(base)
+                .unsafe_load[width=width]()
+            )
+        var result = SIMD[Self.dtype, width]()
+        for i in range(width):
+            result[i] = self.data[base + i * self.col_stride]
+        return result
+
+    # ===--------------------------------------------------------------------===#
+    # Materialisation
+    # ===--------------------------------------------------------------------===#
+
+    def to_matrix(self) raises -> Matrix[Self.dtype]:
+        """Copies the view into a new owning, C-contiguous `Matrix`.
+
+        This is the one deliberate allocation in the view API. `copy()` returns
+        another view of the same data, which is an O(1) handle copy; this walks
+        the (possibly strided) view and produces dense owned storage.
+
+        Returns:
+            A new `Matrix` holding a dense copy of the viewed elements.
+        """
+        var result = Matrix[Self.dtype](
+            nrows=self.nrows,
+            ncols=self.ncols,
+            row_stride=self.ncols,
+            col_stride=1,
+        )
+        for i in range(self.nrows):
+            for j in range(self.ncols):
+                result.data[i * self.ncols + j] = self[i, j]
+        return result^
 
     # ===--------------------------------------------------------------------===#
     # String Representation and Writing

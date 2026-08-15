@@ -2,8 +2,11 @@
 This module defines the `Matrix` type, which is a dynamically sized 2D matrix.
 """
 
+import std.math as builtin_math
+
 from matmojo.traits.matrix_like import MatrixLike
 from matmojo.types.errors import IndexError, ValueError
+from matmojo.types.matrix_iter import MatrixAxisIter
 from matmojo.types.matrix_view import MatrixView
 import matmojo.routines.math
 from matmojo.utils.indexing import (
@@ -12,7 +15,7 @@ from matmojo.utils.indexing import (
 )
 
 
-struct Matrix[dtype: DType](Copyable, MatrixLike, Movable, Writable):
+struct Matrix[dtype: DType](Copyable, MatrixLike, Movable, Sized, Writable):
     """A 2D matrix type.
     A matrix owns its data and can write to it. The elements are stored in a
     contiguous block of memory in either row-major (C-contiguous) or
@@ -223,7 +226,7 @@ struct Matrix[dtype: DType](Copyable, MatrixLike, Movable, Writable):
     # The approach of recording the origin, which is `a`, into the parameter of
     # the `MatrixView` type is called "parameterized origin".
     def __getitem__(
-        self, x: Slice, y: Slice
+        ref self, x: Slice, y: Slice
     ) raises -> MatrixView[dtype=Self.dtype, origin=origin_of(self.data)]:
         """Gets a view of the specified row with a slice of columns."""
         return MatrixView(
@@ -258,7 +261,7 @@ struct Matrix[dtype: DType](Copyable, MatrixLike, Movable, Writable):
         var offset = get_offset(row, col, self.row_stride, self.col_stride)
         return self.data._data.unsafe_offset(offset)[]
 
-    def view(self) -> MatrixView[Self.dtype, origin_of(self.data)]:
+    def view(ref self) -> MatrixView[Self.dtype, origin_of(self.data)]:
         """Gets a view of the entire matrix."""
         return MatrixView(
             data=Span(self.data),
@@ -268,6 +271,204 @@ struct Matrix[dtype: DType](Copyable, MatrixLike, Movable, Writable):
             col_stride=self.col_stride,
             offset=0,
         )
+
+    # ===--------------------------------------------------------------------===#
+    # Length and iteration
+    # ===--------------------------------------------------------------------===#
+
+    def __len__(self) -> Int:
+        """Returns the number of rows.
+
+        This is the row count rather than the element count so that `len()`
+        agrees with what `__iter__` yields, the way it does for any Python
+        sequence. Use `get_size()` for `nrows * ncols`.
+        """
+        return self.nrows
+
+    def rows[
+        forward: Bool = True
+    ](ref self) -> MatrixAxisIter[Self.dtype, origin_of(self.data), 0, forward]:
+        """Iterates over the rows, yielding each as a `1 x ncols` view.
+
+        Nothing is copied. Because `self` is taken by `ref`, iterating a
+        mutable matrix yields writable rows and iterating a borrowed one
+        yields read-only rows.
+
+        Parameters:
+            forward: True for first-to-last, False for last-to-first.
+        """
+        return MatrixAxisIter[axis=0, forward=forward](self.view())
+
+    def cols[
+        forward: Bool = True
+    ](ref self) -> MatrixAxisIter[Self.dtype, origin_of(self.data), 1, forward]:
+        """Iterates over the columns, yielding each as an `nrows x 1` view.
+
+        Parameters:
+            forward: True for first-to-last, False for last-to-first.
+        """
+        return MatrixAxisIter[axis=1, forward=forward](self.view())
+
+    def __iter__(
+        ref self,
+    ) -> MatrixAxisIter[Self.dtype, origin_of(self.data), 0, True]:
+        """Iterates over the rows, so `for row in matrix` walks row views."""
+        return self.rows()
+
+    # Mojo 1.0's builtin `reversed()` only accepts specific stdlib containers,
+    # so it will not route here. Call `matrix.__reversed__()` or the clearer
+    # `matrix.rows[False]()` instead; this stays for when a protocol hook
+    # lands.
+    def __reversed__(
+        ref self,
+    ) -> MatrixAxisIter[Self.dtype, origin_of(self.data), 0, False]:
+        """Iterates over the rows from last to first."""
+        return self.rows[False]()
+
+    # ===--------------------------------------------------------------------===#
+    # SIMD access
+    # ===--------------------------------------------------------------------===#
+
+    def load[
+        width: Int = 1
+    ](self, row: Int, col: Int) raises -> SIMD[Self.dtype, width]:
+        """Loads `width` elements along row `row`, starting at column `col`.
+
+        When the row is contiguous (`col_stride == 1`) this is a single vector
+        load; otherwise it gathers element by element, so the call is always
+        correct and only the speed changes.
+
+        Parameters:
+            width: How many elements to load.
+
+        Args:
+            row: The row to read from.
+            col: The column at which the run starts.
+
+        Raises:
+            IndexError: If the run would leave the matrix.
+
+        Returns:
+            The `width` elements as a SIMD vector.
+        """
+        if row < 0 or row >= self.nrows or col < 0 or col + width > self.ncols:
+            raise IndexError(
+                file="src/matmojo/types/matrix.mojo",
+                function="Matrix.load[width](self, row: Int, col: Int)",
+                message="SIMD load runs past the end of the matrix.",
+                previous_error=None,
+            )
+        var base = get_offset(row, col, self.row_stride, self.col_stride)
+        if self.col_stride == 1:
+            return (
+                Span(self.data)
+                .unsafe_ptr()
+                .unsafe_offset(base)
+                .unsafe_load[width=width]()
+            )
+        var result = SIMD[Self.dtype, width]()
+        for i in range(width):
+            result[i] = self.data[base + i * self.col_stride]
+        return result
+
+    def store[
+        width: Int = 1
+    ](mut self, row: Int, col: Int, value: SIMD[Self.dtype, width]) raises:
+        """Stores `width` elements along row `row`, starting at column `col`.
+
+        Unlike the view equivalent this can be a method, because a `Matrix`
+        owns a concretely mutable `List` -- there is no generic origin whose
+        read-only instantiation the body would also have to satisfy.
+
+        Parameters:
+            width: How many elements to store.
+
+        Args:
+            row: The row to write to.
+            col: The column at which the run starts.
+            value: The elements to write.
+
+        Raises:
+            IndexError: If the run would leave the matrix.
+        """
+        if row < 0 or row >= self.nrows or col < 0 or col + width > self.ncols:
+            raise IndexError(
+                file="src/matmojo/types/matrix.mojo",
+                function="Matrix.store[width](mut self, row, col, value)",
+                message="SIMD store runs past the end of the matrix.",
+                previous_error=None,
+            )
+        var base = get_offset(row, col, self.row_stride, self.col_stride)
+        if self.col_stride == 1:
+            Span(self.data).unsafe_ptr().unsafe_offset(base).unsafe_store(value)
+        else:
+            for i in range(width):
+                self.data[base + i * self.col_stride] = value[i]
+
+    # ===--------------------------------------------------------------------===#
+    # Region assignment
+    # ===--------------------------------------------------------------------===#
+
+    # Spelled as named methods rather than `__setitem__`: Mojo 1.0 routes
+    # `a[i:j, k:l] = rhs` through `__getitem__`, which would force `rhs` to be
+    # a view with this matrix's own origin. See `routines/mutation.mojo`.
+    def fill(
+        mut self, rows: Slice, cols: Slice, value: Self.ElementType
+    ) raises:
+        """Writes one scalar into every element of the selected region.
+
+        Args:
+            rows: The rows to fill.
+            cols: The columns to fill.
+            value: The scalar written to every selected element.
+        """
+        var start_row, end_row, step_row = rows.indices(self.nrows)
+        var start_col, end_col, step_col = cols.indices(self.ncols)
+        for i in range(start_row, end_row, step_row):
+            for j in range(start_col, end_col, step_col):
+                self.data[
+                    get_offset(i, j, self.row_stride, self.col_stride)
+                ] = value
+
+    def assign[
+        mut_b: Bool, //, origin_b: Origin[mut=mut_b]
+    ](
+        mut self,
+        rows: Slice,
+        cols: Slice,
+        src: MatrixView[Self.dtype, origin_b],
+    ) raises:
+        """Copies `src` into the region selected by `rows` and `cols`.
+
+        Args:
+            rows: The rows to assign into.
+            cols: The columns to assign into.
+            src: The source, which must match the target shape exactly.
+
+        Raises:
+            ValueError: If the shapes do not match.
+        """
+        var start_row, end_row, step_row = rows.indices(self.nrows)
+        var start_col, end_col, step_col = cols.indices(self.ncols)
+        var target_nrows = builtin_math.ceildiv(end_row - start_row, step_row)
+        var target_ncols = builtin_math.ceildiv(end_col - start_col, step_col)
+        if target_nrows != src.nrows or target_ncols != src.ncols:
+            raise ValueError(
+                file="src/matmojo/types/matrix.mojo",
+                function="Matrix.assign(mut self, rows, cols, src)",
+                message="Shape mismatch in region assignment.",
+                previous_error=None,
+            )
+        for i in range(target_nrows):
+            for j in range(target_ncols):
+                self.data[
+                    get_offset(
+                        start_row + i * step_row,
+                        start_col + j * step_col,
+                        self.row_stride,
+                        self.col_stride,
+                    )
+                ] = src[i, j]
 
     # ===--------------------------------------------------------------------===#
     # String Representation and Writing
