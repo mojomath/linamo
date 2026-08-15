@@ -7,7 +7,7 @@ def main() raises:
 
 
 def creation() raises:
-    var mat1 = mm.smatrix[6, 5, float64](
+    var mat1 = la.smatrix[6, 5, float64](
         [
             [1.1, 1.2, 1.3, 1.4, 1.5],
             [2.1, 2.2, 2.3, 2.4, 2.5],
@@ -20,7 +20,7 @@ def creation() raises:
     print(mat1)
     print(mat1.data)
 
-    var mat2 = mm.smatrix[6, 5, float64](
+    var mat2 = la.smatrix[6, 5, float64](
         flat_list=[
             1.1,
             1.2,
@@ -57,7 +57,7 @@ def creation() raises:
     print(mat2)
     print(mat2.data)
 
-    var mat3 = mm.smatrix[3, 2, int64](
+    var mat3 = la.smatrix[3, 2, int64](
         [
             [1, 2],
             [3, 4],
@@ -69,7 +69,7 @@ def creation() raises:
 
 
 def calculation() raises:
-    var mat1 = mm.smatrix[6, 5, float64](
+    var mat1 = la.smatrix[6, 5, float64](
         [
             [1.1, 1.2, 1.3, 1.4, 1.5],
             [2.1, 2.2, 2.3, 2.4, 2.5],
@@ -79,7 +79,7 @@ def calculation() raises:
             [6.1, 6.2, 6.3, 6.4, 6.5],
         ],
     )
-    var mat2 = mm.smatrix[6, 5, float64](
+    var mat2 = la.smatrix[6, 5, float64](
         [
             [-10.5, -10.6, -10.7, -10.8, -10.9],
             [-20.5, -20.6, -20.7, -20.8, -20.9],
@@ -89,7 +89,7 @@ def calculation() raises:
             [-60.5, -60.6, -60.7, -60.8, -60.9],
         ],
     )
-    var mat3 = mm.smatrix[5, 6, float64](
+    var mat3 = la.smatrix[5, 6, float64](
         [
             [-10.5, -10.6, -10.7, -10.8, -10.9, -11.0],
             [-20.5, -20.6, -20.7, -20.8, -20.9, -21.0],

@@ -3,12 +3,12 @@ Tests for Matrix element access and indexing.
 """
 
 import std.testing as testing
-import linamo as mm
+import linamo as la
 
 
 def test_matrix_getitem_basic() raises:
     """Test basic element access with __getitem__."""
-    var mat = mm.matrix[DType.float64](
+    var mat = la.matrix[DType.float64](
         [
             [1.0, 2.0, 3.0],
             [4.0, 5.0, 6.0],
@@ -24,7 +24,7 @@ def test_matrix_getitem_basic() raises:
 
 def test_matrix_getitem_col_major() raises:
     """Test element access on column-major matrix."""
-    var mat = mm.matrix[DType.float64](
+    var mat = la.matrix[DType.float64](
         [
             [1.0, 2.0],
             [3.0, 4.0],
@@ -42,7 +42,7 @@ def test_matrix_getitem_col_major() raises:
 
 def test_matrix_getitem_out_of_bounds_raises() raises:
     """Test that out-of-bounds access raises IndexError."""
-    var mat = mm.matrix[DType.float64]([[1.0, 2.0], [3.0, 4.0]])
+    var mat = la.matrix[DType.float64]([[1.0, 2.0], [3.0, 4.0]])
     var raised = False
 
     # Row out of bounds
@@ -71,7 +71,7 @@ def test_matrix_getitem_out_of_bounds_raises() raises:
 
 def test_matrix_setitem_via_ref() raises:
     """Test element mutation via __getitem__ returning a mutable ref."""
-    var mat = mm.matrix[DType.float64]([[1.0, 2.0], [3.0, 4.0]])
+    var mat = la.matrix[DType.float64]([[1.0, 2.0], [3.0, 4.0]])
     mat[0, 0] = 99.0
     mat[1, 1] = 42.0
     testing.assert_equal(mat[0, 0], 99.0)
@@ -83,7 +83,7 @@ def test_matrix_setitem_via_ref() raises:
 
 def test_matrix_get_unsafe() raises:
     """Test unsafe element access (no bounds checking)."""
-    var mat = mm.matrix[DType.float64](
+    var mat = la.matrix[DType.float64](
         [
             [10.0, 20.0, 30.0],
             [40.0, 50.0, 60.0],
@@ -97,7 +97,7 @@ def test_matrix_get_unsafe() raises:
 
 def test_matrix_attributes() raises:
     """Test that matrix attribute getters work correctly."""
-    var mat = mm.matrix[DType.float64](
+    var mat = la.matrix[DType.float64](
         [
             [1.0, 2.0, 3.0],
             [4.0, 5.0, 6.0],

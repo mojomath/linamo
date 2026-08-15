@@ -3,12 +3,12 @@ Tests for Matrix copy and move semantics.
 """
 
 import std.testing as testing
-import linamo as mm
+import linamo as la
 
 
 def test_matrix_copy() raises:
     """Test that copying a matrix creates an independent copy."""
-    var a = mm.matrix[DType.float64]([[1.0, 2.0], [3.0, 4.0]])
+    var a = la.matrix[DType.float64]([[1.0, 2.0], [3.0, 4.0]])
     var b = a.copy()
     # Verify values match
     testing.assert_equal(b[0, 0], 1.0)
@@ -21,7 +21,7 @@ def test_matrix_copy() raises:
 
 def test_matrix_copy_preserves_layout() raises:
     """Test that copy preserves memory layout (strides)."""
-    var a = mm.matrix[DType.float64](
+    var a = la.matrix[DType.float64](
         [[1.0, 2.0], [3.0, 4.0]],
         order="F",
     )

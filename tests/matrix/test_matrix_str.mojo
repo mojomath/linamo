@@ -3,7 +3,7 @@ Tests for Matrix string representation and writing.
 """
 
 import std.testing as testing
-import linamo as mm
+import linamo as la
 
 
 def test_matrix_str_basic() raises:
@@ -13,7 +13,7 @@ def test_matrix_str_basic() raises:
     `write_to` (the rich representation).  `__str__` -- the bare tab-separated
     grid -- must now be called explicitly.
     """
-    var mat = mm.matrix[DType.float64]([[1.0, 2.0], [3.0, 4.0]])
+    var mat = la.matrix[DType.float64]([[1.0, 2.0], [3.0, 4.0]])
     var s = mat.__str__()
     # __str__ produces tab-separated values, rows separated by newlines
     testing.assert_true("1.0" in s, "String should contain element 1.0")
@@ -22,7 +22,7 @@ def test_matrix_str_basic() raises:
 
 def test_matrix_write_to_includes_metadata() raises:
     """Test write_to includes dtype and shape info."""
-    var mat = mm.matrix[DType.float64]([[1.0, 2.0], [3.0, 4.0]])
+    var mat = la.matrix[DType.float64]([[1.0, 2.0], [3.0, 4.0]])
     # print() calls write_to, which includes metadata
     var s = String("")
     mat.write_to(s)
@@ -33,7 +33,7 @@ def test_matrix_write_to_includes_metadata() raises:
 
 def test_matrix_str_single_row() raises:
     """Test __str__ for a single-row matrix."""
-    var mat = mm.matrix[DType.int64]([[10, 20, 30]])
+    var mat = la.matrix[DType.int64]([[10, 20, 30]])
     var s = mat.__str__()
     testing.assert_true("10" in s, "Should contain 10")
     testing.assert_true("20" in s, "Should contain 20")

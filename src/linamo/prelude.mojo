@@ -13,7 +13,7 @@ Prelude module for Linamo.
 # it will potentially pollute the global namespace and make it harder for users
 # to understand where specific functions or types are coming from.
 
-import linamo as mm
+import linamo as la
 
 comptime float64 = DType.float64
 """Alias for 64-bit floating point data type."""

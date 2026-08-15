@@ -3,7 +3,7 @@ Tests for convenience creation routines: zeros, ones, full, eye, identity, diag.
 """
 
 import std.testing as testing
-import linamo as mm
+import linamo as la
 from linamo.routines.creation import zeros, ones, full, eye, identity, diag
 
 
@@ -150,7 +150,7 @@ def test_diag_single() raises:
 
 def test_diag_extract() raises:
     """Test extracting diagonal from a matrix."""
-    var mat = mm.matrix[DType.float64](
+    var mat = la.matrix[DType.float64](
         [[1.0, 2.0, 3.0], [4.0, 5.0, 6.0], [7.0, 8.0, 9.0]]
     )
     var d = diag(mat)
@@ -162,7 +162,7 @@ def test_diag_extract() raises:
 
 def test_diag_extract_nonsquare_raises() raises:
     """Test that extracting diagonal from non-square raises ValueError."""
-    var mat = mm.matrix[DType.float64]([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]])
+    var mat = la.matrix[DType.float64]([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]])
     var raised = False
     try:
         var _d = diag(mat)

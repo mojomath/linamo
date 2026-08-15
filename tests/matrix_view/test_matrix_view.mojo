@@ -3,12 +3,12 @@ Tests for MatrixView creation and element access.
 """
 
 import std.testing as testing
-import linamo as mm
+import linamo as la
 
 
 def test_view_from_matrix_full() raises:
     """Test creating a full view from a matrix."""
-    var mat = mm.matrix[DType.float64](
+    var mat = la.matrix[DType.float64](
         [
             [1.0, 2.0, 3.0],
             [4.0, 5.0, 6.0],
@@ -25,7 +25,7 @@ def test_view_from_matrix_full() raises:
 
 def test_view_slice_rows_and_cols() raises:
     """Test creating a slice view with row and column ranges."""
-    var mat = mm.matrix[DType.float64](
+    var mat = la.matrix[DType.float64](
         [
             [1.0, 2.0, 3.0, 4.0],
             [5.0, 6.0, 7.0, 8.0],
@@ -44,7 +44,7 @@ def test_view_slice_rows_and_cols() raises:
 
 def test_view_slice_with_step() raises:
     """Test creating a slice view with step > 1."""
-    var mat = mm.matrix[DType.float64](
+    var mat = la.matrix[DType.float64](
         [
             [1.0, 2.0, 3.0, 4.0],
             [5.0, 6.0, 7.0, 8.0],
@@ -64,7 +64,7 @@ def test_view_slice_with_step() raises:
 
 def test_view_shares_data() raises:
     """Test that a view shares data with the original matrix."""
-    var mat = mm.matrix[DType.float64]([[1.0, 2.0], [3.0, 4.0]])
+    var mat = la.matrix[DType.float64]([[1.0, 2.0], [3.0, 4.0]])
     var v = mat.view()
     # View should reflect original data
     testing.assert_equal(v[0, 0], 1.0)
@@ -76,7 +76,7 @@ def test_view_shares_data() raises:
 
 def test_view_on_view() raises:
     """Test creating a view from another view."""
-    var mat = mm.matrix[DType.float64](
+    var mat = la.matrix[DType.float64](
         [
             [1.0, 2.0, 3.0, 4.0, 5.0],
             [6.0, 7.0, 8.0, 9.0, 10.0],
@@ -100,7 +100,7 @@ def test_view_on_view() raises:
 
 def test_view_str() raises:
     """Test MatrixView string representation."""
-    var mat = mm.matrix[DType.float64]([[1.0, 2.0], [3.0, 4.0]])
+    var mat = la.matrix[DType.float64]([[1.0, 2.0], [3.0, 4.0]])
     var v = mat.view()
     var s = String(v)
     testing.assert_true("1.0" in s, "View str should contain 1.0")
@@ -109,7 +109,7 @@ def test_view_str() raises:
 
 def test_view_write_to_metadata() raises:
     """Test that MatrixView write_to includes metadata."""
-    var mat = mm.matrix[DType.float64]([[1.0, 2.0], [3.0, 4.0]])
+    var mat = la.matrix[DType.float64]([[1.0, 2.0], [3.0, 4.0]])
     var v = mat.view()
     var s = String("")
     v.write_to(s)
@@ -121,7 +121,7 @@ def test_view_write_to_metadata() raises:
 
 def test_view_get_unsafe() raises:
     """Test unsafe element access on a view."""
-    var mat = mm.matrix[DType.float64](
+    var mat = la.matrix[DType.float64](
         [
             [1.0, 2.0, 3.0],
             [4.0, 5.0, 6.0],

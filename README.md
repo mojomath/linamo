@@ -113,11 +113,11 @@ pixi run test
 ### Create matrices
 
 ```mojo
-import linamo as mm
+import linamo as la
 
 fn main() raises:
     # From nested lists
-    var A = mm.matrix[DType.float64](
+    var A = la.matrix[DType.float64](
         [[1.0, 2.0, 3.0],
          [4.0, 5.0, 6.0],
          [7.0, 8.0, 9.0]]
@@ -125,9 +125,9 @@ fn main() raises:
     print(A)
 
     # Convenience constructors
-    var I = mm.eye[DType.float64](3)       # 3×3 identity
-    var Z = mm.zeros[DType.float64](2, 4)  # 2×4 zeros
-    var O = mm.ones[DType.float64](3, 3)   # 3×3 ones
+    var I = la.eye[DType.float64](3)       # 3×3 identity
+    var Z = la.zeros[DType.float64](2, 4)  # 2×4 zeros
+    var O = la.ones[DType.float64](3, 3)   # 3×3 ones
 ```
 
 ### Arithmetic
@@ -147,25 +147,25 @@ fn main() raises:
 
 ```mojo
     # Transpose & trace
-    var At = mm.transpose(A)
-    var t  = mm.trace(A)
+    var At = la.transpose(A)
+    var t  = la.trace(A)
 
     # LU decomposition (PA = LU)
-    var lup = mm.lu(A)
+    var lup = la.lu(A)
     var L   = lup[0].copy()
     var U   = lup[1].copy()
     var piv = lup[2].copy()
 
     # Cholesky (A = LL^T, requires SPD matrix)
-    var spd = mm.matrix[DType.float64](
+    var spd = la.matrix[DType.float64](
         [[4.0, 12.0, -16.0],
          [12.0, 37.0, -43.0],
          [-16.0, -43.0, 98.0]]
     )
-    var Lc = mm.cholesky(spd)
+    var Lc = la.cholesky(spd)
 
     # QR decomposition (A = QR)
-    var qr_result = mm.qr(A)
+    var qr_result = la.qr(A)
     var Q = qr_result[0].copy()
     var R = qr_result[1].copy()
 ```

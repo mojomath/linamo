@@ -4,13 +4,13 @@ on Matrix and MatrixView.
 """
 
 import std.testing as testing
-import linamo as mm
+import linamo as la
 from linamo.routines.mutation import assign, fill, store
 
 
 def test_len_is_row_count() raises:
     """`len()` reports rows, so it agrees with what iteration yields."""
-    var mat = mm.matrix[DType.float64](
+    var mat = la.matrix[DType.float64](
         [[1.0, 2.0, 3.0, 4.0], [5.0, 6.0, 7.0, 8.0], [9.0, 10.0, 11.0, 12.0]]
     )
     testing.assert_equal(len(mat), 3)
@@ -21,7 +21,7 @@ def test_len_is_row_count() raises:
 
 def test_row_iteration_yields_views() raises:
     """Each row arrives as a 1 x ncols view onto the parent buffer."""
-    var mat = mm.matrix[DType.float64](
+    var mat = la.matrix[DType.float64](
         [[1.0, 2.0, 3.0], [4.0, 5.0, 6.0], [7.0, 8.0, 9.0]]
     )
     var seen = List[Float64]()
@@ -39,7 +39,7 @@ def test_row_iteration_yields_views() raises:
 
 def test_reversed_row_iteration() raises:
     """Reverse iteration walks the rows last to first."""
-    var mat = mm.matrix[DType.float64]([[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]])
+    var mat = la.matrix[DType.float64]([[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]])
     var seen = List[Float64]()
     for row in mat.rows[False]():
         seen.append(row[0, 0])
@@ -51,7 +51,7 @@ def test_reversed_row_iteration() raises:
 
 def test_column_iteration() raises:
     """Column iteration yields nrows x 1 views."""
-    var mat = mm.matrix[DType.float64]([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]])
+    var mat = la.matrix[DType.float64]([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]])
     var seen = List[Float64]()
     for col in mat.cols():
         testing.assert_equal(col.nrows, 2)
@@ -65,7 +65,7 @@ def test_column_iteration() raises:
 
 def test_iteration_over_view_is_zero_copy() raises:
     """Writing through an iterated row reaches the parent matrix."""
-    var mat = mm.matrix[DType.float64]([[1.0, 2.0], [3.0, 4.0]])
+    var mat = la.matrix[DType.float64]([[1.0, 2.0], [3.0, 4.0]])
     for row in mat.view():
         row[0, 0] = 99.0
     testing.assert_equal(mat[0, 0], 99.0)
@@ -74,7 +74,7 @@ def test_iteration_over_view_is_zero_copy() raises:
 
 def test_load_contiguous_and_strided() raises:
     """`load` agrees on contiguous rows and on strided views."""
-    var mat = mm.matrix[DType.float64](
+    var mat = la.matrix[DType.float64](
         [[1.0, 2.0, 3.0, 4.0], [5.0, 6.0, 7.0, 8.0]]
     )
     var contiguous = mat.load[4](1, 0)
@@ -90,7 +90,7 @@ def test_load_contiguous_and_strided() raises:
 
 def test_load_out_of_bounds_raises() raises:
     """A run that would leave the matrix raises rather than reading past it."""
-    var mat = mm.matrix[DType.float64]([[1.0, 2.0], [3.0, 4.0]])
+    var mat = la.matrix[DType.float64]([[1.0, 2.0], [3.0, 4.0]])
     with testing.assert_raises():
         _ = mat.load[4](0, 0)
 
@@ -100,7 +100,7 @@ def test_matrix_store() raises:
 
     SIMD widths must be powers of two, so runs are sized 1, 2, 4, ...
     """
-    var mat = mm.matrix[DType.float64]([[0.0, 0.0, 0.0], [0.0, 0.0, 0.0]])
+    var mat = la.matrix[DType.float64]([[0.0, 0.0, 0.0], [0.0, 0.0, 0.0]])
     mat.store[2](1, 0, SIMD[DType.float64, 2](7.0, 8.0))
     testing.assert_equal(mat[1, 0], 7.0)
     testing.assert_equal(mat[1, 1], 8.0)
@@ -109,7 +109,7 @@ def test_matrix_store() raises:
 
 def test_view_store_contiguous_and_strided() raises:
     """The view `store` routine handles both layouts."""
-    var mat = mm.matrix[DType.float64](
+    var mat = la.matrix[DType.float64](
         [[0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0]]
     )
     store[width=2](mat.view(), 0, 0, SIMD[DType.float64, 2](1.0, 2.0))
@@ -124,7 +124,7 @@ def test_view_store_contiguous_and_strided() raises:
 
 def test_fill_region() raises:
     """`fill` writes one scalar across the selected region only."""
-    var mat = mm.matrix[DType.float64](
+    var mat = la.matrix[DType.float64](
         [[1.0, 2.0, 3.0], [4.0, 5.0, 6.0], [7.0, 8.0, 9.0]]
     )
     mat.fill(Slice(0, 2), Slice(1, 3), Float64(0.0))
@@ -137,7 +137,7 @@ def test_fill_region() raises:
 
 def test_fill_region_through_view() raises:
     """The view `fill` routine writes through to the owner."""
-    var mat = mm.matrix[DType.float64]([[1.0, 2.0], [3.0, 4.0]])
+    var mat = la.matrix[DType.float64]([[1.0, 2.0], [3.0, 4.0]])
     fill(mat.view(), Slice(0, 1), Slice(0, 2), Float64(-1.0))
     testing.assert_equal(mat[0, 0], -1.0)
     testing.assert_equal(mat[0, 1], -1.0)
@@ -146,10 +146,10 @@ def test_fill_region_through_view() raises:
 
 def test_assign_region() raises:
     """`assign` copies a source block into the selected region."""
-    var mat = mm.matrix[DType.float64](
+    var mat = la.matrix[DType.float64](
         [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0]]
     )
-    var src = mm.matrix[DType.float64]([[1.0, 2.0], [3.0, 4.0]])
+    var src = la.matrix[DType.float64]([[1.0, 2.0], [3.0, 4.0]])
     mat.assign(Slice(1, 3), Slice(0, 2), src.view())
     testing.assert_equal(mat[1, 0], 1.0)
     testing.assert_equal(mat[1, 1], 2.0)
@@ -160,16 +160,16 @@ def test_assign_region() raises:
 
 def test_assign_shape_mismatch_raises() raises:
     """A mismatched source shape is rejected."""
-    var mat = mm.matrix[DType.float64]([[0.0, 0.0], [0.0, 0.0]])
-    var src = mm.matrix[DType.float64]([[1.0, 2.0, 3.0]])
+    var mat = la.matrix[DType.float64]([[0.0, 0.0], [0.0, 0.0]])
+    var src = la.matrix[DType.float64]([[1.0, 2.0, 3.0]])
     with testing.assert_raises():
         mat.assign(Slice(0, 1), Slice(0, 2), src.view())
 
 
 def test_assign_into_view() raises:
     """The view `assign` routine writes through to the owner."""
-    var mat = mm.matrix[DType.float64]([[0.0, 0.0, 0.0], [0.0, 0.0, 0.0]])
-    var src = mm.matrix[DType.float64]([[5.0, 6.0]])
+    var mat = la.matrix[DType.float64]([[0.0, 0.0, 0.0], [0.0, 0.0, 0.0]])
+    var src = la.matrix[DType.float64]([[5.0, 6.0]])
     assign(mat.view(), Slice(0, 1), Slice(1, 3), src)
     testing.assert_equal(mat[0, 1], 5.0)
     testing.assert_equal(mat[0, 2], 6.0)
@@ -178,7 +178,7 @@ def test_assign_into_view() raises:
 
 def test_to_matrix_materialises_strided_view() raises:
     """`to_matrix` turns a strided view into dense owned storage."""
-    var mat = mm.matrix[DType.float64](
+    var mat = la.matrix[DType.float64](
         [[1.0, 2.0, 3.0, 4.0], [5.0, 6.0, 7.0, 8.0]]
     )
     var strided = mat[0:2, 0:4:2]
@@ -194,7 +194,7 @@ def test_to_matrix_materialises_strided_view() raises:
 
 def test_to_matrix_is_independent_of_source() raises:
     """The materialised matrix owns its data and does not alias the view."""
-    var mat = mm.matrix[DType.float64]([[1.0, 2.0], [3.0, 4.0]])
+    var mat = la.matrix[DType.float64]([[1.0, 2.0], [3.0, 4.0]])
     var dense = mat.view().to_matrix()
     mat[0, 0] = 99.0
     testing.assert_equal(dense[0, 0], 1.0)
@@ -202,7 +202,7 @@ def test_to_matrix_is_independent_of_source() raises:
 
 def test_view_handle_copy_is_implicit() raises:
     """A view is an O(1) handle, so plain assignment copies the handle."""
-    var mat = mm.matrix[DType.float64]([[1.0, 2.0], [3.0, 4.0]])
+    var mat = la.matrix[DType.float64]([[1.0, 2.0], [3.0, 4.0]])
     var v = mat.view()
     var v2 = v
     v2[0, 0] = 42.0

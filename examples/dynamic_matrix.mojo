@@ -7,7 +7,7 @@ def main() raises:
 
 
 def creation() raises:
-    var mat1 = mm.matrix[float64](
+    var mat1 = la.matrix[float64](
         [
             [1.1, 1.2, 1.3, 1.4],
             [2.1, 2.2, 2.3, 2.4],
@@ -19,7 +19,7 @@ def creation() raises:
     )
     print("Memory layout (row-major):\n", mat1.data)
 
-    var mat2 = mm.matrix[float64](
+    var mat2 = la.matrix[float64](
         [
             [1.1, 1.2, 1.3, 1.4],
             [2.1, 2.2, 2.3, 2.4],
@@ -31,7 +31,7 @@ def creation() raises:
     )
     print("Memory layout (column-major):\n", mat2.data)
 
-    var mat3 = mm.matrix[int64](
+    var mat3 = la.matrix[int64](
         flat_list=[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
         nrows=3,
         ncols=4,
@@ -39,7 +39,7 @@ def creation() raises:
     )
     print("Matrix (row-major with shape):\n", mat3)
 
-    var mat4 = mm.matrix[int64](
+    var mat4 = la.matrix[int64](
         flat_list=[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
         nrows=3,
         ncols=4,
@@ -49,7 +49,7 @@ def creation() raises:
 
 
 def calculation() raises:
-    var a = mm.matrix[float64](
+    var a = la.matrix[float64](
         [
             [1.0, 1.0, 1.0, 1.0],
             [1.0, 1.0, 1.0, 1.0],
@@ -58,7 +58,7 @@ def calculation() raises:
         ],
         order="C",
     )
-    var b = mm.matrix[float64](
+    var b = la.matrix[float64](
         [
             [1.0, 1.0, 1.0, 1.0],
             [1.0, 1.0, 1.0, 1.0],
