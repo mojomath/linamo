@@ -12,6 +12,10 @@ pack = "pixi run mojo precompile -o tests/linamo.mojoc src/linamo"
 # Run the test files (uses -I src to import directly, no package build needed)
 test = "bash ./tests/test_all.sh"
 
+# Run every example. They touch the public API only, so this is the smoke test
+# that catches a break a user would hit before the test suite would.
+examples = "bash ./examples/run_all.sh"
+
 # format the code
 format = "pixi run mojo format ./src && pixi run mojo format ./tests"
 

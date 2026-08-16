@@ -495,3 +495,9 @@ the library is built around.
 |            | shortened to `./src/...`, tracebacks are ANSI-coloured and    |
 |            | chain Python-style. Dropped the hand-written `file=` argument |
 |            | from all 33 raise sites. Restored the Apache-2.0 attribution. |
+| 2026-08-16 | Consolidated `examples/` into `matrix.mojo`,                  |
+|            | `matrix_view.mojo` and `static_matrix.mojo`, one per public   |
+|            | type. `matrix_view.mojo` now covers slicing, view-on-view,    |
+|            | element and region writes, `view_mut`/`as_imm` and mutable    |
+|            | iteration. Added `pixi run examples`, and exported            |
+|            | `StaticMatrix` from `linamo/__init__.mojo`.                   |

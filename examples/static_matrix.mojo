@@ -1,103 +1,174 @@
+"""
+A tour of `StaticMatrix`, the fixed-shape matrix.
+
+`StaticMatrix[dtype, nrows, ncols]` carries its shape in the type, and holds
+its elements in a single SIMD register rather than a heap `List`. Nothing is
+allocated, every index is a compile-time-known stride away, and the whole
+matrix can move through registers - which is what makes it worth having for
+the small fixed sizes that show up in graphics, geometry and kernels.
+
+The cost is that the shape is frozen at compile time and the buffer is padded
+to powers of two, so a 6x5 matrix reserves 8x8 elements. That padding is what
+lets indexing be a shift instead of a multiply.
+
+Run with:
+
+```bash
+pixi run mojo run -I src examples/static_matrix.mojo
+```
+"""
+
 from linamo.prelude import *
 
 
 def main() raises:
     creation()
-    calculation()
+    padding()
+    element_access()
+    arithmetic()
+
+
+# ===----------------------------------------------------------------------=== #
+# Creation
+# ===----------------------------------------------------------------------=== #
 
 
 def creation() raises:
-    var mat1 = la.smatrix[6, 5, float64](
-        [
-            [1.1, 1.2, 1.3, 1.4, 1.5],
-            [2.1, 2.2, 2.3, 2.4, 2.5],
-            [3.1, 3.2, 3.3, 3.4, 3.5],
-            [4.1, 4.2, 4.3, 4.4, 4.5],
-            [5.1, 5.2, 5.3, 5.4, 5.5],
-            [6.1, 6.2, 6.3, 6.4, 6.5],
-        ],
-    )
-    print(mat1)
-    print(mat1.data)
+    print("=" * 70)
+    print("CREATION")
+    print("=" * 70)
 
-    var mat2 = la.smatrix[6, 5, float64](
-        flat_list=[
-            1.1,
-            1.2,
-            1.3,
-            1.4,
-            1.5,
-            2.1,
-            2.2,
-            2.3,
-            2.4,
-            2.5,
-            3.1,
-            3.2,
-            3.3,
-            3.4,
-            3.5,
-            4.1,
-            4.2,
-            4.3,
-            4.4,
-            4.5,
-            5.1,
-            5.2,
-            5.3,
-            5.4,
-            5.5,
-            6.1,
-            6.2,
-            6.3,
-            6.4,
-            6.5,
-        ],
-    )
-    print(mat2)
-    print(mat2.data)
-
-    var mat3 = la.smatrix[3, 2, int64](
+    # The shape comes first, as compile-time parameters, then the dtype. Note
+    # that the *type* spells them the other way round - `StaticMatrix[dtype,
+    # nrows, ncols]` - so `smatrix[3, 4, float64]` builds a
+    # `StaticMatrix[float64, 3, 4]`.
+    var m1 = la.smatrix[3, 4, float64](
         [
-            [1, 2],
-            [3, 4],
-            [5, 6],
+            [1.1, 1.2, 1.3, 1.4],
+            [2.1, 2.2, 2.3, 2.4],
+            [3.1, 3.2, 3.3, 3.4],
         ],
     )
-    print(mat3)
-    print(mat3.data)
+    print("From a nested list:\n", m1)
+
+    # From a flat list, read row by row. The list length must match
+    # `nrows * ncols` exactly; the padding is filled in for you.
+    var m2 = la.smatrix[3, 4, int64](
+        flat_list=[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+    )
+    print("From a flat list:\n", m2)
+
+    # A copy is explicit here too, and is a register move rather than an
+    # allocation.
+    var m3 = m2.copy()
+    print("A copy:\n", m3)
 
 
-def calculation() raises:
-    var mat1 = la.smatrix[6, 5, float64](
+# ===----------------------------------------------------------------------=== #
+# Padding
+# ===----------------------------------------------------------------------=== #
+
+
+def padding() raises:
+    print()
+    print("=" * 70)
+    print("PADDING AND LAYOUT")
+    print("=" * 70)
+
+    # A 3x5 is the interesting case: neither dimension is a power of two, so
+    # both get rounded up - to a 4x8 buffer.
+    var m = la.smatrix[3, 5, int64](
+        flat_list=[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15],
+    )
+
+    print("Logical shape:", m.get_nrows(), "x", m.get_ncols())
+    print(
+        "Buffer shape: ",
+        la.StaticMatrix[int64, 3, 5].BUFFER_ROW_LEN,
+        "x",
+        la.StaticMatrix[int64, 3, 5].BUFFER_COL_LEN,
+    )
+    print("Strides: row =", m.get_row_stride(), " col =", m.get_col_stride())
+
+    # The raw register, padding and all: three zeros after each row of five,
+    # then a whole unused fourth row. That is the price of a stride that is a
+    # shift rather than a multiply.
+    print("The underlying SIMD buffer:\n", m.data)
+
+    # A shape that is already a power of two wastes nothing.
+    var square = la.smatrix[4, 4, int64](
+        flat_list=[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16],
+    )
+    print("A 4x4 needs no padding:\n", square.data)
+
+    print("is_c_contiguous:", m.is_c_contiguous())
+    print("is_row_contiguous:", m.is_row_contiguous())
+
+
+# ===----------------------------------------------------------------------=== #
+# Element access
+# ===----------------------------------------------------------------------=== #
+
+
+def element_access() raises:
+    print()
+    print("=" * 70)
+    print("ELEMENT ACCESS")
+    print("=" * 70)
+
+    var m = la.smatrix[3, 4, int64](
+        flat_list=[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+    )
+    print("A 3x4 static matrix:\n", m)
+
+    # Indexing reads out of the register. It returns a value, not a
+    # reference - there is no memory to point at.
+    print("m[0, 0] =", m[0, 0])
+    print("m[1, 2] =", m[1, 2])
+    print("m[2, 3] =", m[2, 3])
+
+    print("Element count:", m.get_size())
+
+
+# ===----------------------------------------------------------------------=== #
+# Arithmetic
+# ===----------------------------------------------------------------------=== #
+
+
+def arithmetic() raises:
+    print()
+    print("=" * 70)
+    print("ARITHMETIC")
+    print("=" * 70)
+
+    var a = la.smatrix[3, 3, float64](
         [
-            [1.1, 1.2, 1.3, 1.4, 1.5],
-            [2.1, 2.2, 2.3, 2.4, 2.5],
-            [3.1, 3.2, 3.3, 3.4, 3.5],
-            [4.1, 4.2, 4.3, 4.4, 4.5],
-            [5.1, 5.2, 5.3, 5.4, 5.5],
-            [6.1, 6.2, 6.3, 6.4, 6.5],
+            [1.0, 2.0, 3.0],
+            [4.0, 5.0, 6.0],
+            [7.0, 8.0, 9.0],
         ],
     )
-    var mat2 = la.smatrix[6, 5, float64](
+    var b = la.smatrix[3, 3, float64](
         [
-            [-10.5, -10.6, -10.7, -10.8, -10.9],
-            [-20.5, -20.6, -20.7, -20.8, -20.9],
-            [-30.5, -30.6, -30.7, -30.8, -30.9],
-            [-40.5, -40.6, -40.7, -40.8, -40.9],
-            [-50.5, -50.6, -50.7, -50.8, -50.9],
-            [-60.5, -60.6, -60.7, -60.8, -60.9],
-        ],
-    )
-    var mat3 = la.smatrix[5, 6, float64](
-        [
-            [-10.5, -10.6, -10.7, -10.8, -10.9, -11.0],
-            [-20.5, -20.6, -20.7, -20.8, -20.9, -21.0],
-            [-30.5, -30.6, -30.7, -30.8, -30.9, -31.0],
-            [-40.5, -40.6, -40.7, -40.8, -40.9, -41.0],
-            [-50.5, -50.6, -50.7, -50.8, -50.9, -51.0],
+            [10.0, 20.0, 30.0],
+            [40.0, 50.0, 60.0],
+            [70.0, 80.0, 90.0],
         ],
     )
 
-    print(mat1 + mat2)
-    print(mat1 @ mat3)
+    print("a:\n", a)
+    print("b:\n", b)
+
+    # Addition is one SIMD instruction on the whole matrix, padding included.
+    print("a + b:\n", a + b)
+
+    # Matrix multiplication. The shapes are checked at compile time, so a
+    # mismatched `@` will not build rather than raising at run time.
+    var c = la.smatrix[3, 2, float64](
+        [
+            [1.0, 0.0],
+            [0.0, 1.0],
+            [1.0, 1.0],
+        ],
+    )
+    print("a @ c - a 3x3 times a 3x2:\n", a @ c)
