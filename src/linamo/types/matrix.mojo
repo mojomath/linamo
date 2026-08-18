@@ -301,7 +301,7 @@ struct Matrix[dtype: DType](Copyable, MatrixLike, Movable, Sized, Writable):
     # `m.view() - m.view()` was rejected as two mutable borrows of one matrix,
     # and meant an innocuous-looking call was a write door. It is now a
     # shorthand for `m[:, :]` and nothing more.
-    def view(self) -> MatrixView[Self.dtype, origin_of(self.data)]:
+    def view(imm self) -> MatrixView[Self.dtype, origin_of(self.data)]:
         """Gets a read-only view of the entire matrix.
 
         This is the same thing `m[:, :]` produces, and is the conversion the

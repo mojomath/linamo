@@ -126,6 +126,39 @@ struct MatrixView[mut: Bool, //, dtype: DType, origin: Origin[mut=mut]](
         self.col_stride = col_stride
         self.offset = offset
 
+    # [Mojo Miji]
+    # This is what lets one signature stand in for four. A routine declared as
+    # `def add(a: MatrixView[dtype, oa], b: MatrixView[dtype, ob])` now accepts
+    # a `Matrix` in either position, because the compiler inserts this
+    # conversion. See the note in `linamo.routines.math`.
+    #
+    # Two details make it work. The argument is `ref m`: only `ref` binds the
+    # origin to the caller's storage. Under `imm`, `read` or the default
+    # convention, `origin_of(m.data)` names the callee's own parameter slot, so
+    # the conversion is one no caller can ever satisfy and every call site
+    # fails to compile. And the result is wrapped in `ImmOrigin(...)`, so a
+    # `var` matrix yields a
+    # *read-only* view: without that, `add(a, a)` would be two mutable borrows
+    # of one matrix and would not compile, which is the same wall 5.2 hit.
+    @implicit
+    def __init__[
+        d: DType
+    ](out self: MatrixView[d, ImmOrigin(origin_of(m.data))], ref m: Matrix[d]):
+        """Converts a `Matrix` into a read-only view of the whole matrix.
+
+        Parameters:
+            d: The data type of the matrix elements.
+
+        Args:
+            m: The matrix to view.
+        """
+        self.data = Span(m.data).as_imm()
+        self.nrows = m.nrows
+        self.ncols = m.ncols
+        self.row_stride = m.row_stride
+        self.col_stride = m.col_stride
+        self.offset = 0
+
     def __init__(
         out self,
         data: Span[Self.ElementType, Self.origin],

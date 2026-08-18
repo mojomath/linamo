@@ -10,47 +10,30 @@ from linamo.types.errors import ValueError
 from linamo.types.static_matrix import StaticMatrix
 from linamo.types.matrix import Matrix
 from linamo.types.matrix_view import MatrixView
-from linamo.traits.matrix_like import MatrixLike
+from linamo.routines.functional import apply_along_axis, fold
 from linamo.utils.indexing import get_offset
 
 # [Mojo Miji]
-# We use the `MatrixLike` trait to perform item-wise, naive matrix operations.
-# It allows us to quickly make things "work".
-# We can further optimize these operations by implementing specific algorithms
-# for specific matrix types.
+# The routines below take `MatrixView` operands and nothing else --- one
+# signature per operation, not one per combination of `Matrix` and
+# `MatrixView`. A `Matrix` argument converts implicitly (see the `@implicit`
+# constructor in `types/matrix_view.mojo`), so `add(a, b)` compiles whichever
+# of the two types each operand happens to be, and the conversion is an O(1)
+# metadata copy.
+#
+# The route not taken was `def add[M: MatrixLike](a: M, b: M)`. That fails for
+# a reason deeper than the missing parameterised traits: converting `M` to a
+# view has to yield a type whose `origin` parameter depends on the *borrow of
+# the argument*, and no trait method can name that. An implicit constructor
+# can, because `out self` may be written in terms of the argument. `MatrixLike`
+# remains what it always was --- a common interface for the shape and stride
+# accessors --- and is not the vehicle for operand-type genericity.
 
 # ===---------------------------------------------------------------------- ===#
-# Matrix addition
+# StaticMatrix element-wise operations
 # ===---------------------------------------------------------------------- ===#
-
-
-# FIXME: When Mojo support parameterized traits.
-# fn add[M: MatrixLike](a: M, b: M) raises -> M:
-#     """Performs element-wise addition of two matrices.
-
-#     Parameters:
-#         M: The type of the input matrices, which must implement the MatrixLike trait.
-
-#     Args:
-#         a: The first input matrix.
-#         b: The second input matrix.
-
-#     Returns:
-#         A new matrix containing the element-wise sum of a and b.
-
-#     Raises:
-#         ValueError: If the shapes of a and b do not match.
-#     """
-#     if a.get_nrows() != b.get_nrows() or a.get_ncols() != b.get_ncols():
-#         raise ValueError(
-#             function="add()",
-#             message="Input matrices must have the same shape.",
-#         )
-#     var result = a.copy()
-#     for i in range(a.get_nrows()):
-#         for j in range(a.get_ncols()):
-#             result[i, j] = a[i, j] + b[i, j]
-#     return result^
+# `StaticMatrix` keeps its own overloads: it holds a single SIMD register
+# rather than a strided buffer, so it shares no kernel with the code below.
 
 
 def add[
@@ -361,26 +344,8 @@ def _matmul_view_simd[
 
 
 # --------------------------------------------------------------------------- #
-# Public matmul overloads
+# Public matmul entry point
 # --------------------------------------------------------------------------- #
-
-
-def matmul[
-    dtype: DType
-](a: Matrix[dtype], b: Matrix[dtype]) raises -> Matrix[dtype]:
-    """Performs matrix multiplication of two dynamic matrices.
-
-    Delegates to the SIMD-optimised, view-based core implementation.
-    Converting Matrix → MatrixView via `.view()` is free (metadata copy).
-
-    Args:
-        a: The first input matrix.
-        b: The second input matrix.
-
-    Returns:
-        A new C-contiguous matrix containing the product of a and b.
-    """
-    return _matmul_view_simd(a.view(), b.view())
 
 
 def matmul[
@@ -391,50 +356,19 @@ def matmul[
     a: MatrixView[dtype, origin_a],
     b: MatrixView[dtype, origin_b],
 ) raises -> Matrix[dtype]:
-    """Performs matrix multiplication of two matrix views.
+    """Performs matrix multiplication.
 
-    This is the canonical entry-point for view × view multiplication.
+    Either operand may be a `Matrix` or a `MatrixView`; a `Matrix` is converted
+    to a read-only view implicitly.
 
     Args:
-        a: The first input matrix view.
-        b: The second input matrix view.
+        a: The first operand.
+        b: The second operand.
 
     Returns:
         A new C-contiguous matrix containing the product of a and b.
     """
     return _matmul_view_simd(a, b)
-
-
-def matmul[
-    dtype: DType,
-    origin_b: Origin,
-](a: Matrix[dtype], b: MatrixView[dtype, origin_b],) raises -> Matrix[dtype]:
-    """Performs matrix multiplication of a matrix and a matrix view.
-
-    Args:
-        a: The first input matrix.
-        b: The second input matrix view.
-
-    Returns:
-        A new C-contiguous matrix containing the product of a and b.
-    """
-    return _matmul_view_simd(a.view(), b)
-
-
-def matmul[
-    dtype: DType,
-    origin_a: Origin,
-](a: MatrixView[dtype, origin_a], b: Matrix[dtype],) raises -> Matrix[dtype]:
-    """Performs matrix multiplication of a matrix view and a matrix.
-
-    Args:
-        a: The first input matrix view.
-        b: The second input matrix.
-
-    Returns:
-        A new C-contiguous matrix containing the product of a and b.
-    """
-    return _matmul_view_simd(a, b.view())
 
 
 # ===---------------------------------------------------------------------- ===#
@@ -451,8 +385,16 @@ def matmul[
 # loads/stores with per-lane func application).  For non-contiguous views the
 # fallback is a stride-aware double loop.
 #
-# Four overloads are provided for each binary operation so that any combination
-# of Matrix / MatrixView works directly, mirroring the matmul design.
+# Every public binary operation takes two `MatrixView` operands and nothing
+# else. A `Matrix` argument still works, because `MatrixView` has an
+# `@implicit` constructor from `Matrix` (see `types/matrix_view.mojo`), so the
+# compiler inserts the conversion at the call site. That is what lets one
+# signature stand in for the four combinations of Matrix / MatrixView that used
+# to be written out by hand.
+#
+# The conversion always produces a *read-only* view, which is what makes
+# `add(a, a)` legal: two immutable borrows of one matrix are fine, two mutable
+# ones are not.
 #
 # The same pattern is applied to scalar–matrix operations via
 # `_scalar_elementwise_view`.
@@ -569,8 +511,9 @@ def _scalar_elementwise_view[
 # ===---------------------------------------------------------------------- ===#
 # Dynamic element-wise operations: add, sub, mul, div
 # ===---------------------------------------------------------------------- ===#
-# Each operation has 4 overloads: view×view, mat×mat, mat×view, view×mat.
-# All delegate to `_elementwise_view` with the appropriate `_op` helper.
+# One signature each. `Matrix` operands convert implicitly, so all four
+# combinations of Matrix / MatrixView call straight through to
+# `_elementwise_view` with the appropriate SIMD dunder as the kernel.
 
 
 # --------------------------------------------------------------------------- #
@@ -583,29 +526,8 @@ def add[
 ](
     a: MatrixView[dtype, origin_a], b: MatrixView[dtype, origin_b]
 ) raises -> Matrix[dtype]:
-    """Element-wise addition of two matrix views."""
+    """Element-wise addition of two matrices or views."""
     return _elementwise_view[func=Scalar[dtype].__add__](a, b)
-
-
-def add[
-    dtype: DType
-](a: Matrix[dtype], b: Matrix[dtype]) raises -> Matrix[dtype]:
-    """Element-wise addition of two dynamic matrices."""
-    return _elementwise_view[func=Scalar[dtype].__add__](a.view(), b.view())
-
-
-def add[
-    dtype: DType, origin_b: Origin
-](a: Matrix[dtype], b: MatrixView[dtype, origin_b]) raises -> Matrix[dtype]:
-    """Element-wise addition of a matrix and a matrix view."""
-    return _elementwise_view[func=Scalar[dtype].__add__](a.view(), b)
-
-
-def add[
-    dtype: DType, origin_a: Origin
-](a: MatrixView[dtype, origin_a], b: Matrix[dtype]) raises -> Matrix[dtype]:
-    """Element-wise addition of a matrix view and a matrix."""
-    return _elementwise_view[func=Scalar[dtype].__add__](a, b.view())
 
 
 # --------------------------------------------------------------------------- #
@@ -618,29 +540,8 @@ def sub[
 ](
     a: MatrixView[dtype, origin_a], b: MatrixView[dtype, origin_b]
 ) raises -> Matrix[dtype]:
-    """Element-wise subtraction of two matrix views."""
+    """Element-wise subtraction of two matrices or views."""
     return _elementwise_view[func=Scalar[dtype].__sub__](a, b)
-
-
-def sub[
-    dtype: DType
-](a: Matrix[dtype], b: Matrix[dtype]) raises -> Matrix[dtype]:
-    """Element-wise subtraction of two dynamic matrices."""
-    return _elementwise_view[func=Scalar[dtype].__sub__](a.view(), b.view())
-
-
-def sub[
-    dtype: DType, origin_b: Origin
-](a: Matrix[dtype], b: MatrixView[dtype, origin_b]) raises -> Matrix[dtype]:
-    """Element-wise subtraction of a matrix and a matrix view."""
-    return _elementwise_view[func=Scalar[dtype].__sub__](a.view(), b)
-
-
-def sub[
-    dtype: DType, origin_a: Origin
-](a: MatrixView[dtype, origin_a], b: Matrix[dtype]) raises -> Matrix[dtype]:
-    """Element-wise subtraction of a matrix view and a matrix."""
-    return _elementwise_view[func=Scalar[dtype].__sub__](a, b.view())
 
 
 # --------------------------------------------------------------------------- #
@@ -653,29 +554,8 @@ def mul[
 ](
     a: MatrixView[dtype, origin_a], b: MatrixView[dtype, origin_b]
 ) raises -> Matrix[dtype]:
-    """Element-wise multiplication of two matrix views."""
+    """Element-wise multiplication of two matrices or views."""
     return _elementwise_view[func=Scalar[dtype].__mul__](a, b)
-
-
-def mul[
-    dtype: DType
-](a: Matrix[dtype], b: Matrix[dtype]) raises -> Matrix[dtype]:
-    """Element-wise multiplication of two dynamic matrices."""
-    return _elementwise_view[func=Scalar[dtype].__mul__](a.view(), b.view())
-
-
-def mul[
-    dtype: DType, origin_b: Origin
-](a: Matrix[dtype], b: MatrixView[dtype, origin_b]) raises -> Matrix[dtype]:
-    """Element-wise multiplication of a matrix and a matrix view."""
-    return _elementwise_view[func=Scalar[dtype].__mul__](a.view(), b)
-
-
-def mul[
-    dtype: DType, origin_a: Origin
-](a: MatrixView[dtype, origin_a], b: Matrix[dtype]) raises -> Matrix[dtype]:
-    """Element-wise multiplication of a matrix view and a matrix."""
-    return _elementwise_view[func=Scalar[dtype].__mul__](a, b.view())
 
 
 # --------------------------------------------------------------------------- #
@@ -688,76 +568,28 @@ def div[
 ](
     a: MatrixView[dtype, origin_a], b: MatrixView[dtype, origin_b]
 ) raises -> Matrix[dtype]:
-    """Element-wise division of two matrix views."""
+    """Element-wise division of two matrices or views."""
     return _elementwise_view[func=Scalar[dtype].__truediv__](a, b)
-
-
-def div[
-    dtype: DType
-](a: Matrix[dtype], b: Matrix[dtype]) raises -> Matrix[dtype]:
-    """Element-wise division of two dynamic matrices."""
-    return _elementwise_view[func=Scalar[dtype].__truediv__](a.view(), b.view())
-
-
-def div[
-    dtype: DType, origin_b: Origin
-](a: Matrix[dtype], b: MatrixView[dtype, origin_b]) raises -> Matrix[dtype]:
-    """Element-wise division of a matrix and a matrix view."""
-    return _elementwise_view[func=Scalar[dtype].__truediv__](a.view(), b)
-
-
-def div[
-    dtype: DType, origin_a: Origin
-](a: MatrixView[dtype, origin_a], b: Matrix[dtype]) raises -> Matrix[dtype]:
-    """Element-wise division of a matrix view and a matrix."""
-    return _elementwise_view[func=Scalar[dtype].__truediv__](a, b.view())
 
 
 # ===---------------------------------------------------------------------- ===#
 # Scalar–Matrix operations
 # ===---------------------------------------------------------------------- ===#
-# Each scalar operation has 2 overloads: Matrix and MatrixView.
-
-
-def scalar_add[
-    dtype: DType
-](mat: Matrix[dtype], scalar: Scalar[dtype]) -> Matrix[dtype]:
-    """Adds a scalar to every element of a matrix."""
-    return _scalar_elementwise_view[func=Scalar[dtype].__add__](
-        mat.view(), scalar
-    )
+# One signature each; a `Matrix` operand converts implicitly.
 
 
 def scalar_add[
     dtype: DType, origin: Origin
 ](mat: MatrixView[dtype, origin], scalar: Scalar[dtype]) -> Matrix[dtype]:
-    """Adds a scalar to every element of a matrix view."""
+    """Adds a scalar to every element of a matrix or view."""
     return _scalar_elementwise_view[func=Scalar[dtype].__add__](mat, scalar)
 
 
 def scalar_sub[
-    dtype: DType
-](mat: Matrix[dtype], scalar: Scalar[dtype]) -> Matrix[dtype]:
-    """Subtracts a scalar from every element of a matrix."""
-    return _scalar_elementwise_view[func=Scalar[dtype].__sub__](
-        mat.view(), scalar
-    )
-
-
-def scalar_sub[
     dtype: DType, origin: Origin
 ](mat: MatrixView[dtype, origin], scalar: Scalar[dtype]) -> Matrix[dtype]:
-    """Subtracts a scalar from every element of a matrix view."""
+    """Subtracts a scalar from every element of a matrix or view."""
     return _scalar_elementwise_view[func=Scalar[dtype].__sub__](mat, scalar)
-
-
-def scalar_mul[
-    dtype: DType
-](mat: Matrix[dtype], scalar: Scalar[dtype]) -> Matrix[dtype]:
-    """Multiplies every element of a matrix by a scalar."""
-    return _scalar_elementwise_view[func=Scalar[dtype].__mul__](
-        mat.view(), scalar
-    )
 
 
 def scalar_mul[
@@ -765,15 +597,6 @@ def scalar_mul[
 ](mat: MatrixView[dtype, origin], scalar: Scalar[dtype]) -> Matrix[dtype]:
     """Multiplies every element of a matrix view by a scalar."""
     return _scalar_elementwise_view[func=Scalar[dtype].__mul__](mat, scalar)
-
-
-def scalar_div[
-    dtype: DType
-](mat: Matrix[dtype], scalar: Scalar[dtype]) -> Matrix[dtype]:
-    """Divides every element of a matrix by a scalar."""
-    return _scalar_elementwise_view[func=Scalar[dtype].__truediv__](
-        mat.view(), scalar
-    )
 
 
 def scalar_div[
@@ -907,31 +730,8 @@ def floordiv[
 ](
     a: MatrixView[dtype, origin_a], b: MatrixView[dtype, origin_b]
 ) raises -> Matrix[dtype]:
-    """Element-wise floor division of two matrix views."""
+    """Element-wise floor division of two matrices or views."""
     return _elementwise_view[func=Scalar[dtype].__floordiv__](a, b)
-
-
-def floordiv[
-    dtype: DType
-](a: Matrix[dtype], b: Matrix[dtype]) raises -> Matrix[dtype]:
-    """Element-wise floor division of two dynamic matrices."""
-    return _elementwise_view[func=Scalar[dtype].__floordiv__](
-        a.view(), b.view()
-    )
-
-
-def floordiv[
-    dtype: DType, origin_b: Origin
-](a: Matrix[dtype], b: MatrixView[dtype, origin_b]) raises -> Matrix[dtype]:
-    """Element-wise floor division of a matrix and a matrix view."""
-    return _elementwise_view[func=Scalar[dtype].__floordiv__](a.view(), b)
-
-
-def floordiv[
-    dtype: DType, origin_a: Origin
-](a: MatrixView[dtype, origin_a], b: Matrix[dtype]) raises -> Matrix[dtype]:
-    """Element-wise floor division of a matrix view and a matrix."""
-    return _elementwise_view[func=Scalar[dtype].__floordiv__](a, b.view())
 
 
 # --------------------------------------------------------------------------- #
@@ -944,29 +744,8 @@ def mod[
 ](
     a: MatrixView[dtype, origin_a], b: MatrixView[dtype, origin_b]
 ) raises -> Matrix[dtype]:
-    """Element-wise modulo of two matrix views."""
+    """Element-wise modulo of two matrices or views."""
     return _elementwise_view[func=Scalar[dtype].__mod__](a, b)
-
-
-def mod[
-    dtype: DType
-](a: Matrix[dtype], b: Matrix[dtype]) raises -> Matrix[dtype]:
-    """Element-wise modulo of two dynamic matrices."""
-    return _elementwise_view[func=Scalar[dtype].__mod__](a.view(), b.view())
-
-
-def mod[
-    dtype: DType, origin_b: Origin
-](a: Matrix[dtype], b: MatrixView[dtype, origin_b]) raises -> Matrix[dtype]:
-    """Element-wise modulo of a matrix and a matrix view."""
-    return _elementwise_view[func=Scalar[dtype].__mod__](a.view(), b)
-
-
-def mod[
-    dtype: DType, origin_a: Origin
-](a: MatrixView[dtype, origin_a], b: Matrix[dtype]) raises -> Matrix[dtype]:
-    """Element-wise modulo of a matrix view and a matrix."""
-    return _elementwise_view[func=Scalar[dtype].__mod__](a, b.view())
 
 
 # --------------------------------------------------------------------------- #
@@ -979,44 +758,14 @@ def pow[
 ](
     a: MatrixView[dtype, origin_a], b: MatrixView[dtype, origin_b]
 ) raises -> Matrix[dtype]:
-    """Element-wise exponentiation of two matrix views."""
+    """Element-wise exponentiation of two matrices or views."""
     return _elementwise_view[func=Scalar[dtype].__pow__](a, b)
-
-
-def pow[
-    dtype: DType
-](a: Matrix[dtype], b: Matrix[dtype]) raises -> Matrix[dtype]:
-    """Element-wise exponentiation of two dynamic matrices."""
-    return _elementwise_view[func=Scalar[dtype].__pow__](a.view(), b.view())
-
-
-def pow[
-    dtype: DType, origin_b: Origin
-](a: Matrix[dtype], b: MatrixView[dtype, origin_b]) raises -> Matrix[dtype]:
-    """Element-wise exponentiation of a matrix and a matrix view."""
-    return _elementwise_view[func=Scalar[dtype].__pow__](a.view(), b)
-
-
-def pow[
-    dtype: DType, origin_a: Origin
-](a: MatrixView[dtype, origin_a], b: Matrix[dtype]) raises -> Matrix[dtype]:
-    """Element-wise exponentiation of a matrix view and a matrix."""
-    return _elementwise_view[func=Scalar[dtype].__pow__](a, b.view())
 
 
 # ===---------------------------------------------------------------------- ===#
 # Scalar–Matrix operations: floordiv, mod, pow, and reflected sub / div
 # ===---------------------------------------------------------------------- ===#
-# Each scalar operation has 2 overloads: Matrix and MatrixView.
-
-
-def scalar_floordiv[
-    dtype: DType
-](mat: Matrix[dtype], scalar: Scalar[dtype]) -> Matrix[dtype]:
-    """Floor-divides every element of a matrix by a scalar."""
-    return _scalar_elementwise_view[func=Scalar[dtype].__floordiv__](
-        mat.view(), scalar
-    )
+# One signature each; a `Matrix` operand converts implicitly.
 
 
 def scalar_floordiv[
@@ -1029,15 +778,6 @@ def scalar_floordiv[
 
 
 def scalar_mod[
-    dtype: DType
-](mat: Matrix[dtype], scalar: Scalar[dtype]) -> Matrix[dtype]:
-    """Takes every element of a matrix modulo a scalar."""
-    return _scalar_elementwise_view[func=Scalar[dtype].__mod__](
-        mat.view(), scalar
-    )
-
-
-def scalar_mod[
     dtype: DType, origin: Origin
 ](mat: MatrixView[dtype, origin], scalar: Scalar[dtype]) -> Matrix[dtype]:
     """Takes every element of a matrix view modulo a scalar."""
@@ -1045,26 +785,10 @@ def scalar_mod[
 
 
 def scalar_pow[
-    dtype: DType
-](mat: Matrix[dtype], scalar: Scalar[dtype]) -> Matrix[dtype]:
-    """Raises every element of a matrix to a scalar power."""
-    return _scalar_elementwise_view[func=Scalar[dtype].__pow__](
-        mat.view(), scalar
-    )
-
-
-def scalar_pow[
     dtype: DType, origin: Origin
 ](mat: MatrixView[dtype, origin], scalar: Scalar[dtype]) -> Matrix[dtype]:
     """Raises every element of a matrix view to a scalar power."""
     return _scalar_elementwise_view[func=Scalar[dtype].__pow__](mat, scalar)
-
-
-def scalar_rsub[
-    dtype: DType
-](mat: Matrix[dtype], scalar: Scalar[dtype]) -> Matrix[dtype]:
-    """Subtracts every element of a matrix from a scalar (`scalar - mat`)."""
-    return _scalar_elementwise_view[func=_rsub_op[dtype]](mat.view(), scalar)
 
 
 def scalar_rsub[
@@ -1076,14 +800,274 @@ def scalar_rsub[
 
 
 def scalar_rdiv[
-    dtype: DType
-](mat: Matrix[dtype], scalar: Scalar[dtype]) -> Matrix[dtype]:
-    """Divides a scalar by every element of a matrix (`scalar / mat`)."""
-    return _scalar_elementwise_view[func=_rdiv_op[dtype]](mat.view(), scalar)
-
-
-def scalar_rdiv[
     dtype: DType, origin: Origin
 ](mat: MatrixView[dtype, origin], scalar: Scalar[dtype]) -> Matrix[dtype]:
     """Divides a scalar by every element of a matrix view (`scalar / mat`)."""
     return _scalar_elementwise_view[func=_rdiv_op[dtype]](mat, scalar)
+
+
+# ===---------------------------------------------------------------------- ===#
+# Multiplicative and extremal reductions
+# ===---------------------------------------------------------------------- ===#
+# `prod`, `min` and `max` are the same walk as `sum` in `routines/statistics
+# .mojo` with a different accumulator, so they go through the same two pieces:
+# `fold` for the whole matrix, `apply_along_axis` for one lane at a time.
+#
+# `min` and `max` seed the accumulator with the first element rather than with
+# a sentinel, so they work for any dtype without needing to know its bounds,
+# and they raise on an empty operand instead of returning a value that no
+# element justifies.
+
+
+def _mul_op[dtype: DType](a: Scalar[dtype], b: Scalar[dtype]) -> Scalar[dtype]:
+    return a * b
+
+
+def _min_op[dtype: DType](a: Scalar[dtype], b: Scalar[dtype]) -> Scalar[dtype]:
+    return a if a < b else b
+
+
+def _max_op[dtype: DType](a: Scalar[dtype], b: Scalar[dtype]) -> Scalar[dtype]:
+    return a if a > b else b
+
+
+def _prod_lane[
+    dtype: DType, origin: Origin[mut=False]
+](v: MatrixView[dtype, origin]) -> Scalar[dtype]:
+    return fold[func=_mul_op[dtype]](v, Scalar[dtype](1))
+
+
+def _min_lane[
+    dtype: DType, origin: Origin[mut=False]
+](v: MatrixView[dtype, origin]) -> Scalar[dtype]:
+    return fold[func=_min_op[dtype]](v, v[0, 0])
+
+
+def _max_lane[
+    dtype: DType, origin: Origin[mut=False]
+](v: MatrixView[dtype, origin]) -> Scalar[dtype]:
+    return fold[func=_max_op[dtype]](v, v[0, 0])
+
+
+def prod[
+    dtype: DType, origin: Origin[mut=False]
+](m: MatrixView[dtype, origin]) -> Scalar[dtype]:
+    """Multiplies every element of a matrix or view.
+
+    Parameters:
+        dtype: The data type of the matrix elements.
+        origin: The origin of the operand.
+
+    Args:
+        m: The matrix or view to reduce.
+
+    Returns:
+        The product of all elements, or one if the operand is empty.
+    """
+    return _prod_lane(m)
+
+
+def prod[
+    dtype: DType, origin: Origin[mut=False]
+](m: MatrixView[dtype, origin], axis: Int) raises -> Matrix[dtype]:
+    """Multiplies along one axis.
+
+    Parameters:
+        dtype: The data type of the matrix elements.
+        origin: The origin of the operand.
+
+    Args:
+        m: The matrix or view to reduce.
+        axis: The dimension to remove. 0 returns `1 x ncols`, 1 returns
+            `nrows x 1`.
+
+    Returns:
+        A new matrix holding one product per lane.
+
+    Raises:
+        ValueError: If `axis` is neither 0 nor 1.
+    """
+    if axis == 0:
+        return apply_along_axis[axis=0, func=_prod_lane[dtype, origin]](m)
+    elif axis == 1:
+        return apply_along_axis[axis=1, func=_prod_lane[dtype, origin]](m)
+    raise ValueError(function="prod(m, axis)", message="Axis must be 0 or 1.")
+
+
+def min[
+    dtype: DType, origin: Origin[mut=False]
+](m: MatrixView[dtype, origin]) raises -> Scalar[dtype]:
+    """Returns the smallest element of a matrix or view.
+
+    Parameters:
+        dtype: The data type of the matrix elements.
+        origin: The origin of the operand.
+
+    Args:
+        m: The matrix or view to reduce.
+
+    Returns:
+        The smallest element.
+
+    Raises:
+        ValueError: If the operand is empty.
+    """
+    if m.get_size() == 0:
+        raise ValueError(
+            function="min(m)", message="Cannot reduce an empty matrix."
+        )
+    return _min_lane(m)
+
+
+def min[
+    dtype: DType, origin: Origin[mut=False]
+](m: MatrixView[dtype, origin], axis: Int) raises -> Matrix[dtype]:
+    """Returns the smallest element along one axis.
+
+    Parameters:
+        dtype: The data type of the matrix elements.
+        origin: The origin of the operand.
+
+    Args:
+        m: The matrix or view to reduce.
+        axis: The dimension to remove. 0 returns `1 x ncols`, 1 returns
+            `nrows x 1`.
+
+    Returns:
+        A new matrix holding one minimum per lane.
+
+    Raises:
+        ValueError: If `axis` is neither 0 nor 1, or the operand is empty.
+    """
+    if m.get_size() == 0:
+        raise ValueError(
+            function="min(m, axis)", message="Cannot reduce an empty matrix."
+        )
+    if axis == 0:
+        return apply_along_axis[axis=0, func=_min_lane[dtype, origin]](m)
+    elif axis == 1:
+        return apply_along_axis[axis=1, func=_min_lane[dtype, origin]](m)
+    raise ValueError(function="min(m, axis)", message="Axis must be 0 or 1.")
+
+
+def max[
+    dtype: DType, origin: Origin[mut=False]
+](m: MatrixView[dtype, origin]) raises -> Scalar[dtype]:
+    """Returns the largest element of a matrix or view.
+
+    Parameters:
+        dtype: The data type of the matrix elements.
+        origin: The origin of the operand.
+
+    Args:
+        m: The matrix or view to reduce.
+
+    Returns:
+        The largest element.
+
+    Raises:
+        ValueError: If the operand is empty.
+    """
+    if m.get_size() == 0:
+        raise ValueError(
+            function="max(m)", message="Cannot reduce an empty matrix."
+        )
+    return _max_lane(m)
+
+
+def max[
+    dtype: DType, origin: Origin[mut=False]
+](m: MatrixView[dtype, origin], axis: Int) raises -> Matrix[dtype]:
+    """Returns the largest element along one axis.
+
+    Parameters:
+        dtype: The data type of the matrix elements.
+        origin: The origin of the operand.
+
+    Args:
+        m: The matrix or view to reduce.
+        axis: The dimension to remove. 0 returns `1 x ncols`, 1 returns
+            `nrows x 1`.
+
+    Returns:
+        A new matrix holding one maximum per lane.
+
+    Raises:
+        ValueError: If `axis` is neither 0 nor 1, or the operand is empty.
+    """
+    if m.get_size() == 0:
+        raise ValueError(
+            function="max(m, axis)", message="Cannot reduce an empty matrix."
+        )
+    if axis == 0:
+        return apply_along_axis[axis=0, func=_max_lane[dtype, origin]](m)
+    elif axis == 1:
+        return apply_along_axis[axis=1, func=_max_lane[dtype, origin]](m)
+    raise ValueError(function="max(m, axis)", message="Axis must be 0 or 1.")
+
+
+def cumprod[
+    dtype: DType, origin: Origin[mut=False]
+](m: MatrixView[dtype, origin]) raises -> Matrix[dtype]:
+    """Returns the running product over every element, in row-major order.
+
+    Parameters:
+        dtype: The data type of the matrix elements.
+        origin: The origin of the operand.
+
+    Args:
+        m: The matrix or view to scan.
+
+    Returns:
+        A new C-contiguous matrix with the same shape as the input.
+    """
+    var result = Matrix[dtype](m.nrows, m.ncols, m.ncols, 1)
+    var acc = Scalar[dtype](1)
+    var k = 0
+    for i in range(m.nrows):
+        for j in range(m.ncols):
+            acc *= m[i, j]
+            result.data[k] = acc
+            k += 1
+    return result^
+
+
+def cumprod[
+    dtype: DType, origin: Origin[mut=False]
+](m: MatrixView[dtype, origin], axis: Int) raises -> Matrix[dtype]:
+    """Returns the running product along one axis.
+
+    Parameters:
+        dtype: The data type of the matrix elements.
+        origin: The origin of the operand.
+
+    Args:
+        m: The matrix or view to scan.
+        axis: The dimension to accumulate along. 0 runs down each column,
+            1 runs across each row.
+
+    Returns:
+        A new C-contiguous matrix with the same shape as the input.
+
+    Raises:
+        ValueError: If `axis` is neither 0 nor 1.
+    """
+    if axis != 0 and axis != 1:
+        raise ValueError(
+            function="cumprod(m, axis)", message="Axis must be 0 or 1."
+        )
+
+    var result = Matrix[dtype](m.nrows, m.ncols, m.ncols, 1)
+    if axis == 0:
+        for j in range(m.ncols):
+            var acc = Scalar[dtype](1)
+            for i in range(m.nrows):
+                acc *= m[i, j]
+                result.data[i * m.ncols + j] = acc
+    else:
+        for i in range(m.nrows):
+            var acc = Scalar[dtype](1)
+            for j in range(m.ncols):
+                acc *= m[i, j]
+                result.data[i * m.ncols + j] = acc
+    return result^

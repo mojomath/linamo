@@ -46,9 +46,10 @@ and it is the mutation you want on an owner: `m[i, j] = x` writes an element.
 It is safe to inherit because a bare reference is consumed where it is formed,
 unlike a view, which is a value you can bind, store and pass twice.
 
-`m.view()` is exactly `m[:, :]`, and exists because the named routines accept a
-`MatrixView` - it is the O(1) conversion that lets `add(a, b)` reach the same
-kernel whether its arguments are matrices or views.
+`m.view()` is exactly `m[:, :]`. The named routines accept a `Matrix` without
+it --- the same conversion happens implicitly (see *Inter-operability* below)
+--- so `view()` is for the times you want to name the view, or to be explicit
+about where the borrow starts.
 
 ### From a `MatrixView`
 
@@ -291,21 +292,42 @@ innermost one contains an algorithm:
 | Named routine | `routines/*.mojo`, public       | any operand pair to a pair of views     |
 | Kernel        | `routines/*.mojo`, `_`-prefixed | the actual loop, layout dispatch inside |
 
-**The permutations collapse at the routine layer.** `Matrix` becomes
-`MatrixView` through `view()`, which is O(1) and allocates nothing, so the four
-overloads of a routine are one line each and all end in the same call:
+**The permutations collapse at the call site, not in the library.** Every
+public routine takes `MatrixView` operands and nothing else --- one signature,
+not four:
 
 ```mojo
 def add[dtype: DType, origin_a: Origin, origin_b: Origin](
     a: MatrixView[dtype, origin_a], b: MatrixView[dtype, origin_b]
 ) raises -> Matrix[dtype]:
     return _elementwise_view[func=Scalar[dtype].__add__](a, b)
-
-def add[dtype: DType](a: Matrix[dtype], b: Matrix[dtype]) raises -> Matrix[dtype]:
-    return _elementwise_view[func=Scalar[dtype].__add__](a.view(), b.view())
-
-# ... and the two mixed pairs, likewise
 ```
+
+`add(a, b)` still compiles when either operand is a `Matrix`, because
+`MatrixView` carries an `@implicit` constructor from `Matrix` and the compiler
+inserts the conversion. It is the same O(1) metadata copy `view()` performs, so
+nothing is allocated and nothing is copied.
+
+Two details make that constructor safe, and both are load-bearing:
+
+```mojo
+@implicit
+def __init__[d: DType](
+    out self: MatrixView[d, ImmOrigin(origin_of(m.data))], ref m: Matrix[d]
+):
+```
+
+The argument is `ref m`, and only `ref` binds the origin to the *caller's*
+storage. Under `imm`, `read` or the default convention the argument gets its
+own origin --- `origin_of(m.data)` then names the callee's parameter slot ---
+so the target type is one no caller can name, and every call site fails to
+convert. And the result is wrapped in `ImmOrigin(...)`, so a `var` matrix
+converts
+to a **read-only** view. Without that, `add(a, a)` would be two mutable borrows
+of one matrix and would not compile --- the same wall that forced slicing to
+become read-only. It also keeps `routines.mutation` the only door to a mutable
+view: those signatures are pinned to `Origin[mut=True]`, which this conversion
+can never satisfy, so `fill(m, ...)` remains a compile error.
 
 A view is the *general* case and a matrix the special one, so everything is
 funnelled towards views rather than away from them. Below this line no code

@@ -9,7 +9,7 @@ matrix it came from.
 The rule worth learning first: **slicing always yields a read-only view.**
 `m[0:2, :]`, `m.view()`, `m.rows()` and iteration all hand back something you
 cannot write through, no matter how `m` was bound. That is deliberate - a
-mutable view is an *exclusive* borrow, and Mojo will not pass two of them into
+mutable view is an exclusive borrow, and Mojo will not pass two of them into
 one call, so if slicing inherited mutability then `a[0:1, :] - a[1:2, :]`
 would not compile. Writing is the rarer case, so it gets the explicit
 spelling: `view_mut`, `fill`, `assign` and friends from
@@ -60,9 +60,9 @@ def _grid[dtype: DType](nrows: Int, ncols: Int) raises -> la.Matrix[dtype]:
 
 def _banner(title: String):
     print()
-    print("=" * 70)
+    print("=" * 80)
     print(title)
-    print("=" * 70)
+    print("=" * 80)
 
 
 # ===----------------------------------------------------------------------=== #

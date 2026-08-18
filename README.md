@@ -2,17 +2,18 @@
 
 A matrix and linear algebra library for Mojo.
 
-**[Roadmap](docs/ROADMAP.md)** | **[Mojo Miji](https://mojo-lang.com/miji/)** | **[Repository on GitHub»](https://github.com/mojomath/linamo)** | **[Discord channel»](https://discord.gg/3rGH87uZTk)**
+**[Roadmap](docs/ROADMAP.md)** | **[Mojo Miji](https://mojo-lang.com/miji/)** | **[Repository»](https://github.com/mojomath/linamo)** | **[Discord»](https://discord.gg/3rGH87uZTk)**
 
 [![Version](https://img.shields.io/badge/version-v0.1.0-blue)](https://github.com/mojomath/linamo/releases/tag/v0.1.0)
 [![Mojo](https://img.shields.io/badge/mojo-1.0.0-orange)](https://docs.modular.com/mojo/manual/)
 [![pixi](https://img.shields.io/badge/pixi%20add-linamo-purple)](https://prefix.dev/channels/modular-community/packages/linamo)
 <!-- [![CI](https://img.shields.io/github/actions/workflow/status/mojomath/linamo/run_tests.yaml?branch=main&label=tests)](https://github.com/mojomath/linamo/actions/workflows/run_tests.yaml) -->
 
-| Type         | Information                 |
-| ------------ | --------------------------- |
-| `Matrix`     | A 2-dimensional matrix type |
-| `MatrixView` | A non-own view of `Matrix`  |
+| Type           | Information                        |
+| -------------- | ---------------------------------- |
+| `Matrix`       | A 2-dimensional matrix type        |
+| `MatrixView`   | A non-owning view of `Matrix`      |
+| `StaticMatrix` | A matrix with a compile-time shape |
 
 - [Overview](#overview)
 - [Goals](#goals)
@@ -33,7 +34,9 @@ Linamo focuses on efficient **matrix operations** and provides the foundations
 for **linear algebra** workflows in Mojo.
 
 The name **Linamo** is **LIN**ear + **A**lgebra + **MO**jo: the field it
-covers, and the language it is written in.
+covers, and the language it is written in. It can also be read as
+**lin**-**amo**: *amo* is Latin for "I love", so the name reads as "I love
+linear algebra".
 
 Compared to a general-purpose multi-dimensional array library, Linamo is more
 specialized and optimized for linear algebra of 2D matrices. This allows us to
@@ -48,7 +51,7 @@ If you need multi-dimensional arrays, consider the
 Below are some differences between **Linamo** (this package) and **NuMojo** (a
 general-purpose multi-dimensional array library):
 
-| Feature                  | **Linamo**                                       | **NuMojo**                                         |
+| Feature                  | **Linamo**                                        | **NuMojo**                                         |
 | ------------------------ | ------------------------------------------------- | -------------------------------------------------- |
 | **Primary goal**         | Linear algebra & matrix computation               | General-purpose ndarray / tensor computing         |
 | **Supported dimensions** | 2D only (matrices)                                | Arbitrary dimensions (N-D arrays)                  |

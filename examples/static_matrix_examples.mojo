@@ -34,9 +34,9 @@ def main() raises:
 
 
 def creation() raises:
-    print("=" * 70)
+    print("=" * 80)
     print("CREATION")
-    print("=" * 70)
+    print("=" * 80)
 
     # The shape comes first, as compile-time parameters, then the dtype. Note
     # that the *type* spells them the other way round - `StaticMatrix[dtype,
@@ -71,9 +71,9 @@ def creation() raises:
 
 def padding() raises:
     print()
-    print("=" * 70)
+    print("=" * 80)
     print("PADDING AND LAYOUT")
-    print("=" * 70)
+    print("=" * 80)
 
     # A 3x5 is the interesting case: neither dimension is a power of two, so
     # both get rounded up - to a 4x8 buffer.
@@ -112,9 +112,9 @@ def padding() raises:
 
 def element_access() raises:
     print()
-    print("=" * 70)
+    print("=" * 80)
     print("ELEMENT ACCESS")
-    print("=" * 70)
+    print("=" * 80)
 
     var m = la.smatrix[3, 4, int64](
         flat_list=[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
@@ -137,9 +137,9 @@ def element_access() raises:
 
 def arithmetic() raises:
     print()
-    print("=" * 70)
+    print("=" * 80)
     print("ARITHMETIC")
-    print("=" * 70)
+    print("=" * 80)
 
     var a = la.smatrix[3, 3, float64](
         [

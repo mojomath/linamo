@@ -34,9 +34,9 @@ def main() raises:
 
 
 def creation() raises:
-    print("=" * 70)
+    print("=" * 80)
     print("CREATION")
-    print("=" * 70)
+    print("=" * 80)
 
     # From a nested list. The `order` argument decides how the elements are
     # laid out in memory, not how they are indexed: `m[i, j]` means the same
@@ -97,9 +97,9 @@ def creation() raises:
 
 def memory_layout() raises:
     print()
-    print("=" * 70)
+    print("=" * 80)
     print("MEMORY LAYOUT")
-    print("=" * 70)
+    print("=" * 80)
 
     var rows: List[List[Scalar[float64]]] = [
         [1.1, 1.2, 1.3],
@@ -147,9 +147,9 @@ def memory_layout() raises:
 
 def element_access() raises:
     print()
-    print("=" * 70)
+    print("=" * 80)
     print("ELEMENT ACCESS")
-    print("=" * 70)
+    print("=" * 80)
 
     var m = la.matrix[int64](
         flat_list=[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
@@ -198,9 +198,9 @@ def element_access() raises:
 
 def region_writes() raises:
     print()
-    print("=" * 70)
+    print("=" * 80)
     print("REGION WRITES")
-    print("=" * 70)
+    print("=" * 80)
 
     var m = la.zeros[int64](5, 5)
     print("A 5x5 matrix of zeros:\n", m)
@@ -226,9 +226,9 @@ def region_writes() raises:
 
 def arithmetic() raises:
     print()
-    print("=" * 70)
+    print("=" * 80)
     print("ARITHMETIC")
-    print("=" * 70)
+    print("=" * 80)
 
     var a = la.matrix[float64]([[1.0, 2.0], [3.0, 4.0]])
     var b = la.matrix[float64]([[10.0, 20.0], [30.0, 40.0]])
@@ -284,9 +284,9 @@ def arithmetic() raises:
 
 def comparison() raises:
     print()
-    print("=" * 70)
+    print("=" * 80)
     print("COMPARISON")
-    print("=" * 70)
+    print("=" * 80)
 
     var a = la.matrix[int64]([[1, 5, 3], [7, 2, 9]])
     var b = la.matrix[int64]([[4, 4, 4], [4, 4, 4]])
@@ -312,9 +312,9 @@ def comparison() raises:
 
 def iteration() raises:
     print()
-    print("=" * 70)
+    print("=" * 80)
     print("ITERATION")
-    print("=" * 70)
+    print("=" * 80)
 
     var m = la.matrix[int64](
         flat_list=[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
@@ -349,9 +349,9 @@ def iteration() raises:
 
 def linear_algebra() raises:
     print()
-    print("=" * 70)
+    print("=" * 80)
     print("LINEAR ALGEBRA")
-    print("=" * 70)
+    print("=" * 80)
 
     var a = la.matrix[float64](
         [
