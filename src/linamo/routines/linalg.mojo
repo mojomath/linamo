@@ -37,16 +37,6 @@ def transpose[
     )
 
 
-def transpose[dtype: DType](mat: Matrix[dtype]) -> Matrix[dtype]:
-    """Returns the transpose of a matrix."""
-    return transpose(mat.view())
-
-
-# ===---------------------------------------------------------------------- ===#
-# Trace
-# ===---------------------------------------------------------------------- ===#
-
-
 def trace[
     dtype: DType, origin: Origin
 ](view: MatrixView[dtype, origin]) raises -> Scalar[dtype]:
@@ -60,16 +50,6 @@ def trace[
     for i in range(view.nrows):
         result += view[i, i]
     return result
-
-
-def trace[dtype: DType](mat: Matrix[dtype]) raises -> Scalar[dtype]:
-    """Computes the trace of a square matrix."""
-    return trace(mat.view())
-
-
-# ===---------------------------------------------------------------------- ===#
-# LU Decomposition (with partial pivoting)
-# ===---------------------------------------------------------------------- ===#
 
 
 def lu[
@@ -161,19 +141,6 @@ def lu[
     return (L^, U^, piv^)
 
 
-def lu[
-    dtype: DType
-](mat: Matrix[dtype],) raises -> Tuple[Matrix[dtype], Matrix[dtype], List[Int]]:
-    """Computes the LU decomposition of a matrix. Delegates to the view-based
-    core."""
-    return lu(mat.view())
-
-
-# ===---------------------------------------------------------------------- ===#
-# Cholesky Decomposition
-# ===---------------------------------------------------------------------- ===#
-
-
 def cholesky[
     dtype: DType, origin: Origin
 ](view: MatrixView[dtype, origin]) raises -> Matrix[dtype]:
@@ -213,16 +180,6 @@ def cholesky[
     return Matrix[dtype](
         data=l_data^, nrows=n, ncols=n, row_stride=n, col_stride=1
     )
-
-
-def cholesky[dtype: DType](mat: Matrix[dtype]) raises -> Matrix[dtype]:
-    """Computes the Cholesky decomposition of a matrix."""
-    return cholesky(mat.view())
-
-
-# ===---------------------------------------------------------------------- ===#
-# QR Decomposition (Householder reflections)
-# ===---------------------------------------------------------------------- ===#
 
 
 def qr[
@@ -313,18 +270,6 @@ def qr[
     return (Q^, R^)
 
 
-def qr[
-    dtype: DType
-](mat: Matrix[dtype]) raises -> Tuple[Matrix[dtype], Matrix[dtype]]:
-    """Computes the QR decomposition of a matrix."""
-    return qr(mat.view())
-
-
-# ===---------------------------------------------------------------------- ===#
-# Determinant (via LU)
-# ===---------------------------------------------------------------------- ===#
-
-
 def det[
     dtype: DType, origin: Origin
 ](view: MatrixView[dtype, origin]) raises -> Scalar[dtype]:
@@ -359,16 +304,6 @@ def det[
         d = -d
 
     return d
-
-
-def det[dtype: DType](mat: Matrix[dtype]) raises -> Scalar[dtype]:
-    """Computes the determinant of a square matrix."""
-    return det(mat.view())
-
-
-# ===---------------------------------------------------------------------- ===#
-# Solve (via LU): Ax = b
-# ===---------------------------------------------------------------------- ===#
 
 
 def solve[
@@ -444,32 +379,6 @@ def solve[
     )
 
 
-def solve[
-    dtype: DType
-](A: Matrix[dtype], b: Matrix[dtype]) raises -> Matrix[dtype]:
-    """Solves Ax = b (matrix × matrix)."""
-    return solve(A.view(), b.view())
-
-
-def solve[
-    dtype: DType, origin_b: Origin
-](A: Matrix[dtype], b: MatrixView[dtype, origin_b]) raises -> Matrix[dtype]:
-    """Solves Ax = b (matrix × view)."""
-    return solve(A.view(), b)
-
-
-def solve[
-    dtype: DType, origin_a: Origin
-](A: MatrixView[dtype, origin_a], b: Matrix[dtype]) raises -> Matrix[dtype]:
-    """Solves Ax = b (view × matrix)."""
-    return solve(A, b.view())
-
-
-# ===---------------------------------------------------------------------- ===#
-# Matrix Inverse (via LU + solve)
-# ===---------------------------------------------------------------------- ===#
-
-
 def inv[
     dtype: DType, origin: Origin
 ](view: MatrixView[dtype, origin]) raises -> Matrix[dtype]:
@@ -497,16 +406,6 @@ def inv[
     )
 
     return solve(view, I.view())
-
-
-def inv[dtype: DType](mat: Matrix[dtype]) raises -> Matrix[dtype]:
-    """Computes the inverse of a square matrix."""
-    return inv(mat.view())
-
-
-# ===---------------------------------------------------------------------- ===#
-# Least Squares (via QR): min ||Ax - b||_2
-# ===---------------------------------------------------------------------- ===#
 
 
 def lstsq[
@@ -571,24 +470,3 @@ def lstsq[
         row_stride=k,
         col_stride=1,
     )
-
-
-def lstsq[
-    dtype: DType
-](A: Matrix[dtype], b: Matrix[dtype]) raises -> Matrix[dtype]:
-    """Solves least squares (matrix × matrix)."""
-    return lstsq(A.view(), b.view())
-
-
-def lstsq[
-    dtype: DType, origin_b: Origin
-](A: Matrix[dtype], b: MatrixView[dtype, origin_b]) raises -> Matrix[dtype]:
-    """Solves least squares (matrix × view)."""
-    return lstsq(A.view(), b)
-
-
-def lstsq[
-    dtype: DType, origin_a: Origin
-](A: MatrixView[dtype, origin_a], b: Matrix[dtype]) raises -> Matrix[dtype]:
-    """Solves least squares (view × matrix)."""
-    return lstsq(A, b.view())

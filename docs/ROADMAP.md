@@ -152,7 +152,7 @@ Mojo 1.0.0 (released 2026-08-11) landed a large set of breaking changes. See the
 
 ## Phase 5 — NuMojo Matrix Consolidation
 
-> **Status: 🚧 In progress — 5.1 through 5.4 done**
+> **Status: 🚧 In progress — 5.1 through 5.5 done**
 >
 > NuMojo dropped its `Matrix` type (`numojo/core/matrix/`), and it lives here
 > from now on. Its API is the checklist for this phase — not because Linamo
@@ -389,14 +389,46 @@ and raises on a strided input because there is no layout to flip.
 
 ### 5.5 — Creation routines
 
-| Item                                      | Module                   | Status |
-| ----------------------------------------- | ------------------------ | ------ |
-| `empty`                                   | `routines/creation.mojo` | □      |
-| `arange`                                  | `routines/creation.mojo` | □      |
-| `linspace`                                | `routines/creation.mojo` | □      |
-| `zeros_like` / `ones_like` / `empty_like` | `routines/creation.mojo` | □      |
-| `fromlist` / `fromstring`                 | `routines/creation.mojo` | □      |
-| `rand` (see also Phase 9)                 | `routines/random.mojo`   | □      |
+| Item                                                    | Module                   | Status |
+| ------------------------------------------------------- | ------------------------ | ------ |
+| `empty`                                                 | `routines/creation.mojo` | ✓      |
+| `arange`                                                | `routines/creation.mojo` | ✓      |
+| `linspace`                                              | `routines/creation.mojo` | ✓      |
+| `zeros_like` / `ones_like` / `full_like` / `empty_like` | `routines/creation.mojo` | ✓      |
+| `fromlist` / `fromstring`                               | `routines/creation.mojo` | ✓      |
+| `rand` / `seed` (see also Phase 9)                      | `routines/random.mojo`   | ✓      |
+
+**Range constructors return a `1 x n` row.** Linamo has no 1-D type, and a row
+is what NumPy's 1-D `arange` prints as, so that is what `arange` and `linspace`
+produce; `reshape(x, n, 1)` is the column. Both **raise on an empty result**
+rather than returning a `1 x 0` matrix: `arange(5, 0)` is a mistake far more
+often than a deliberate request for nothing, and a zero-column matrix cannot be
+printed, indexed or multiplied by anything. `linspace` pins its last element to
+`stop` exactly instead of trusting `start + (num - 1) * step`, which lands a
+rounding error short.
+
+**The `*_like` family copies the shape, not the layout.** It follows 5.4's rule
+that an owning result is dense in C order, so `zeros_like` of an F-contiguous
+matrix is C-contiguous. Reproducing the input's layout would also be undefined
+for the case the family most needs to accept --- a strided view, which has no
+layout to reproduce. `full_like` was added alongside the three in the sketch,
+since its absence next to `full` would be the odd gap.
+
+**`fromstring` parses one grammar, and `fromlist` is a rename.** Elements are
+separated by whitespace or commas and rows by nested brackets, so
+`"[[1, 2], [3, 4]]"` is 2x2 and an unnested `"1 2 3"` is one row; a second
+overload takes an explicit shape and ignores the bracket structure entirely.
+Tokenising is deliberately liberal --- anything that is not a separator or a
+bracket accumulates into a token --- so a bad cell is reported by name
+(`Cannot parse 'x' as a number`) rather than guessed at by the scanner.
+`fromlist` is the positional spelling of the keyword-only
+`matrix(flat_list=..., nrows=..., ncols=...)` that already existed, kept because
+it is the name the NuMojo routine had.
+
+**`seed` came along with `rand`.** A generator that cannot be pinned cannot be
+tested, so `seed()` forwards to the standard library's global RNG that `rand`
+draws from; the reproducibility test seeds twice and compares element for
+element. `randn` and the rest of the distribution family stay in Phase 9.
 
 ### 5.6 — Element-wise math & logic
 
@@ -435,6 +467,7 @@ and raises on a strided input because there is no layout to flip.
 
 | Item                                                     | Module                       | Status |
 | -------------------------------------------------------- | ---------------------------- | ------ |
+| Collapse the `linalg` routine overloads                  | `routines/linalg.mojo`       | ✓      |
 | Collapse the operator overloads onto implicit conversion | `types/matrix.mojo`, `_view` | □      |
 | Make the layout fields private; rename the accessors     | `types/`                     | □      |
 | Assert the layout invariant in the `Matrix` constructors | `types/matrix.mojo`          | □      |
@@ -444,6 +477,15 @@ All four are breaking changes to spellings users would already have written, so
 they land **before v0.1.0** — see [Release Plan](#release-plan--v010). The
 overload collapse should come before 5.6, for the reason the 5.2 collapse came
 before 5.3: every routine added meanwhile doubles the work.
+
+**The routine layer is now fully collapsed; the operators are not.** 5.2 did
+`math.mojo` and `logic.mojo`, and 5.4's `manipulation.mojo` was written
+view-only from the start, which left `linalg.mojo` as the last module carrying
+`Matrix`-argument forwarders --- 13 of them, including the three-way
+`(M, M)` / `(M, V)` / `(V, M)` sets on `solve` and `lstsq`. Verified redundant
+by deleting them and compiling a caller that passes a `Matrix` to every
+routine, then confirmed against the full suite: 121 lines gone, `linalg.mojo`
+594 -> 472, no call site changed.
 
 **The operators never got the 5.2 treatment.** `types/matrix.mojo` still carries
 both `__add__(self, other: Self)` and
@@ -542,15 +584,15 @@ through a trait.
 
 ## Phase 9 — Random Matrix Generation
 
-> **Status: □ Not started**
+> **Status: 🚧 `rand` and `seed` landed with 5.5; `randn` remains**
 >
 > *stamojo dependency: needed for simulation, bootstrap, MCMC.*
 
-| Item                             | Module                 | stamojo use                 |
-| -------------------------------- | ---------------------- | --------------------------- |
-| `rand()` — uniform random matrix | `routines/random.mojo` | Monte Carlo simulation      |
-| `randn()` — normal random matrix | `routines/random.mojo` | Error simulation, bootstrap |
-| `seed()` — set RNG seed          | `routines/random.mojo` | Reproducibility             |
+| Item                             | Module                 | stamojo use                 | Status |
+| -------------------------------- | ---------------------- | --------------------------- | ------ |
+| `rand()` — uniform random matrix | `routines/random.mojo` | Monte Carlo simulation      | ✓      |
+| `randn()` — normal random matrix | `routines/random.mojo` | Error simulation, bootstrap | □      |
+| `seed()` — set RNG seed          | `routines/random.mojo` | Reproducibility             | ✓      |
 
 ---
 
@@ -701,6 +743,15 @@ what make a release usable rather than merely tagged.
 |            | Dropped the NuMojo migration guide in favour of a user guide; |
 |            | added a Documentation                                         |
 |            | section and gated v0.1.0 on it.                               |
+| 2026-08-18 | Phase 5.5 done: `empty`, `arange`, `linspace`,                |
+|            | `zeros_like`/`ones_like`/`full_like`/`empty_like`,            |
+|            | `fromlist`, `fromstring`, and a new `routines/random.mojo`    |
+|            | with `rand` and `seed`. Range constructors return a `1 x n`   |
+|            | row and raise rather than yield an empty matrix. 45 new       |
+|            | tests (408 total).                                            |
+|            | Also removed the 13 `Matrix`-argument forwarders from         |
+|            | `linalg.mojo` (121 lines), the last module the 5.2 overload   |
+|            | collapse had not reached.                                     |
 | 2026-08-18 | Renamed `docs/API.md` to `docs/MANUAL.md` and rewrote it as   |
 |            | the user manual, rather than shipping a separate `GUIDE.md`   |
 |            | that would duplicate its tables. The internals moved to       |

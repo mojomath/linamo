@@ -51,22 +51,22 @@ If you need multi-dimensional arrays, consider the
 Below are some differences between **Linamo** (this package) and **NuMojo** (a
 general-purpose multi-dimensional array library):
 
-| Feature                  | **Linamo**                                        | **NuMojo**                                         |
-| ------------------------ | ------------------------------------------------- | -------------------------------------------------- |
-| **Primary goal**         | Linear algebra & matrix computation               | General-purpose ndarray / tensor computing         |
-| **Supported dimensions** | 2D only (matrices)                                | Arbitrary dimensions (N-D arrays)                  |
-| **Core abstraction**     | Matrix as a mathematical object                   | N-dimensional array container                      |
-| **Target domain**        | BLAS / LAPACK style workflows                     | NumPy-style scientific computing                   |
-| **Storage model**        | Matrix-specific storage (row/col strides)         | Generic strided N-D storage                        |
-| **Static shapes**        | First-class support (compile-time sizes)          | Not a primary focus                                |
-| **View semantics**       | Safe read-only + mutable views                    | General slicing & broadcasting                     |
-| **Indexing model**       | Strict matrix indexing (row, col)                 | N-dimensional indexing                             |
-| **Negative indexing**    | Not supported (explicit & safe)                   | Typically supported                                |
-| **Broadcasting**         | Minimal / linear-algebra oriented                 | Full NumPy-style broadcasting                      |
-| **Specialized kernels**  | Matmul / decompositions / solvers                 | Elementwise & tensor ops                           |
-| **Performance focus**    | SIMD & BLAS-style kernels                         | Generic tensor operations                          |
-| **API philosophy**       | Mathematical clarity & safety                     | Flexibility & generality                           |
-| **Typical use cases**    | Solvers, decompositions, numerical linear algebra | Scientific computing, ML preprocessing, tensor ops |
+| Feature                  | **Linamo**                                | **NuMojo**                                         |
+| ------------------------ | ----------------------------------------- | -------------------------------------------------- |
+| **Primary goal**         | Linear algebra & matrix computation       | General-purpose ndarray / tensor computing         |
+| **Supported dimensions** | 2D only (matrices)                        | Arbitrary dimensions (N-D arrays)                  |
+| **Core abstraction**     | Matrix as a mathematical object           | N-dimensional array container                      |
+| **Target domain**        | BLAS / LAPACK style workflows             | NumPy-style scientific computing                   |
+| **Storage model**        | Matrix-specific storage (row/col strides) | Generic strided N-D storage                        |
+| **Static shapes**        | First-class support (compile-time sizes)  | Not a primary focus                                |
+| **View semantics**       | Safe read-only + mutable views            | General slicing & broadcasting                     |
+| **Indexing model**       | Strict matrix indexing (row, col)         | N-dimensional indexing                             |
+| **Negative indexing**    | Not supported (explicit & safe)           | Typically supported                                |
+| **Broadcasting**         | Minimal / linear-algebra oriented         | Full NumPy-style broadcasting                      |
+| **Specialized kernels**  | Matmul / decompositions / solvers         | Elementwise & tensor ops                           |
+| **Performance focus**    | SIMD & BLAS-style kernels                 | Generic tensor operations                          |
+| **API philosophy**       | Mathematical clarity & safety             | Flexibility & generality                           |
+| **Typical use cases**    | Solvers, decompositions, linear algebra   | Scientific computing, ML preprocessing, tensor ops |
 
 ## Goals
 
@@ -189,7 +189,7 @@ linamo
 │   │   ├── static_matrix.mojo   # Compile-time sized Matrix
 │   │   └── errors.mojo          # ValueError, IndexError, etc.
 │   ├── routines/
-│   │   ├── creation.mojo        # matrix, zeros, ones, full, eye, diag
+│   │   ├── creation.mojo        # matrix, zeros, ones, full, eye, diag, arange, linspace, *_like, fromstring
 │   │   ├── math.mojo            # add, sub, mul, div, matmul, scalar ops, min, max, prod
 │   │   ├── logic.mojo           # comparisons, all, any
 │   │   ├── functional.mojo      # fold, apply_along_axis
@@ -198,6 +198,7 @@ linamo
 │   │   ├── searching.mojo       # argmin, argmax
 │   │   ├── sorting.mojo         # sort, argsort, sort_inplace
 │   │   ├── statistics.mojo      # sum, cumsum
+│   │   ├── random.mojo          # rand, seed
 │   │   ├── numpy_interop.mojo   # to_numpy, matrix_from_numpy
 │   │   └── linalg.mojo          # transpose, trace, lu, cholesky, qr, det, solve, inv, lstsq
 │   ├── traits/

@@ -3,14 +3,23 @@ from linamo.types.matrix_view import MatrixView
 from linamo.types.static_matrix import StaticMatrix
 
 from linamo.routines.creation import (
+    arange,
+    diag,
+    empty,
+    empty_like,
+    eye,
+    fromlist,
+    fromstring,
+    full,
+    full_like,
+    identity,
+    linspace,
     matrix,
+    ones,
+    ones_like,
     smatrix,
     zeros,
-    ones,
-    full,
-    eye,
-    identity,
-    diag,
+    zeros_like,
 )
 from linamo.routines.linalg import (
     transpose,
@@ -36,6 +45,7 @@ from linamo.routines.manipulation import (
     resize,
 )
 from linamo.routines.math import max, min, prod, cumprod
+from linamo.routines.random import rand, seed
 from linamo.routines.searching import argmax, argmin
 from linamo.routines.sorting import argsort, sort, sort_inplace
 from linamo.routines.statistics import cumsum, sum

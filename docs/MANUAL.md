@@ -306,17 +306,26 @@ var c = v.as_imm() + v.as_imm()
 
 ## Creating matrices
 
-| Call                                                   | Gives you                                     |
-| ------------------------------------------------------ | --------------------------------------------- |
-| `matrix[dtype](list_of_rows, order="C")`               | a matrix from nested lists                    |
-| `matrix[dtype](flat_list=..., nrows=, ncols=, order=)` | a matrix from one flat list                   |
-| `zeros[dtype](nrows, ncols)`                           | all zeros                                     |
-| `ones[dtype](nrows, ncols)`                            | all ones                                      |
-| `full[dtype](nrows, ncols, fill_value)`                | one repeated value                            |
-| `eye[dtype](n)` / `identity[dtype](n)`                 | the `n x n` identity                          |
-| `diag[dtype](values)`                                  | a square matrix with `values` on the diagonal |
-| `diag[dtype](m)`                                       | the diagonal of `m`, as a `List`              |
-| `smatrix[nrows, ncols, dtype](list_of_rows)`           | a `StaticMatrix`                              |
+| Call                                                       | Gives you                                     |
+| ---------------------------------------------------------- | --------------------------------------------- |
+| `matrix[dtype](list_of_rows, order="C")`                   | a matrix from nested lists                    |
+| `matrix[dtype](flat_list=..., nrows=, ncols=, order=)`     | a matrix from one flat list                   |
+| `zeros[dtype](nrows, ncols)`                               | all zeros                                     |
+| `ones[dtype](nrows, ncols)`                                | all ones                                      |
+| `full[dtype](nrows, ncols, fill_value)`                    | one repeated value                            |
+| `eye[dtype](n)` / `identity[dtype](n)`                     | the `n x n` identity                          |
+| `diag[dtype](values)`                                      | a square matrix with `values` on the diagonal |
+| `diag[dtype](m)`                                           | the diagonal of `m`, as a `List`              |
+| `smatrix[nrows, ncols, dtype](list_of_rows)`               | a `StaticMatrix`                              |
+| `empty[dtype](nrows, ncols)`                               | uninitialised storage of that shape           |
+| `zeros_like(m)` / `ones_like(m)`                           | zeros or ones shaped like `m`                 |
+| `full_like(m, fill_value)` / `empty_like(m)`               | one value, or uninitialised, shaped like `m`  |
+| `arange[dtype](stop)` / `arange[dtype](start, stop, step)` | a `1 x n` row of evenly spaced values         |
+| `linspace[dtype](start, stop, num, endpoint)`              | a `1 x num` row from `start` to `stop`        |
+| `fromlist[dtype](flat_list, nrows, ncols, order)`          | a matrix from one flat list, positionally     |
+| `fromstring[dtype](text)`                                  | a matrix parsed from a literal                |
+| `rand[dtype](nrows, ncols, low, high)`                     | uniform random values                         |
+| `seed(value)`                                              | pins `rand` for reproducibility               |
 
 ```mojo
 import linamo as la
@@ -346,6 +355,70 @@ other than `"C"` or `"F"`. The shape-only routines — `zeros`, `ones`, `full`,
 
 The `[dtype]` is required whenever a list is passed and optional otherwise; see
 [The element type is a `DType`](#the-element-type-is-a-dtype) for why.
+
+### Ranges, shapes copied from another matrix, and random values
+
+`arange` and `linspace` return a **`1 x n` row**, because Linamo has no 1-D type
+and a row is what NumPy's 1-D result prints as. `reshape(x, n, 1)` gives the
+column.
+
+```mojo
+var x = la.arange[DType.float64](5.0)              # 1x5: 0 1 2 3 4
+var y = la.arange[DType.float64](1.0, 2.0, 0.25)   # 1x4: 1 1.25 1.5 1.75
+var d = la.arange[DType.int64](10, 0, -3)          # 1x4: 10 7 4 1
+var t = la.linspace[DType.float64](0.0, 1.0, 5)    # 1x5: 0 0.25 0.5 0.75 1
+var h = la.linspace[DType.float64](0.0, 1.0, 5, endpoint=False)
+```
+
+`arange` excludes `stop`, as Python's `range` does, and `linspace` includes it
+by default — and hits it *exactly*, rather than landing a rounding error short.
+Both **raise rather than return an empty matrix**: `arange(5.0, 0.0)`, a zero
+`step`, and `linspace(..., num=0)` are all `ValueError`, because a `1 x 0`
+matrix cannot be printed, indexed or multiplied by anything.
+
+The `*_like` family copies the shape and dtype of an existing matrix or view,
+never its layout — the result is always C-contiguous, like every other owning
+result. Use `astype` to change the dtype.
+
+```mojo
+var A = la.matrix[DType.float64]([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]])
+var Z = la.zeros_like(A)          # 2x3 of zeros
+var S = la.zeros_like(A[0:2, 1:3])  # 2x2 — a view works too
+var E = la.empty[DType.float64](2, 2)  # contents unspecified; write before reading
+```
+
+`rand` draws uniformly from the closed interval `[low, high]`, defaulting to
+`[0, 1]`. It uses the standard library's global generator, so `seed(n)` makes a
+run reproducible:
+
+```mojo
+la.seed(42)
+var R = la.rand[DType.float64](2, 3)         # values in [0, 1]
+var Q = la.rand[DType.float64](3, 3, -2.0, 2.0)
+var K = la.rand[DType.int64](2, 2, 1, 6)     # integers, both bounds included
+```
+
+### Parsing a matrix from text
+
+`fromstring` reads a literal in which elements are separated by whitespace or
+commas and rows by nested brackets:
+
+```mojo
+var A = la.fromstring[DType.float64]("[[1, 2, 3], [4, 5.5, 6]]")  # 2x3
+var B = la.fromstring[DType.float64]("[[1 2 3]\n [4 5 6]]")       # 2x3
+var C = la.fromstring[DType.float64]("1 2 3")                     # 1x3, one row
+var D = la.fromstring[DType.int32]("[1, 2, 3, 4]", 2, 2)          # shape given
+```
+
+A literal with no nesting is a single row. The second overload takes an
+explicit `nrows`, `ncols` and `order`, and ignores the bracket structure
+entirely — it reads every element it finds, in `order`, into the shape you
+asked for. Unbalanced brackets, nesting more than two deep, rows of unequal
+length, and a cell that is not a number all raise `ValueError`; the last of
+these names the offending token.
+
+`fromlist` is the same thing for a list you already have — the positional
+spelling of the keyword-only `matrix(flat_list=..., nrows=..., ncols=...)`.
 
 ---
 
@@ -1042,8 +1115,7 @@ This manual documents what exists. The
 [roadmap](ROADMAP.md) tracks what does not; the larger gaps as of this writing
 are:
 
-- **Creation**: `empty`, `arange`, `linspace`, the `*_like` family, `fromstring`
-  and random matrices.
+- **Creation**: `randn`, for normally distributed random matrices.
 - **Element-wise mathematics**: the trigonometric and hyperbolic functions,
   `round`, `isclose`/`allclose`, the infinity predicates and the logical
   operators.
