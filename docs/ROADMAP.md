@@ -558,44 +558,53 @@ through a trait.
 
 > **Status: □ Not started**
 
-| Item                                   | Module                 | Notes                    |
-| -------------------------------------- | ---------------------- | ------------------------ |
-| Optimized matmul for all layout combos | `routines/math.mojo`   | See [API.md](API.md)     |
-| (C@C, F@F, C@F, F@C, V@*)              |                        |                          |
-| Tiled / blocked matmul                 | `routines/math.mojo`   | Cache-friendly           |
-| SIMD-optimized decompositions          | `routines/linalg.mojo` | Performance              |
-| Parallel row/col operations            | `routines/math.mojo`   | Multi-core utilization   |
-| Comprehensive benchmarks               | `benches/`             | Compare vs. NumPy/LAPACK |
+| Item                                   | Module                 | Notes                      |
+| -------------------------------------- | ---------------------- | -------------------------- |
+| Optimized matmul for all layout combos | `routines/math.mojo`   | See [MANUAL.md](MANUAL.md) |
+| (C@C, F@F, C@F, F@C, V@*)              |                        |                            |
+| Tiled / blocked matmul                 | `routines/math.mojo`   | Cache-friendly             |
+| SIMD-optimized decompositions          | `routines/linalg.mojo` | Performance                |
+| Parallel row/col operations            | `routines/math.mojo`   | Multi-core utilization     |
+| Comprehensive benchmarks               | `benches/`             | Compare vs. NumPy/LAPACK   |
 
 ---
 
 ## Documentation
 
-> **Status: 🚧 README and examples only**
+> **Status: 🚧 README, examples and the user manual; no install path**
 
-| Item                                             | Where                    | Status |
-| ------------------------------------------------ | ------------------------ | ------ |
-| README: overview, quickstart, project layout     | `README.md`              | ✓      |
-| Runnable examples, one per public type           | `examples/`              | ✓      |
-| User guide                                       | `docs/GUIDE.md`          | □      |
-| `docs/API.md` checked against the actual surface | `docs/API.md`            | 🚧      |
-| Documented install path                          | `README.md`, `pixi.toml` | □      |
+| Item                                         | Where                    | Status |
+| -------------------------------------------- | ------------------------ | ------ |
+| README: overview, quickstart, project layout | `README.md`              | ✓      |
+| Runnable examples, one per public type       | `examples/`              | ✓      |
+| User manual                                  | `docs/MANUAL.md`         | 🚧     |
+| Manual checked against the actual surface    | `docs/MANUAL.md`         | 🚧     |
+| Documented install path                      | `README.md`, `pixi.toml` | □      |
 
-The guide is the release blocker of the three. Most of Linamo can be guessed at
-by someone who knows NumPy — except the one thing the library is built around,
-which is that `Matrix` owns and `MatrixView` borrows. A user who does not know
-that will not understand why `a[0:2, 0:2]` cannot be written through, why `fill`
-lives in `routines.mutation`, or why passing a `Matrix` to a routine that takes
-a `MatrixView` compiles at all. So the guide leads with the two types and their
+The manual is the release blocker. Most of Linamo can be guessed at by someone
+who knows NumPy — except the one thing the library is built around, which is
+that `Matrix` owns and `MatrixView` borrows. A user who does not know that will
+not understand why `a[0:2, 0:2]` cannot be written through, why `fill` lives in
+`routines.mutation`, or why passing a `Matrix` to a routine that takes a
+`MatrixView` compiles at all. So the manual leads with the two types and their
 contract, then does the ordinary tour: creating matrices, indexing and slicing,
-arithmetic and comparison, reductions with `axis`, shape and layout, the linear
-algebra routines, NumPy interop, and how errors are raised and read.
+arithmetic and comparison, mutation, iteration, reductions with `axis`, shape
+and layout, the linear algebra routines, SIMD access, NumPy interop, and how
+errors are raised and read.
 
-`docs/API.md` is close but drifts. Its `MatrixView` intro still described
-`view()` as taking `ref self` and yielding a writable view from a `var` matrix
-— the 5.1 behaviour that 5.2 removed — while its own table three sections later
-said the opposite. That paragraph is fixed; the rest of the file has not been
-walked against the current surface, and 5.4's routines are not in it at all.
+The user guide and the API document are one file rather than two. `docs/API.md`
+was never a symbol reference — it was a prose account of the design, and its
+mutability, conversion and copying tables are the most useful pages in the repo
+for a user. Folding the guide into it, rather than writing a second document
+that would repeat those tables and drift from them, keeps one place to update.
+The design rationale that a *user* does not need — the three-layer collapse,
+the kernel inventory, the `@implicit` constructor — moved to an appendix. The
+per-symbol reference is generated from docstrings with `mojo doc`, which is
+verified to work on the whole package, so it was never this file's job.
+
+The manual is written and its snippets have been compiled and run against the
+current source. It is still marked 🚧 because 5.5–5.7 will add surface it has
+to grow to cover; Appendix B tracks what it does not document yet.
 
 The install path is a documentation gap and a packaging one at once: today the
 only story is `-I src`, and either the package gets published to
@@ -618,9 +627,9 @@ work all *add* signatures rather than change them, so they are 0.2.0 material.
 5.9 is the exception that has to land first, since it changes spellings users
 would already have written.
 
-The rest of the checklist is [Documentation](#documentation): a user guide, an
-install path that is not `-I src`, and `docs/API.md` checked against the actual
-surface. Those are what make a release usable rather than merely tagged.
+The rest of the checklist is [Documentation](#documentation): the user manual
+kept level with 5.5–5.7, and an install path that is not `-I src`. Those are
+what make a release usable rather than merely tagged.
 
 ---
 
@@ -692,3 +701,9 @@ surface. Those are what make a release usable rather than merely tagged.
 |            | Dropped the NuMojo migration guide in favour of a user guide; |
 |            | added a Documentation                                         |
 |            | section and gated v0.1.0 on it.                               |
+| 2026-08-18 | Renamed `docs/API.md` to `docs/MANUAL.md` and rewrote it as   |
+|            | the user manual, rather than shipping a separate `GUIDE.md`   |
+|            | that would duplicate its tables. The internals moved to       |
+|            | Appendix A; Appendix B lists what is not documented yet.      |
+|            | Every snippet compiled and run. The per-symbol reference is   |
+|            | `mojo doc` output, not a hand-written file.                   |

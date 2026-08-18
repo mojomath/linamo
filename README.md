@@ -2,7 +2,7 @@
 
 A matrix and linear algebra library for Mojo.
 
-**[Roadmap](docs/ROADMAP.md)** | **[Mojo Miji](https://mojo-lang.com/miji/)** | **[Repository»](https://github.com/mojomath/linamo)** | **[Discord»](https://discord.gg/3rGH87uZTk)**
+**[Manual](docs/MANUAL.md)** | **[Repository»](https://github.com/mojomath/linamo)** | **[Discord»](https://discord.gg/3rGH87uZTk)**
 
 [![Version](https://img.shields.io/badge/version-v0.1.0-blue)](https://github.com/mojomath/linamo/releases/tag/v0.1.0)
 [![Mojo](https://img.shields.io/badge/mojo-1.0.0-orange)](https://docs.modular.com/mojo/manual/)
@@ -106,6 +106,9 @@ pixi install
 ```
 
 ## Quick start
+
+The [User Manual](docs/MANUAL.md) is the full tour. What follows is enough to
+see the shape of the API.
 
 Run the test suite:
 
@@ -212,8 +215,9 @@ linamo
 
 ## Status
 
-Linamo is under active development. See the [Roadmap](docs/ROADMAP.md) for
-upcoming phases (eigenvalues, statistics, norms, etc.).
+Linamo is under active development. The [User Manual](docs/MANUAL.md) documents
+what exists today; see the [Roadmap](docs/ROADMAP.md) for upcoming phases
+(eigenvalues, statistics, norms, etc.).
 
 ### Requirements
 

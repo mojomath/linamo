@@ -1,14 +1,39 @@
-# rumdl — Markdown line wrapper for linamo's prose docs.
+# rumdl — Markdown formatter for linamo's docs.
 #
-# Scoped to MD013 (line-length) only. The goal is 80-column prose
-# wrapping, not a repo-wide Markdown restyle, so every other markdownlint
-# rule stays off and the diffs stay prose-only: bullet markers, emphasis
-# characters, heading style and table padding are left as written.
+# Two jobs, one pass:
+#   * MD013  — reflow prose to 80 columns.
+#   * MD060  — pad table cells so every column lines up in the source.
+#              Width is measured in display columns, so emoji and CJK
+#              in a cell are padded correctly.
+# The remaining rules are the structural ones (blank lines around
+# headings/lists/fences, list indentation, trailing whitespace). The repo
+# already satisfies them, so they cost no churn and keep it that way.
 #
-# Run via `pixi run formatmd`.
+# Everything else stays off: heading style, emphasis characters and bullet
+# markers are left as written, so diffs stay content-only.
+#
+# Run via `pixi run formatmd`. For format-on-save in VS Code, install the
+# companion extension with `pixi run rumdl vscode` — it reads this file, so
+# the editor and the CLI apply exactly the same rules.
 
 [global]
-enable = ["MD013"]
+enable = [
+  "MD013", # Line length (prose reflow)
+  "MD060", # Table column alignment
+  "MD004", # Consistent bullet marker
+  "MD005", # Consistent list indentation
+  "MD007", # Unordered list indentation
+  "MD009", # No trailing spaces
+  "MD012", # No consecutive blank lines
+  "MD022", # Blank lines around headings
+  "MD030", # Spaces after list markers
+  "MD031", # Blank lines around fenced code
+  "MD032", # Blank lines around lists
+  "MD047", # Single trailing newline
+  "MD055", # Consistent table pipe style
+  "MD056", # Consistent table column count
+  "MD058", # Blank lines around tables
+]
 # CJK text has no spaces to break on, so rumdl can only wrap at the ASCII
 # boundaries. On the Traditional Chinese README that yields two-word lines
 # followed by a still-400-column paragraph, so it is left alone.
@@ -21,3 +46,9 @@ reflow = true
 # warnings that no fix can ever clear.
 code-blocks = false
 headings = false
+
+[MD060]
+# The default "any" accepts any table whose padding is self-consistent, so a
+# compact `| a | b |` table would be left compact. "aligned" always expands
+# cells to a common column width.
+style = "aligned"
