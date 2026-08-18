@@ -70,21 +70,32 @@ compiled with the source directory on the import path:
 pixi run mojo run -I src my_program.mojo
 ```
 
-Two import styles work, and the manual uses the first:
+One import gets you the library:
 
 ```mojo
 import linamo as la          # la.matrix, la.zeros, la.transpose, ...
 ```
 
+Everything in the top-level namespace is re-exported from
+`src/linamo/__init__.mojo`; anything not there is reached by its module path,
+for example `from linamo.routines.mutation import fill`.
+
+That includes the element types, which come in two spellings of the same alias:
+
 ```mojo
-from linamo.prelude import *  # the same, plus dtype aliases: float64, int32, ...
+var A = la.matrix[la.float64](...)   # NumPy-style long name
+var B = la.matrix[la.f64](...)       # Rust-style short name
+var C = la.matrix[DType.float64](...)  # the underlying spelling, always valid
 ```
 
-The prelude adds short names for the element types, so `la.matrix[float64]`
-reads the same as `la.matrix[DType.float64]`. Everything in the top-level
-namespace is re-exported from `src/linamo/__init__.mojo`; anything not there is
-reached by its module path, for example
-`from linamo.routines.mutation import fill`.
+The pairs are `float64`/`f64`, `float32`/`f32`, `int64`/`i64` down to
+`int8`/`i8`, `uint64`/`u64` down to `uint8`/`u8`, plus `int` and `uint` for the
+platform's default widths. They are aliases, not distinct types, so pick one
+style per codebase; this manual uses the long names.
+
+They are deliberately *not* exported unqualified. `from linamo.prelude import *`
+gives you `la` and nothing else - a library that puts bare `int` and `uint` in
+your global namespace has overstepped.
 
 A first program:
 

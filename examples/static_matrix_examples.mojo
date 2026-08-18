@@ -18,7 +18,7 @@ pixi run mojo run -I src examples/static_matrix.mojo
 ```
 """
 
-from linamo.prelude import *
+import linamo as la
 
 
 def main() raises:
@@ -40,9 +40,9 @@ def creation() raises:
 
     # The shape comes first, as compile-time parameters, then the dtype. Note
     # that the *type* spells them the other way round - `StaticMatrix[dtype,
-    # nrows, ncols]` - so `smatrix[3, 4, float64]` builds a
-    # `StaticMatrix[float64, 3, 4]`.
-    var m1 = la.smatrix[3, 4, float64](
+    # nrows, ncols]` - so `smatrix[3, 4, la.float64]` builds a
+    # `StaticMatrix[la.float64, 3, 4]`.
+    var m1 = la.smatrix[3, 4, la.float64](
         [
             [1.1, 1.2, 1.3, 1.4],
             [2.1, 2.2, 2.3, 2.4],
@@ -53,7 +53,7 @@ def creation() raises:
 
     # From a flat list, read row by row. The list length must match
     # `nrows * ncols` exactly; the padding is filled in for you.
-    var m2 = la.smatrix[3, 4, int64](
+    var m2 = la.smatrix[3, 4, la.int64](
         flat_list=[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
     )
     print("From a flat list:\n", m2)
@@ -77,16 +77,16 @@ def padding() raises:
 
     # A 3x5 is the interesting case: neither dimension is a power of two, so
     # both get rounded up - to a 4x8 buffer.
-    var m = la.smatrix[3, 5, int64](
+    var m = la.smatrix[3, 5, la.int64](
         flat_list=[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15],
     )
 
     print("Logical shape:", m.get_nrows(), "x", m.get_ncols())
     print(
         "Buffer shape: ",
-        la.StaticMatrix[int64, 3, 5].BUFFER_ROW_LEN,
+        la.StaticMatrix[la.int64, 3, 5].BUFFER_ROW_LEN,
         "x",
-        la.StaticMatrix[int64, 3, 5].BUFFER_COL_LEN,
+        la.StaticMatrix[la.int64, 3, 5].BUFFER_COL_LEN,
     )
     print("Strides: row =", m.get_row_stride(), " col =", m.get_col_stride())
 
@@ -96,7 +96,7 @@ def padding() raises:
     print("The underlying SIMD buffer:\n", m.data)
 
     # A shape that is already a power of two wastes nothing.
-    var square = la.smatrix[4, 4, int64](
+    var square = la.smatrix[4, 4, la.int64](
         flat_list=[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16],
     )
     print("A 4x4 needs no padding:\n", square.data)
@@ -116,7 +116,7 @@ def element_access() raises:
     print("ELEMENT ACCESS")
     print("=" * 80)
 
-    var m = la.smatrix[3, 4, int64](
+    var m = la.smatrix[3, 4, la.int64](
         flat_list=[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
     )
     print("A 3x4 static matrix:\n", m)
@@ -141,14 +141,14 @@ def arithmetic() raises:
     print("ARITHMETIC")
     print("=" * 80)
 
-    var a = la.smatrix[3, 3, float64](
+    var a = la.smatrix[3, 3, la.float64](
         [
             [1.0, 2.0, 3.0],
             [4.0, 5.0, 6.0],
             [7.0, 8.0, 9.0],
         ],
     )
-    var b = la.smatrix[3, 3, float64](
+    var b = la.smatrix[3, 3, la.float64](
         [
             [10.0, 20.0, 30.0],
             [40.0, 50.0, 60.0],
@@ -164,7 +164,7 @@ def arithmetic() raises:
 
     # Matrix multiplication. The shapes are checked at compile time, so a
     # mismatched `@` will not build rather than raising at run time.
-    var c = la.smatrix[3, 2, float64](
+    var c = la.smatrix[3, 2, la.float64](
         [
             [1.0, 0.0],
             [0.0, 1.0],

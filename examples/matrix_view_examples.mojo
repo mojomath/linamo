@@ -22,7 +22,7 @@ pixi run mojo run -I src examples/matrix_view.mojo
 ```
 """
 
-from linamo.prelude import *
+import linamo as la
 from linamo.routines.mutation import (
     assign,
     cols_mut,
@@ -73,7 +73,7 @@ def _banner(title: String):
 def what_a_view_is() raises:
     _banner("WHAT A VIEW IS")
 
-    var m = _grid[int64](5, 6)
+    var m = _grid[la.int64](5, 6)
     print("A 5x6 matrix. Entry (i, j) reads as i*10 + j:\n", m)
 
     # `m[rows, cols]` builds a view. Nothing is copied: `v` is four integers
@@ -97,7 +97,7 @@ def what_a_view_is() raises:
 def slicing_forms() raises:
     _banner("SLICING FORMS")
 
-    var m = _grid[int64](6, 8)
+    var m = _grid[la.int64](6, 8)
     print("A 6x8 matrix:\n", m)
 
     print("m[:, :] - everything:\n", m[:, :])
@@ -140,7 +140,7 @@ def slicing_forms() raises:
 def view_on_view() raises:
     _banner("VIEW ON VIEW")
 
-    var m = _grid[int64](8, 10)
+    var m = _grid[la.int64](8, 10)
     print("An 8x10 matrix:\n", m)
 
     # Slicing a view slices the view's own coordinates, not the parent's.
@@ -175,7 +175,7 @@ def view_on_view() raises:
 def getitem() raises:
     _banner("GETITEM")
 
-    var m = _grid[int64](6, 8)
+    var m = _grid[la.int64](6, 8)
     var v = m[1:5:2, 2:8:2]
     print("v = m[1:5:2, 2:8:2]:\n", v)
 
@@ -209,7 +209,7 @@ def getitem() raises:
 def layout_of_a_view() raises:
     _banner("LAYOUT OF A VIEW")
 
-    var m = _grid[int64](6, 8)
+    var m = _grid[la.int64](6, 8)
 
     var whole = m.view()
     print(
@@ -268,7 +268,7 @@ def layout_of_a_view() raises:
 def read_only_by_default() raises:
     _banner("READ-ONLY BY DEFAULT")
 
-    var m = _grid[int64](4, 4)
+    var m = _grid[la.int64](4, 4)
 
     # `.mut` is the view's mutability, carried as a compile-time parameter.
     # Every implicit path gives False, even though `m` is a `var`.
@@ -301,7 +301,7 @@ def read_only_by_default() raises:
 def writing_through_a_view() raises:
     _banner("WRITING THROUGH A VIEW")
 
-    var m = la.zeros[int64](5, 6)
+    var m = la.zeros[la.int64](5, 6)
     print("A 5x6 matrix of zeros:\n", m)
 
     # A mutable view writes straight into the parent's storage.
@@ -314,7 +314,7 @@ def writing_through_a_view() raises:
     )
 
     # `store` is the SIMD write, the counterpart of `load`.
-    store[width=4](w, 0, 0, SIMD[int64, 4](7, 7, 7, 7))
+    store[width=4](w, 0, 0, SIMD[la.int64, 4](7, 7, 7, 7))
     print("After store(w, 0, 0, [7, 7, 7, 7]):\n", m)
 
     # A `view_mut` of a `view_mut` keeps write access, and its coordinates are
@@ -340,7 +340,7 @@ def writing_through_a_view() raises:
 def setitem_regions() raises:
     _banner("REGION WRITES")
 
-    var m = la.zeros[int64](6, 6)
+    var m = la.zeros[la.int64](6, 6)
 
     # `m[a:b, c:d] = src` is not spellable in Mojo 1.0 without breaking
     # ordinary slicing, so region writes are named calls.
@@ -359,7 +359,7 @@ def setitem_regions() raises:
 
     # `assign` copies a whole block in. The shapes must match exactly - there
     # is no broadcasting.
-    var block = la.matrix[int64]([[8, 9], [9, 8]])
+    var block = la.matrix[la.int64]([[8, 9], [9, 8]])
     assign(w, Slice(0, 2), Slice(4, 6), block)
     print("assign(w, 0:2, 4:6, [[8, 9], [9, 8]]):\n", m)
 
@@ -373,7 +373,7 @@ def setitem_regions() raises:
 
     # A mismatch raises rather than truncating.
     try:
-        assign(w, Slice(0, 2), Slice(0, 2), la.ones[int64](3, 3))
+        assign(w, Slice(0, 2), Slice(0, 2), la.ones[la.int64](3, 3))
     except e:
         print("Assigning a 3x3 into a 2x2 region raises:")
         print(e)
@@ -392,14 +392,14 @@ def setitem_regions() raises:
 def mutable_iteration() raises:
     _banner("MUTABLE ITERATION")
 
-    var m = _grid[float64](4, 4)
+    var m = _grid[la.float64](4, 4)
     print("A 4x4 matrix:\n", m)
 
     # `m.rows()` is read-only. `rows_mut` is the writable walk, and it is what
     # an in-place row operation wants - Gaussian elimination, normalisation,
     # scaling a row by a pivot.
     for row in rows_mut(m):
-        var total = Scalar[float64](0)
+        var total = Scalar[la.float64](0)
         for j in range(row.ncols):
             total += row[0, j]
         if total != 0:
@@ -408,7 +408,7 @@ def mutable_iteration() raises:
     print("After dividing each row by its own sum:\n", m)
 
     # Columns too.
-    var n = _grid[int64](3, 4)
+    var n = _grid[la.int64](3, 4)
     for col in cols_mut(n):
         for i in range(col.nrows):
             col[i, 0] *= 2
@@ -423,7 +423,7 @@ def mutable_iteration() raises:
 def demoting_with_as_imm() raises:
     _banner("AS_IMM")
 
-    var m = _grid[int64](4, 4)
+    var m = _grid[la.int64](4, 4)
     var w = view_mut(m, Slice(0, 4), Slice(0, 4))
     print("w.mut          :", w.mut)
     print("w.as_imm().mut :", w.as_imm().mut)
@@ -444,7 +444,7 @@ def demoting_with_as_imm() raises:
 def iteration() raises:
     _banner("ITERATION")
 
-    var m = _grid[int64](5, 6)
+    var m = _grid[la.int64](5, 6)
     var v = m[1:4, 1:5]
     print("v = m[1:4, 1:5]:\n", v)
 
@@ -464,7 +464,7 @@ def iteration() raises:
     # Reduce over rows without materialising anything.
     print("Row sums:")
     for row in v:
-        var total = Scalar[int64](0)
+        var total = Scalar[la.int64](0)
         for j in range(row.ncols):
             total += row[0, j]
         print("  ", total)
@@ -478,7 +478,7 @@ def iteration() raises:
 def arithmetic() raises:
     _banner("ARITHMETIC ON VIEWS")
 
-    var m = _grid[float64](4, 4)
+    var m = _grid[la.float64](4, 4)
     print("A 4x4 matrix:\n", m)
 
     var top = m[0:2, :]
@@ -491,7 +491,7 @@ def arithmetic() raises:
     print("m[0:2, :] * m[2:4, :] - elementwise:\n", top * bottom)
 
     # View with matrix, and matrix with view: both directions work.
-    var ones = la.ones[float64](2, 4)
+    var ones = la.ones[la.float64](2, 4)
     print("view + matrix:\n", top + ones)
     print("matrix + view:\n", ones + top)
 
@@ -513,7 +513,7 @@ def arithmetic() raises:
     print("transpose(m[0:2, :]):\n", la.transpose(top))
     print("trace(m[1:4, 1:4]):", la.trace(m[1:4, 1:4]))
 
-    var big = la.matrix[float64](
+    var big = la.matrix[la.float64](
         [
             [9.0, 2.0, 1.0, 0.0],
             [2.0, 8.0, 3.0, 1.0],
@@ -536,7 +536,7 @@ def arithmetic() raises:
 def materialisation() raises:
     _banner("MATERIALISATION")
 
-    var m = _grid[int64](6, 6)
+    var m = _grid[la.int64](6, 6)
     var v = m[1:6:2, 1:6:2]
     print("A strided view v = m[1:6:2, 1:6:2]:\n", v)
 

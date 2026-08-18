@@ -473,6 +473,7 @@ element. `randn` and the rest of the distribution family stay in Phase 9.
 | Promote `view_mut` to a `Matrix` method                  | `types/matrix.mojo`          | ✓      |
 | Make the whole-matrix scalar write non-raising           | `types/matrix.mojo`          | ✓      |
 | Give `fill` and `assign` whole-view forms                | `routines/mutation.mojo`     | ✓      |
+| Move the dtype aliases out of the prelude                | `__init__.mojo`, `prelude`   | ✓      |
 | Collapse the operator overloads onto implicit conversion | `types/matrix.mojo`, `_view` | □      |
 | Make the layout fields private; rename the accessors     | `types/`                     | □      |
 | Assert the layout invariant in the `Matrix` constructors | `types/matrix.mojo`          | □      |
@@ -570,6 +571,17 @@ now mirror the `Matrix` side one for one, and `fill(v, value)` is non-raising
 on the same argument as `set(value)`: it visits every index of the view, so
 none of them can be out of range. `assign(v, src)` keeps `raises`, because a
 shape mismatch is real.
+
+**The element-type aliases moved out of the prelude.** `float64`, `int32` and
+the rest were defined in `prelude.mojo`, so `from linamo.prelude import *` put
+twelve bare names into the caller's global scope - including `int` and `uint`,
+which no library has any business claiming unqualified, and which shadow
+silently rather than erroring. They now live in `__init__.mojo` and are reached
+as `la.float64`, qualified like every other name the library exports. Each type
+also gained a short form, so `la.f64`, `la.i32` and `la.u8` are the same
+aliases under Rust-style names; they cost nothing now that they are namespaced,
+and the two spellings suit the two audiences the library has. The prelude is
+down to `import linamo as la`, which makes it a candidate for deletion.
 
 A related question, and the answer is no: `view_mut(v, x, y)` stays. The worry
 is that a mutable sub-view of a mutable view puts two writable views on one
