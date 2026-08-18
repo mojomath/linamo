@@ -187,7 +187,15 @@ linamo
 │   │   └── errors.mojo          # ValueError, IndexError, etc.
 │   ├── routines/
 │   │   ├── creation.mojo        # matrix, zeros, ones, full, eye, diag
-│   │   ├── math.mojo            # add, sub, mul, div, matmul, scalar ops
+│   │   ├── math.mojo            # add, sub, mul, div, matmul, scalar ops, min, max, prod
+│   │   ├── logic.mojo           # comparisons, all, any
+│   │   ├── functional.mojo      # fold, apply_along_axis
+│   │   ├── manipulation.mojo    # reshape, resize, flatten, contiguous, broadcast_to, astype
+│   │   ├── mutation.mojo        # the only source of mutable views: view_mut, fill, assign, store
+│   │   ├── searching.mojo       # argmin, argmax
+│   │   ├── sorting.mojo         # sort, argsort, sort_inplace
+│   │   ├── statistics.mojo      # sum, cumsum
+│   │   ├── numpy_interop.mojo   # to_numpy, matrix_from_numpy
 │   │   └── linalg.mojo          # transpose, trace, lu, cholesky, qr, det, solve, inv, lstsq
 │   ├── traits/
 │   │   └── matrix_like.mojo     # MatrixLike trait

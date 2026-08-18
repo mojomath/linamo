@@ -5,6 +5,7 @@ This module defines the `MatrixView` type, which is a view on a `Matrix`.
 import std.math as builtin_math
 import linamo.routines.math
 import linamo.routines.logic
+import linamo.routines.manipulation
 
 from linamo.traits.matrix_like import MatrixLike
 from linamo.types.errors import IndexError
@@ -21,7 +22,7 @@ struct MatrixView[mut: Bool, //, dtype: DType, origin: Origin[mut=mut]](
 
     Parameters:
         mut: Whether the reference to the matrix is mutable.
-        dtype: The data type of the matrix elements. Defaults to `DType.float64`.
+        dtype: The data type of the matrix elements.
         origin: The origin of the matrix.
     """
 
@@ -384,6 +385,19 @@ struct MatrixView[mut: Bool, //, dtype: DType, origin: Origin[mut=mut]](
             for j in range(self.ncols):
                 result.data[i * self.ncols + j] = self[i, j]
         return result^
+
+    def astype[target: DType](self) raises -> Matrix[target]:
+        """Returns a C-contiguous copy of this view cast to `target`.
+
+        Like `to_matrix()`, this materialises: the result owns its elements.
+
+        Parameters:
+            target: The data type of the result elements.
+
+        Returns:
+            A new `Matrix[target]` with the same shape.
+        """
+        return linamo.routines.manipulation.astype[target](self)
 
     # ===--------------------------------------------------------------------===#
     # String Representation and Writing

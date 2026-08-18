@@ -25,6 +25,16 @@ from linamo.routines.linalg import (
 )
 from linamo.routines.functional import apply_along_axis, fold
 from linamo.routines.logic import all, any
+from linamo.routines.manipulation import (
+    astype,
+    broadcast_to,
+    contiguous,
+    flatten,
+    reorder_layout,
+    reshape,
+    reshape_view,
+    resize,
+)
 from linamo.routines.math import max, min, prod, cumprod
 from linamo.routines.searching import argmax, argmin
 from linamo.routines.sorting import argsort, sort, sort_inplace

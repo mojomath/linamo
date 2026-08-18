@@ -25,6 +25,7 @@ def main() raises:
     arithmetic()
     comparison()
     iteration()
+    shape_and_layout()
     linear_algebra()
 
 
@@ -340,6 +341,49 @@ def iteration() raises:
     # Rows yielded by iteration are read-only whatever the receiver was; use
     # `rows_mut` from `linamo.routines.mutation` to walk a matrix writably.
     # `matrix_view.mojo` shows that.
+
+
+# ===----------------------------------------------------------------------=== #
+# Shape and layout
+# ===----------------------------------------------------------------------=== #
+
+
+def shape_and_layout() raises:
+    print()
+    print("=" * 80)
+    print("SHAPE AND LAYOUT")
+    print("=" * 80)
+
+    var m = la.matrix[float64]([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]])
+    print("A 2x3 matrix:\n", m)
+
+    # `order` is the *index* order, as in NumPy: "C" walks row by row, "F"
+    # column by column. The result is a new matrix, always C-contiguous.
+    print("reshape(m, 3, 2):\n", la.reshape(m, 3, 2))
+    print('reshape(m, 3, 2, "F"):\n', la.reshape(m, 3, 2, "F"))
+    print("flatten(m):\n", la.flatten(m))
+
+    # Where the elements sit in memory is a separate question.
+    print(
+        'contiguous(m, "F") - same elements, F layout:\n', la.contiguous(m, "F")
+    )
+
+    # `resize` returns a new matrix. It cannot grow `m` in place: that would
+    # reallocate the underlying `List` and dangle every live view of it.
+    print("resize(m, 3, 3) - zero-padded:\n", la.resize(m, 3, 3))
+
+    # These two allocate nothing. The result views `m`'s own buffer and
+    # carries its origin, so `m` is kept alive as long as the view is.
+    var v = la.reshape_view(m, 3, 2)
+    print("reshape_view(m, 3, 2) - no copy:\n", v)
+    m[0, 0] = 99.0
+    print("after m[0, 0] = 99.0, the view sees it:\n", v)
+
+    var row = la.matrix[float64]([[1.0, 2.0, 3.0]])
+    # A stretched dimension gets a stride of 0, so every row is the same one.
+    print("broadcast_to(row, 3, 3) - no copy:\n", la.broadcast_to(row, 3, 3))
+
+    print("m.astype[int32]():\n", m.astype[int32]())
 
 
 # ===----------------------------------------------------------------------=== #

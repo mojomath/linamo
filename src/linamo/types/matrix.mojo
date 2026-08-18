@@ -10,6 +10,7 @@ from linamo.types.matrix_iter import MatrixAxisIter
 from linamo.types.matrix_view import MatrixView
 import linamo.routines.math
 import linamo.routines.logic
+import linamo.routines.manipulation
 from linamo.utils.indexing import (
     get_offset,
     indices_within_bounds,
@@ -23,7 +24,7 @@ struct Matrix[dtype: DType](Copyable, MatrixLike, Movable, Sized, Writable):
     column-major (Fortran-contiguous) order.
 
     Parameters:
-        dtype: The data type of the matrix elements. Defaults to `DType.float64`.
+        dtype: The data type of the matrix elements.
     """
 
     # [Mojo Miji]
@@ -455,6 +456,18 @@ struct Matrix[dtype: DType](Copyable, MatrixLike, Movable, Sized, Writable):
     # Spelled as named methods rather than `__setitem__`: Mojo 1.0 routes
     # `a[i:j, k:l] = rhs` through `__getitem__`, which would force `rhs` to be
     # a view with this matrix's own origin. See `routines/mutation.mojo`.
+    def fill(mut self, value: Self.ElementType):
+        """Writes one scalar into every element of the matrix.
+
+        Args:
+            value: The scalar written to every element.
+        """
+        for i in range(self.nrows):
+            for j in range(self.ncols):
+                self.data[
+                    get_offset(i, j, self.row_stride, self.col_stride)
+                ] = value
+
     def fill(
         mut self, rows: Slice, cols: Slice, value: Self.ElementType
     ) raises:
@@ -510,6 +523,21 @@ struct Matrix[dtype: DType](Copyable, MatrixLike, Movable, Sized, Writable):
                         self.col_stride,
                     )
                 ] = src[i, j]
+
+    # ===--------------------------------------------------------------------===#
+    # Type conversion
+    # ===--------------------------------------------------------------------===#
+
+    def astype[target: DType](self) raises -> Matrix[target]:
+        """Returns a C-contiguous copy of this matrix cast to `target`.
+
+        Parameters:
+            target: The data type of the result elements.
+
+        Returns:
+            A new `Matrix[target]` with the same shape.
+        """
+        return linamo.routines.manipulation.astype[target](self)
 
     # ===--------------------------------------------------------------------===#
     # String Representation and Writing

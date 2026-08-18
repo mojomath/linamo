@@ -4,7 +4,7 @@ Linamo development roadmap. Phases are prioritized for use as the linear
 algebra foundation of [stamojo](https://github.com/mojomath/stamojo) (a
 statistical modeling library, similar to statsmodels).
 
-Last reviewed: **2026-08-16**
+Last reviewed: **2026-08-18**
 
 - [Phase 0 — Core Types \& Basic Operations](#phase-0--core-types--basic-operations)
 - [Phase 1 — Matrix Fundamentals](#phase-1--matrix-fundamentals)
@@ -19,12 +19,15 @@ Last reviewed: **2026-08-16**
   - [5.5 — Creation routines](#55--creation-routines)
   - [5.6 — Element-wise math \& logic](#56--element-wise-math--logic)
   - [5.7 — Linear algebra gaps](#57--linear-algebra-gaps)
-  - [5.8 — Interop \& NuMojo hand-off](#58--interop--numojo-hand-off)
+  - [5.8 — Interop](#58--interop)
+  - [5.9 — API consolidation \& hardening](#59--api-consolidation--hardening)
 - [Phase 6 — Eigenvalue Problems](#phase-6--eigenvalue-problems)
 - [Phase 7 — Statistics Primitives](#phase-7--statistics-primitives)
 - [Phase 8 — Norms \& Conditioning](#phase-8--norms--conditioning)
 - [Phase 9 — Random Matrix Generation](#phase-9--random-matrix-generation)
 - [Phase 10 — Performance \& Polish](#phase-10--performance--polish)
+- [Documentation](#documentation)
+- [Release Plan — v0.1.0](#release-plan--v010)
 - [Review Log](#review-log)
 
 ---
@@ -133,39 +136,35 @@ Mojo 1.0.0 (released 2026-08-11) landed a large set of breaking changes. See the
 | Test suite green (214 tests), zero build warnings                          | `tests/`                      | ✓      |
 | CI: add `linux-64` so the declared ubuntu leg can actually solve           | `pixi.toml`                   | ✓      |
 
-> **Note — typed raises had to be dropped.** Linamo previously declared
+> **Note — typed raises had to be dropped.** Linamo used to declare
 > `raises ValueError` (etc.) on its public routines. Mojo 1.0.0 makes typed
 > raises strictly **invariant**: a `raises Error` function cannot call a
-> `raises ValueError` one, *and vice versa*. That makes a typed-raise public API
-> impossible to combine with `std.testing` (which raises `Error`) or with any
-> downstream caller such as stamojo.
->
-> Resolution: the error kinds in `types/errors.mojo` (`ValueError`,
-> `IndexError`, …) changed from **type aliases** into **factory functions** that
-> build a `LinamoError` payload and wrap it in a plain `Error`. Every
-> `raise ValueError(file=..., function=..., message=...)` call site is
-> unchanged, and the rich traceback formatting is preserved, because `Error` is
-> constructed from a `Writable`. Only the signatures changed:
-> `raises ValueError ->` became `raises ->`. Revisit if Mojo adds error-type
-> widening.
+> `raises ValueError` one, *and vice versa*, which makes a typed-raise public
+> API impossible to combine with `std.testing` or with any downstream caller
+> such as stamojo. The error kinds in `types/errors.mojo` therefore changed from
+> type aliases into factory functions that build a `LinamoError` payload and
+> wrap it in a plain `Error`. Every
+> `raise ValueError(function=..., message=...)` call site is unchanged and the
+> rich traceback survives, because `Error` is built from a `Writable`; only the
+> signatures changed. Revisit if Mojo adds error-type widening.
 
 ---
 
 ## Phase 5 — NuMojo Matrix Consolidation
 
-> **Status: 🚧 In progress — 5.1, 5.2 and 5.3 done**
+> **Status: 🚧 In progress — 5.1 through 5.4 done**
 >
-> NuMojo is dropping its `Matrix` type (`numojo/core/matrix/`), and it lives
-> here from now on. So Linamo needs to cover what NuMojo users are losing.
+> NuMojo dropped its `Matrix` type (`numojo/core/matrix/`), and it lives here
+> from now on. Its API is the checklist for this phase — not because Linamo
+> inherits its users, but because it is a known-complete list of what a matrix
+> type has to do.
 
 We're after the *functionality*, not the API. NuMojo's `Matrix` handed out
-pointer-backed sub-matrices; Linamo splits ownership into `Matrix` (owning)
-and `MatrixView` (non-owning, origin-tracked), and that split is the point of
-the library. Nothing below should reintroduce an `UnsafePointer` in a public
-signature, and every view has to carry its `origin` so the borrow checker can
-do the work that runtime flags would otherwise have to.
-
-Where a port would fight that model, the API changes and we write down why.
+pointer-backed sub-matrices; Linamo splits ownership into `Matrix` (owning) and
+`MatrixView` (non-owning, origin-tracked), and that split is the point of the
+library. So nothing below reintroduces an `UnsafePointer` in a public signature,
+and every view carries its `origin`. Where a port fights that model, the API
+changes and the reason is written down.
 
 ### 5.1 — Indexing & iteration
 
@@ -175,43 +174,35 @@ Where a port would fight that model, the API changes and we write down why.
 | Row / column iterators                       | `types/matrix_iter.mojo` | ✓      |
 | `load[width]` / `store[width]` (SIMD access) | `types/matrix.mojo`      | ✓      |
 | Region assignment (`fill`, `assign`)         | `routines/mutation.mojo` | ✓      |
-| Mutable views via `ref self`                 | `types/matrix.mojo`      | ✓      |
+| Mutable views (`view_mut`, `rows_mut`)       | `routines/mutation.mojo` | ✓      |
 | `to_matrix()` (materialise a view)           | `types/matrix_view.mojo` | ✓      |
 
-Three things came out differently than the original sketch, all of them forced
-by the language rather than chosen:
-
-**Mutable views had to be built before anything else.** `view()` took `self`
-as an immutable borrow, so every view it produced was read-only — the `mut`
-parameter on `MatrixView` could never be `True`. Taking `ref self` instead lets
-the caller's mutability flow into the origin, which is what makes `store` and
-region assignment possible at all. A mutable matrix now yields writable views,
-a borrowed one yields read-only views, and writing through a read-only view
-fails to compile. (Both `view()` and slice indexing were given the same
-treatment here, and both had to be walked back in 5.2 — see *Slicing had to
-become read-only* below. Mutable views survive, but only as `view_mut` in
-`routines/mutation.mojo`; no method returns one.)
+Three deviations from the sketch, all forced by the language.
 
 **Bulk writes on views can't be methods.** `MatrixView` is generic over
 `origin`, and Mojo checks a method body against every instantiation including
-the read-only one, so anything writing through `self.data` is rejected where
-it's defined. Neither a `where Self.mut` clause nor a constrained `self`
-refines it. The bulk write operations therefore live in `routines/mutation.mojo`
-as free functions pinned to `Origin[mut=True]`, which moves the requirement
-into the signature — passing a read-only view is a compile error at the call
-site. Single-element writes are unaffected: `v[i, j] = x` goes through the
-reference `__getitem__` returns.
+the read-only one, so anything writing through `self.data` is rejected where it
+is defined. Neither a `where Self.mut` clause nor a constrained `self` refines
+it. They live in `routines/mutation.mojo` instead, as free functions pinned to
+`Origin[mut=True]`, which puts the requirement in the signature: passing a
+read-only view is a compile error at the call site. Single-element writes are
+unaffected — `v[i, j] = x` goes through the reference `__getitem__` returns.
 
 **Region assignment isn't `__setitem__`.** Mojo routes `a[i:j, k:l] = rhs`
-through `__getitem__`, so `rhs` has to be convertible to whatever `__getitem__`
-returns — here, a view carrying the target's *own* origin. That makes assigning
-from any other matrix inexpressible as subscript sugar, so it's spelled
-`fill(...)` and `assign(...)` instead.
+through `__getitem__`, so `rhs` would have to be a view carrying the target's
+own origin, which makes assigning from any other matrix inexpressible as
+subscript sugar. Spelled `fill(...)` and `assign(...)`.
 
-Two smaller notes: the iterator is parameterised on axis and direction rather
-than hardwired to forward rows, because that's the traversal `apply_along_axis`
-needs in 5.3. And Mojo's builtin `reversed()` only accepts specific stdlib
-containers, so it won't dispatch to `__reversed__` — use `rows[False]()`.
+**Mutable views were built here and locked away in 5.2.** `view()` and slicing
+took `ref self` so the caller's mutability could reach the origin; that had to
+be walked back once operators existed. `view_mut` in `routines/mutation.mojo`
+is now the only source of one.
+
+Two smaller notes. The iterator is parameterised on axis and direction rather
+than hardwired to forward rows, because that is the traversal
+`apply_along_axis` needs in 5.3. And Mojo's builtin `reversed()` only accepts
+specific stdlib containers, so it will not dispatch to `__reversed__` — use
+`rows[False]()`.
 
 ### 5.2 — Operators
 
@@ -222,96 +213,54 @@ containers, so it won't dispatch to `__reversed__` — use `rows[False]()`.
 | Reflected ops `__radd__`, `__rsub__`, `__rmul__`                 | `types/matrix.mojo`   | ✓      |
 | Comparison ops `<`, `<=`, `>`, `>=`, `==`, `!=` → `Matrix[bool]` | `routines/logic.mojo` | ✓      |
 
-Five notes on how this landed.
-
 **In-place operators exist on `Matrix` only.** They write back through the
 matrix's own strides instead of allocating, so a transposed or column-major
-matrix keeps its layout. `MatrixView` gets no `+=`: it's generic over `origin`
-and Mojo checks the body against the read-only instantiation too, which is the
-same wall 5.1 hit. Mutating a view still goes through
-`routines/mutation.mojo`. Aliasing like `a += a[:, :]` never compiles — the
-borrow checker won't hand out a mutable reference to `a` while a view of it is
-alive, which is exactly the guarantee the two-type split is for.
+matrix keeps its layout. `MatrixView` gets no `+=`, for the reason 5.1 hit:
+the body would have to type-check against the read-only instantiation too.
+Mutating a view goes through `routines/mutation.mojo`.
 
 **Comparisons return a mask, not a verdict.** `a == b` is an element-wise
 `Matrix[DType.bool]`, as in NumPy, so `Matrix` deliberately does not conform to
-`EqualityComparable`. Asking whether two matrices are wholly identical stays a
-separate question, answered by `assert_matrices_equal`. The comparison kernels
-went into a new `routines/logic.mojo` rather than `math.mojo`, which is where
-5.3 wants `all` / `any` anyway.
+`EqualityComparable`; whether two matrices are wholly identical stays a separate
+question that `assert_matrices_equal` answers. `__pow__` is element-wise for the
+same reason — matrix exponentiation will get a named routine, not an operator.
+The comparison kernels went into a new `routines/logic.mojo`, which is where 5.3
+wants `all` / `any` anyway. `__rtruediv__` came along uninvited: shipping
+`2.0 - A` without `2.0 / A` is worse than having all four or none. All of these
+are mirrored onto `MatrixView`.
 
-**`__pow__` is element-wise.** `A ** 2` squares each entry, matching NumPy.
-Matrix exponentiation is a different operation and will get a named routine
-rather than an operator.
-
-**Slicing had to become read-only.** 5.1 gave slice indexing `ref self`, along
-with `view()`, so `a[0:2, 0:2]` on a `var` matrix produced a *mutable* view.
-That turns out to be unusable once operators exist. A mutable view is an
-exclusive borrow, and Mojo refuses to pass two values that both borrow the same
-memory into one call — so `a[0:1, :] - a[1:2, :]`, `a + a[0:2, 0:2]` and
-`a[0:2, 0:2] @ a[0:2, 0:2]` were all rejected by the compiler. Nothing caught
-it because every view test until now paired views taken from two *different*
-matrices.
-
-Slicing therefore takes `self` by `read` and always yields a read-only view.
-Reading one matrix twice at once is always safe, so all of the above compile.
-
-Fixing slicing alone was not enough, and the first attempt kept `view()` and
-added `view(x, y)` as a mutable door on both types. That left `m.view()`
-returning a *mutable* view of a `var` matrix — a write door behind the most
-innocent-looking call in the API — and left the invariant as a set of
-remembered exceptions rather than a rule. The design that replaced it states
-one rule instead:
+**Slicing had to become read-only.** 5.1 gave slicing and `view()` `ref self`,
+so `a[0:2, 0:2]` on a `var` matrix produced a mutable view. A mutable view is an
+exclusive borrow and Mojo refuses to pass two of them into one call, so
+`a[0:1, :] - a[1:2, :]`, `a + a[0:2, 0:2]` and `a[0:2, 0:2] @ a[0:2, 0:2]` were
+all rejected. Nothing caught it because every view test until then paired views
+from two *different* matrices. The first fix kept `view()` and added a mutable
+`view(x, y)` beside it, which left a write door behind the most innocent call in
+the API. The rule that replaced it:
 
 > Nothing that carries a borrow in its type is ever handed out mutable, except
 > through a function in `linamo.routines.mutation`.
 
-A method can only propagate the caller's mutability by taking `ref self`, so
-that rule is checkable with `grep -rn "ref self" src/linamo/types/`, which now
-returns exactly one line: element access on `Matrix`. `view()`, `rows()`,
-`cols()` and iteration are all `read self`; `view(x, y)` is gone from both
-types; `view_mut`, `rows_mut` and `cols_mut` live in `routines/mutation.mojo`
-alongside `fill`, `store` and `assign`, so a caller who never imports that
-module cannot construct a mutable view at all.
-`tests/matrix_view/test_view_aliasing.mojo` exists so this blind spot cannot
-reopen.
+That is checkable: `grep -rn "ref self" src/linamo/types/` returns exactly one
+line, element access on `Matrix`. `view_mut`, `rows_mut` and `cols_mut` live in
+the mutation module, so a caller who never imports it cannot construct a mutable
+view at all. `tests/matrix_view/test_view_aliasing.mojo` keeps the blind spot
+closed.
 
-**Element access had a narrower bug.** `Matrix.__getitem__` returned a
-reference whose origin named one computed element,
-`self.data[row * row_stride + col * col_stride]`. Forming a second such
-reference invalidated the first, so `a[0, 0] + a[1, 1]` did not compile on a
-`var` matrix — adding two elements of a matrix. Returning through
-`origin_of(self.data)`, the whole buffer, lets any number of element
-references coexist.
-
-**`__setitem__` is not available.** The obvious way to make indexing and
-slicing symmetric is `m[a:b, c:d] = src` with a `mut self` setter, which lets
-no view escape and looked ideal. It cannot be used: merely defining
-`__setitem__` on `Matrix` makes the compiler pass `self` to `__getitem__` as a
+Two related fixes. `Matrix.__getitem__` used to return a reference whose origin
+named one computed element, and forming a second invalidated the first, so
+`a[0, 0] + a[1, 1]` did not compile; it now returns through
+`origin_of(self.data)`, the whole buffer. And `__setitem__` stays absent:
+merely defining it makes the compiler pass `self` to `__getitem__` as a
 temporary copy in some positions, so a sliced view carries the origin of a dead
-temporary and `a[0:1, :] - a[1:2, :]` stops compiling again. Reproduced in
-twenty lines with no linamo involved, for both `Int` and `Slice` setters.
-Element writes therefore keep going through the reference `m[i, j]` returns,
-and region writes are spelled `assign(...)`.
+temporary and `a[0:1, :] - a[1:2, :]` breaks again. Reproduced in twenty lines
+with no Linamo involved, for both `Int` and `Slice` setters.
 
-**`__rtruediv__` came along uninvited.** The table lists three reflected
-operators, but shipping `2.0 - A` without `2.0 / A` is a worse API than either
-having all four or none, so division is in too.
-
-One deviation worth recording: the reflected and scalar forms are mirrored onto
-`MatrixView` as well. The view already had `__add__` and friends, and leaving it
-with arithmetic but no comparisons would have been an odd gap in the type that
-the library is built around.
-
-**The four overloads per operation collapsed into one.** Each binary routine
-carried four signatures — `(M, M)`, `(M, V)`, `(V, M)`, `(V, V)` — three of
-which were one-line forwarders calling `.view()`. With comparisons landing in
-5.2 that had grown to 57 redundant overloads across `math.mojo` and
-`logic.mojo`, and every reduction in 5.3 would have added more.
-
-`MatrixView` now has an `@implicit` constructor from `Matrix`, so a routine
-declares only the view × view signature and the compiler inserts the conversion
-wherever a `Matrix` is passed:
+**Four overloads per operation became one.** Each binary routine carried
+`(M, M)`, `(M, V)`, `(V, M)` and `(V, V)`, three of them one-line forwarders —
+57 redundant overloads once comparisons landed, with every 5.3 reduction set to
+add more. `MatrixView` now has an `@implicit` constructor from `Matrix`, so a
+routine declares the view × view signature only:
 
 ```mojo
 @implicit
@@ -320,32 +269,23 @@ def __init__[d: DType](
 ):
 ```
 
-Two details are load-bearing. `ref m` is required because only `ref` binds the
-origin to the caller's storage; under `imm`, `read` or the default convention
-`origin_of(m.data)` names the callee's own parameter slot, and no call site can
-satisfy the resulting type. And `ImmOrigin(...)` is required so a `var` matrix
-converts to a
-*read-only* view: without it, `add(a, a)` is two mutable borrows of one matrix
-and does not compile, which is the wall documented above. It also preserves the
-5.2 invariant, because `routines/mutation.mojo` is pinned to `Origin[mut=True]`
-and this conversion can never satisfy that — `fill(m, ...)` is still a compile
+Two details are load-bearing. `ref m` is required, because under `imm`, `read`
+or the default convention `origin_of(m.data)` names the callee's own parameter
+slot and no call site can satisfy the result. And `ImmOrigin(...)` is required
+so a `var` matrix converts to a *read-only* view — without it `add(a, a)` is two
+mutable borrows of one matrix. It also can never satisfy
+`routines/mutation.mojo`'s `Origin[mut=True]`, so `fill(m, ...)` stays a compile
 error.
 
 Net effect: 57 overloads removed, `math.mojo` 1089 → 823 lines and `logic.mojo`
-462 → 261, with no change to any call site and the test suite unchanged.
-`tests/matrix_view/test_implicit_view.mojo` pins the behaviour, including that
-the conversion is read-only. This is why the collapse was done before 5.3 rather
-than after: each reduction below is now one signature instead of two.
+462 → 261, with no call site changed. Done before 5.3 so that each reduction
+below is one signature instead of two. The operators themselves still carry the
+redundancy — see 5.9.
 
-> **Why not a `MatrixLike` trait?** The obvious alternative is
-> `def add[M: MatrixLike, N: MatrixLike](a: M, b: N)`, and the `FIXME` at the
-> top of `math.mojo` asked for exactly that. It does not work, and not only for
-> want of parameterised traits: the conversion `M -> MatrixView` has to produce
-> a type whose `origin` parameter depends on the *borrow of the argument*, and
-> a trait method cannot name that. Implicit conversion can, because `out self`
-> may be written in terms of the argument. The trait stays useful for the
-> shape/stride accessors it already provides; it is not the vehicle for
-> operand-type genericity.
+> **Not the `MatrixLike` trait.** `def add[M: MatrixLike, N: MatrixLike](a, b)`
+> cannot work, and not only for want of parameterised traits: the
+> `M -> MatrixView` conversion must produce a type whose `origin` depends on the
+> *borrow of the argument*, and no trait method can name that. `out self` can.
 
 ### 5.3 — Reductions & search
 
@@ -359,84 +299,93 @@ than after: each reduction below is now one signature instead of two.
 | `sort` / `argsort` / `sort_inplace`  | `routines/sorting.mojo`    | ✓      |
 | `apply_along_axis` (generic applier) | `routines/functional.mojo` | ✓      |
 
-The applier landed as planned, split in two. `fold` reduces a whole view to one
-scalar and carries the three-way layout dispatch — row-contiguous,
-column-contiguous, strided — so no reduction repeats it.
-`apply_along_axis[axis, func]` walks one axis with the 5.1 iterator and calls a
-per-lane kernel. Every reduction is then three small pieces: an operator, a
-lane kernel that is `fold` with that operator, and two public overloads.
-`sum(m)` and `sum(m, axis=0)` share an implementation rather than resembling
-one.
+The applier is two pieces. `fold` reduces a view to one scalar and carries the
+three-way layout dispatch — row-contiguous, column-contiguous, strided — so no
+reduction repeats it. `apply_along_axis[axis, func]` walks one axis with the 5.1
+iterator and calls a per-lane kernel. Each reduction is then an operator, a lane
+kernel, and two public overloads; `sum(m)` and `sum(m, axis=0)` share an
+implementation rather than resembling one.
 
-Five things came out differently than the sketch.
+`axis` is a compile-time parameter on the applier and a runtime argument on the
+public routines. The iterator is parameterised on axis, so traversal has to be
+picked at build time, but `sum(m, axis=0)` is the call users expect to write;
+the public routines branch onto the two instantiations, and a
+`where axis == 0 or axis == 1` clause makes a third value a build error.
 
-**`axis` is a compile-time parameter on the applier and a runtime argument on
-the public routines.** The iterator is parameterised on axis, so the traversal
-has to be picked at build time; but `sum(m, axis=0)` is the call users expect
-to write. The public routines branch on the runtime value onto the two
-instantiations, and `apply_along_axis` carries a
-`where axis == 0 or axis == 1` clause so a third value is a build error.
+`axis` and the iterator index run opposite ways. `axis` follows NumPy and names
+the dimension *removed*, so `axis=0` collapses rows and the traversal walks
+columns. The inversion happens once, inside `apply_along_axis`. Every axis test
+uses a non-square matrix, because an implementation that inverts them still
+produces plausible numbers on a square one.
 
-**`axis` and the iterator index run opposite ways.** `axis` follows NumPy and
-names the dimension *removed*: `axis=0` collapses the rows, so the result has
-one entry per column and the traversal walks columns —
-`MatrixAxisIter` axis `1`. The inversion happens once, inside
-`apply_along_axis`. Every axis test uses a non-square matrix, because an
-implementation that inverts them still produces plausible numbers on a square
-one.
+Operands are pinned to `Origin[mut=False]`: a lane kernel has to be specialised
+to a concrete origin at the call site, and leaving `mut` free makes the function
+type unnameable. It costs nothing, since nothing outside `routines.mutation`
+hands out a mutable view and one demotes with `as_imm()`.
 
-**Operands are pinned to `Origin[mut=False]`.** A lane kernel has to be
-specialised to a concrete origin at the call site, and leaving `mut` free makes
-the function type unnameable — `Origin[mut=mut]` cannot depend on a
-non-inferred `mut`, and inference cannot run before the explicit `func`
-parameter is resolved. Pinning costs nothing, because nothing outside
-`routines.mutation` hands out a mutable view anyway; a mutable one demotes with
-`as_imm()`.
+Scans and searches keep their own walks. `cumsum`/`cumprod` produce one output
+per input rather than one per lane, `argmin`/`argmax` thread two accumulators
+where a fold threads one, and `all`/`any` accumulate a `Bool` while the elements
+are not — and short-circuit, which a fold could not.
 
-**Scans and searches do not go through the applier.** `cumsum`/`cumprod`
-produce one output per input rather than one per lane, and `argmin`/`argmax`
-thread two accumulators (the best value and where it was) where a fold threads
-one. They get their own walks. `all`/`any` likewise, because their accumulator
-is a `Bool` while the elements are not — and because both short-circuit, which
-a fold could not.
+Sorting requires an explicit `axis`. NumPy defaults `sort` to the last axis but
+`sum` to a full reduction; carried into a two-dimensional library that would
+make `sort(m)` read like `sum(m)` and mean something else. `sort_inplace` writes
+through the matrix's own strides so a column-major matrix keeps its layout,
+`sort` returns a fresh C-contiguous result, and `argsort` is stable so the two
+agree element for element.
 
-**Sorting requires an explicit `axis`.** NumPy defaults `sort` to the last axis
-but `sum` to a full reduction; carrying that into a library with two dimensions
-would make `sort(m)` read like `sum(m)` and mean something else.
-`sort_inplace` takes the `Matrix` by mutable reference and writes through its
-own strides, so a column-major matrix keeps its layout, while `sort` always
-returns a fresh C-contiguous result. `argsort` is stable, so it agrees with
-`sort` element for element.
-
-Vectorising `fold` is left to Phase 10: it needs a SIMD-level accumulator plus
-a horizontal reducer, which the scalar `func` parameter cannot express without
+Vectorising `fold` is left to Phase 10: it needs a SIMD accumulator and a
+horizontal reducer, which the scalar `func` parameter cannot express without
 making the function type generic over lane count.
 
 ### 5.4 — Shape & layout manipulation
 
 | Item                            | Module                       | Status |
 | ------------------------------- | ---------------------------- | ------ |
-| `reshape`                       | `routines/manipulation.mojo` | □      |
-| `resize`                        | `routines/manipulation.mojo` | □      |
-| `flatten`                       | `routines/manipulation.mojo` | □      |
-| `contiguous` / `reorder_layout` | `routines/manipulation.mojo` | □      |
-| `broadcast_to`                  | `routines/manipulation.mojo` | □      |
-| `astype[dtype]`                 | `types/matrix.mojo`          | □      |
-| `fill`                          | `types/matrix.mojo`          | □      |
+| `reshape`                       | `routines/manipulation.mojo` | ✓      |
+| `reshape_view` (zero-copy)      | `routines/manipulation.mojo` | ✓      |
+| `resize`                        | `routines/manipulation.mojo` | ✓      |
+| `flatten`                       | `routines/manipulation.mojo` | ✓      |
+| `contiguous` / `reorder_layout` | `routines/manipulation.mojo` | ✓      |
+| `broadcast_to`                  | `routines/manipulation.mojo` | ✓      |
+| `astype[dtype]`                 | `routines/manipulation.mojo` | ✓      |
+| `fill` (whole matrix)           | `types/matrix.mojo`          | ✓      |
 
-**Invariant for this phase: a matrix's element buffer is fixed at
-construction.** `reshape`, `resize`, `flatten` and `astype` return a new
-matrix; none of them grows, shrinks or reallocates the `data` of an existing
-one. Only the metadata-level rewrites that keep the same buffer (`reshape` of
-a contiguous matrix, say) may act in place.
+**Invariant: a matrix's element buffer is fixed at construction.** `reshape`,
+`resize`, `flatten` and `astype` return new matrices; nothing here grows,
+shrinks or reallocates the `data` of an existing one. That is a safety rule, not
+a style preference. A `MatrixView` holds a `Span` over `origin_of(m.data)`,
+which captures the `List`'s heap pointer, so growing that `List` leaves every
+live view dangling — and Mojo 1.0 will not catch it, because the borrow checker
+enforces origins at call sites and a later `m.data.append(...)` is not one.
+`local/origin_demos/` (gitignored) has a runnable demonstration.
 
-This is a safety rule, not a style preference. A `MatrixView` holds a `Span`
-over `origin_of(m.data)`, which captures the `List`'s heap pointer; growing
-that `List` reallocates and leaves every live view dangling. Mojo 1.0 does not
-catch it — the borrow checker enforces origins at call sites, and a later
-`m.data.append(...)` in the same scope is not a call site it inspects. A
-runnable demonstration, along with the origin experiments behind 5.2's
-implicit constructor, is in `local/origin_demos/` (gitignored).
+The module splits by what it returns. `reshape`, `resize`, `flatten`,
+`contiguous`, `reorder_layout` and `astype` allocate and return an owning
+`Matrix`; `reshape_view` and `broadcast_to` allocate nothing and return a view
+carrying the input's origin, so the source stays alive exactly as long as the
+result. That second group is what the two-type split buys — NuMojo's equivalents
+either copied or handed back a pointer-backed matrix whose lifetime nothing
+tracked.
+
+`resize` could not be ported as written. NuMojo's mutates and reallocates when
+the shape grows, which is precisely what the invariant forbids, so it returns a
+new matrix and reads `a = resize(a, m, n)` at the call site. Semantics are
+otherwise unchanged: copy in C order, truncate or zero-pad.
+
+`broadcast_to` returns a stride-0 view — a stretched dimension gets stride zero,
+so every index along it lands on the same element and a `1 x n` row broadcast to
+`m x n` costs nothing. It is read-only, as in NumPy, and here for a second
+reason: many logical positions map onto one element, so a write would show up at
+all of them. A zero stride is not contiguous by any definition, so the result
+takes the strided path through the routine layer; `to_matrix()` densifies it.
+
+Finally, `order` means *index* order, not memory layout. `reshape(a, m, n, "F")`
+reads and writes column-first and still returns a C-contiguous matrix; where the
+elements sit is a separate question, asked with `contiguous(a, "F")`. That is
+why `contiguous` subsumes NuMojo's `reorder_layout`, which is now just the flip
+and raises on a strided input because there is no layout to flip.
 
 ### 5.5 — Creation routines
 
@@ -468,20 +417,77 @@ implicit constructor, is in `local/origin_demos/` (gitignored).
 | `solve_lu` (explicit LU-based solve) | `routines/linalg.mojo` | □      |
 | `eig` (ported from NuMojo — Phase 6) | `routines/linalg.mojo` | □      |
 
-### 5.8 — Interop & NuMojo hand-off
+### 5.8 — Interop
 
-| Item                                                 | Module                        | Status |
-| ---------------------------------------------------- | ----------------------------- | ------ |
-| `to_numpy` / `matrix_from_numpy`                     | `routines/numpy_interop.mojo` | ✓      |
-| `to_ndarray` equivalent (NuMojo `NDArray` bridge)    | TBD — see note                | □      |
-| Migration guide for NuMojo users                     | `docs/`                       | □      |
-| Coordinate removal of `numojo/core/matrix/` upstream | NuMojo repo                   | □      |
+| Item                             | Module                        | Status |
+| -------------------------------- | ----------------------------- | ------ |
+| `to_numpy` / `matrix_from_numpy` | `routines/numpy_interop.mojo` | ✓      |
 
-> **Note on `to_ndarray`:** NuMojo's `Matrix.to_ndarray()` converts to NuMojo's
-> own `NDArray`. Reproducing it here would make Linamo depend on NuMojo, which
-> inverts the intended dependency direction. Preferred resolution: NuMojo grows
-> an `NDArray.from_linamo()` (or equivalent) on its side, and Linamo stays
-> dependency-free. Decision pending.
+> **No NuMojo bridge, and no migration guide.** NuMojo's `Matrix` is gone as of
+> its Mojo 1.0.0 release, so there is no installed base to migrate and nothing
+> for a guide to bridge from. Nor is there a `to_ndarray` here: reproducing it
+> would make Linamo depend on NuMojo and invert the dependency direction. If an
+> `NDArray` bridge is ever wanted, it belongs on NuMojo's side as
+> `NDArray.from_linamo()`. Linamo is an independent library; what users need
+> instead is a guide to *this* one — see [Documentation](#documentation).
+
+### 5.9 — API consolidation & hardening
+
+| Item                                                     | Module                       | Status |
+| -------------------------------------------------------- | ---------------------------- | ------ |
+| Collapse the operator overloads onto implicit conversion | `types/matrix.mojo`, `_view` | □      |
+| Make the layout fields private; rename the accessors     | `types/`                     | □      |
+| Assert the layout invariant in the `Matrix` constructors | `types/matrix.mojo`          | □      |
+| Stop using `MatrixLike` (keep the file)                  | `traits/matrix_like.mojo`    | □      |
+
+All four are breaking changes to spellings users would already have written, so
+they land **before v0.1.0** — see [Release Plan](#release-plan--v010). The
+overload collapse should come before 5.6, for the reason the 5.2 collapse came
+before 5.3: every routine added meanwhile doubles the work.
+
+**The operators never got the 5.2 treatment.** `types/matrix.mojo` still carries
+both `__add__(self, other: Self)` and
+`__add__[origin](self, other: MatrixView[...])`, and `types/matrix_view.mojo`
+mirrors it with a `Matrix`-argument overload beside each view one. The `Self`
+and `Matrix` forms are redundant: implicit conversion fires on the *argument*
+(only `self` is beyond its reach), so deleting the `Self` overload leaves
+`a + b` compiling and correct — checked on 2026-08-18 by doing it. Roughly 20
+overloads per file, across `+ - * / // % ** @` and the six comparisons.
+
+**Fields go private, accessors lose the `get_`.** `m.nrows` and `get_nrows()`
+are two spellings of one fact, and the fields are not merely informational:
+`nrows`, `ncols`, the two strides and the length of `data` are one invariant
+bundle, so assigning to any of them alone produces a matrix that indexes outside
+its own buffer. So `_nrows`, `_ncols`, `_row_stride`, `_col_stride`, `_offset`,
+`_data`, and `get_nrows()` becomes `nrows()`. `data` goes private with the rest:
+users are not expected to write `origin_of(m.data)` themselves, and if that
+turns out to be wrong the type grows a public way to spell its own origin rather
+than reopening the field. Mojo 1.0 has no access control, so the underscore is a
+convention and the real enforcement is the assertion below.
+
+**The constructors accept any strides at all.** `Matrix.__init__` stores
+`row_stride` and `col_stride` as given, checking them against nothing. Aliasing
+gets through (`row_stride=0` makes every row the same row, so `m[0, 0] = 5` also
+changes `m[1, 0]`) and so does overrun (`row_stride=100` on a six-element buffer
+indexes past the end — caught by `List` under `-D ASSERT=all`, undefined in
+release). A zero stride is a legitimate state for a `MatrixView` now that
+`broadcast_to` produces one, and never legitimate for an owning matrix. Two
+`debug_assert`s per constructor — positive strides, and
+`(nrows - 1) * row_stride + (ncols - 1) * col_stride < len(data)` — state that
+executably and cost nothing in release.
+
+**`MatrixLike` stops being used.** Nothing in the library is generic over it:
+twelve methods, declared by three types and consumed by none, whose only real
+effect is to pin the accessor spellings the item above changes. The conformances
+come off `Matrix`, `MatrixView` and `StaticMatrix`, and the accessors stay as
+ordinary methods. The file and the `traits/` folder stay in the tree, because
+the trait is not a bad idea, only an unused one: Mojo 1.0 supports associated
+aliases, so `comptime dtype: DType` plus
+`def at(self, r: Int, c: Int) -> Scalar[Self.dtype]` is expressible (probed
+2026-08-18) and a later version could carry the read-only algorithms — starting
+with `__str__` / `write_to`, duplicated almost line for line between the two
+types today. This does not reopen 5.2: operand genericity still cannot go
+through a trait.
 
 ---
 
@@ -563,6 +569,61 @@ implicit constructor, is in `local/origin_demos/` (gitignored).
 
 ---
 
+## Documentation
+
+> **Status: 🚧 README and examples only**
+
+| Item                                             | Where                    | Status |
+| ------------------------------------------------ | ------------------------ | ------ |
+| README: overview, quickstart, project layout     | `README.md`              | ✓      |
+| Runnable examples, one per public type           | `examples/`              | ✓      |
+| User guide                                       | `docs/GUIDE.md`          | □      |
+| `docs/API.md` checked against the actual surface | `docs/API.md`            | 🚧      |
+| Documented install path                          | `README.md`, `pixi.toml` | □      |
+
+The guide is the release blocker of the three. Most of Linamo can be guessed at
+by someone who knows NumPy — except the one thing the library is built around,
+which is that `Matrix` owns and `MatrixView` borrows. A user who does not know
+that will not understand why `a[0:2, 0:2]` cannot be written through, why `fill`
+lives in `routines.mutation`, or why passing a `Matrix` to a routine that takes
+a `MatrixView` compiles at all. So the guide leads with the two types and their
+contract, then does the ordinary tour: creating matrices, indexing and slicing,
+arithmetic and comparison, reductions with `axis`, shape and layout, the linear
+algebra routines, NumPy interop, and how errors are raised and read.
+
+`docs/API.md` is close but drifts. Its `MatrixView` intro still described
+`view()` as taking `ref self` and yielding a writable view from a `var` matrix
+— the 5.1 behaviour that 5.2 removed — while its own table three sections later
+said the opposite. That paragraph is fixed; the rest of the file has not been
+walked against the current surface, and 5.4's routines are not in it at all.
+
+The install path is a documentation gap and a packaging one at once: today the
+only story is `-I src`, and either the package gets published to
+`modular-community` or the `.mojoc` route gets written down.
+
+---
+
+## Release Plan — v0.1.0
+
+**Gate: Phase 5 through 5.6, plus 5.9, plus the user guide.**
+
+Earlier is not shippable. Without 5.5 and 5.6 there is no `arange`, no
+`linspace`, no `isclose`, no `sin`, and a new user's opening moves are "build a
+test vector, transform it, check it against an expected answer" — only the
+middle one works today. Neither phase is large: `fold` and `apply_along_axis`
+already exist, and most of the entries are one-liners over them.
+
+Later buys little. `eig`, norms, random generation and the Phase 10 performance
+work all *add* signatures rather than change them, so they are 0.2.0 material.
+5.9 is the exception that has to land first, since it changes spellings users
+would already have written.
+
+The rest of the checklist is [Documentation](#documentation): a user guide, an
+install path that is not `-I src`, and `docs/API.md` checked against the actual
+surface. Those are what make a release usable rather than merely tagged.
+
+---
+
 ## Review Log
 
 | Date       | Notes                                                         |
@@ -607,10 +668,27 @@ implicit constructor, is in `local/origin_demos/` (gitignored).
 |            | pinned to an immutable origin. 57 overloads removed;          |
 |            | `math.mojo` 1089 -> 823 lines, `logic.mojo` 462 -> 261. No    |
 |            | call site changed. 7 new tests (294 total).                   |
-| 2026-08-16 | Phase 5.3 done: `fold` + `apply_along_axis` in a new       |
-|            | `routines/functional.mojo`, and on top of them `sum`,     |
-|            | `cumsum`, `prod`, `cumprod`, `min`, `max`, `argmin`,      |
-|            | `argmax`, `all`, `any`, `sort`, `argsort`,               |
-|            | `sort_inplace`. New modules: `statistics.mojo`,          |
-|            | `searching.mojo`, `sorting.mojo`. 33 new tests           |
-|            | (327 total).                                             |
+| 2026-08-16 | Phase 5.3 done: `fold` + `apply_along_axis` in a new          |
+|            | `routines/functional.mojo`, and on top of them `sum`,         |
+|            | `cumsum`, `prod`, `cumprod`, `min`, `max`, `argmin`,          |
+|            | `argmax`, `all`, `any`, `sort`, `argsort`,                    |
+|            | `sort_inplace`. New modules: `statistics.mojo`,               |
+|            | `searching.mojo`, `sorting.mojo`. 33 new tests                |
+|            | (327 total).                                                  |
+| 2026-08-18 | Phase 5.4 done: new `routines/manipulation.mojo` with         |
+|            | `reshape`, `reshape_view`, `resize`, `flatten`,               |
+|            | `contiguous`, `reorder_layout`, `broadcast_to`,               |
+|            | `astype`; whole-matrix `fill` on `Matrix`.                    |
+|            | `reshape_view` and `broadcast_to` are zero-copy and           |
+|            | origin-tracked; `resize` returns a new matrix rather          |
+|            | than reallocating in place. 36 new tests (363 total).         |
+| 2026-08-18 | Added 5.9 (API consolidation & hardening) and the             |
+|            | v0.1.0 release plan; condensed the Phase 5 write-ups.         |
+|            | Decided, both before v0.1.0: stop using `MatrixLike` but      |
+|            | keep the file, and make the layout fields private.            |
+|            | Verified first that the `Self` operator overloads are         |
+|            | redundant under implicit conversion, and that Mojo 1.0        |
+|            | traits do support associated aliases.                         |
+|            | Dropped the NuMojo migration guide in favour of a user guide; |
+|            | added a Documentation                                         |
+|            | section and gated v0.1.0 on it.                               |

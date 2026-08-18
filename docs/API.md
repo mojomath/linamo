@@ -12,12 +12,12 @@ The `MatrixView` class is a non-owning view of a matrix. It can be used to
 create submatrices or to view the same data with different offsets, shapes, and
 strides. It does not manage the memory of the data it points at.
 
-Whether a view can *write* to that data is not a property of `MatrixView`
-itself: it is inherited from whatever the view was made from. `Matrix.view()`
-takes `self` by `ref`, so a view taken from a mutable matrix is writable and a
-view taken from a borrowed one is read-only. Slicing with `m[a:b, c:d]` is the
-deliberate exception and is always read-only.
-Writing through a read-only view is a compile error, not a runtime check.
+Whether a view can *write* to that data is carried in its type, as the `mut`
+field of its `origin` parameter. No method on either type hands out a writable
+view: `m.view()`, `m[a:b, c:d]`, `rows()`, `cols()` and iteration are read-only
+however the receiver was bound. A writable view comes only from
+`linamo.routines.mutation`, and writing through a read-only one is a compile
+error rather than a runtime check. The next section gives the full rule.
 
 ## Mutability of indexing and slicing
 
