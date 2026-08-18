@@ -652,63 +652,47 @@ struct Matrix[dtype: DType](Copyable, MatrixLike, Movable, Sized, Writable):
     # ===------------------------------------------------------------------ ===#
     # Basic math dunders
     # ===------------------------------------------------------------------ ===#
-
-    def __add__(self, other: Self) raises -> Self:
-        """Performs element-wise addition of two matrices."""
-        return linamo.routines.math.add(self, other)
+    # The right-hand operand is a `MatrixView`, and that one overload also
+    # serves `A + B` between two matrices: a `Matrix` argument converts through
+    # the `@implicit` constructor in `types/matrix_view.mojo`. The conversion
+    # is an O(1) metadata copy and yields a read-only view, so `A + A` is a
+    # pair of shared borrows rather than an aliasing violation.
 
     def __add__[
         origin: Origin
     ](self, other: MatrixView[Self.dtype, origin]) raises -> Self:
-        """Performs element-wise addition of a matrix and a matrix view."""
+        """Performs element-wise addition."""
         return linamo.routines.math.add(self, other)
-
-    def __sub__(self, other: Self) raises -> Self:
-        """Performs element-wise subtraction of two matrices."""
-        return linamo.routines.math.sub(self, other)
 
     def __sub__[
         origin: Origin
     ](self, other: MatrixView[Self.dtype, origin]) raises -> Self:
-        """Performs element-wise subtraction of a matrix and a matrix view."""
+        """Performs element-wise subtraction."""
         return linamo.routines.math.sub(self, other)
-
-    def __mul__(self, other: Self) raises -> Self:
-        """Performs element-wise multiplication of two matrices."""
-        return linamo.routines.math.mul(self, other)
 
     def __mul__[
         origin: Origin
     ](self, other: MatrixView[Self.dtype, origin]) raises -> Self:
-        """Performs element-wise multiplication of a matrix and a matrix view.
-        """
+        """Performs element-wise multiplication."""
         return linamo.routines.math.mul(self, other)
-
-    def __truediv__(self, other: Self) raises -> Self:
-        """Performs element-wise division of two matrices."""
-        return linamo.routines.math.div(self, other)
 
     def __truediv__[
         origin: Origin
     ](self, other: MatrixView[Self.dtype, origin]) raises -> Self:
-        """Performs element-wise division of a matrix and a matrix view."""
+        """Performs element-wise division."""
         return linamo.routines.math.div(self, other)
-
-    def __matmul__(self, other: Self) raises -> Self:
-        """Performs matrix multiplication of two matrices."""
-        return linamo.routines.math.matmul(self, other)
 
     def __matmul__[
         origin: Origin
     ](self, other: MatrixView[Self.dtype, origin]) raises -> Self:
-        """Performs matrix multiplication of a matrix and a matrix view."""
+        """Performs matrix multiplication."""
         return linamo.routines.math.matmul(self, other)
 
     # ===------------------------------------------------------------------ ===#
     # Scalar operands for the arithmetic dunders
     # ===------------------------------------------------------------------ ===#
-    # `A + 2.0` and friends. The matrix-matrix overloads live above; these add
-    # the scalar right-hand side, and the reflected forms below cover the
+    # `A + 2.0` and friends. A scalar is not a matrix and does not convert to
+    # one, so it needs its own overload; the reflected forms below cover the
     # `2.0 + A` direction.
 
     def __add__(self, other: Self.ElementType) -> Self:
@@ -745,36 +729,22 @@ struct Matrix[dtype: DType](Copyable, MatrixLike, Movable, Sized, Writable):
     # `__pow__` is element-wise, matching NumPy's `**`. Matrix exponentiation
     # is a different operation and is spelled as a named routine, not `**`.
 
-    def __floordiv__(self, other: Self) raises -> Self:
-        """Performs element-wise floor division of two matrices."""
-        return linamo.routines.math.floordiv(self, other)
-
     def __floordiv__[
         origin: Origin
     ](self, other: MatrixView[Self.dtype, origin]) raises -> Self:
-        """Performs element-wise floor division of a matrix and a matrix view.
-        """
+        """Performs element-wise floor division."""
         return linamo.routines.math.floordiv(self, other)
-
-    def __mod__(self, other: Self) raises -> Self:
-        """Performs element-wise modulo of two matrices."""
-        return linamo.routines.math.mod(self, other)
 
     def __mod__[
         origin: Origin
     ](self, other: MatrixView[Self.dtype, origin]) raises -> Self:
-        """Performs element-wise modulo of a matrix and a matrix view."""
+        """Performs element-wise modulo."""
         return linamo.routines.math.mod(self, other)
-
-    def __pow__(self, other: Self) raises -> Self:
-        """Performs element-wise exponentiation of two matrices."""
-        return linamo.routines.math.pow(self, other)
 
     def __pow__[
         origin: Origin
     ](self, other: MatrixView[Self.dtype, origin]) raises -> Self:
-        """Performs element-wise exponentiation of a matrix and a matrix view.
-        """
+        """Performs element-wise exponentiation."""
         return linamo.routines.math.pow(self, other)
 
     # ===------------------------------------------------------------------ ===#
@@ -818,16 +788,10 @@ struct Matrix[dtype: DType](Copyable, MatrixLike, Movable, Sized, Writable):
     # Aliasing (`a += a[:, :]`) is rejected by the borrow checker, which will
     # not hand out a mutable reference to `a` while a view of it is live.
 
-    def __iadd__(mut self, other: Self) raises:
-        """In-place element-wise addition with another matrix."""
-        linamo.routines.math._elementwise_inplace[
-            func=Scalar[Self.dtype].__add__
-        ](self, other.view())
-
     def __iadd__[
         origin: Origin
     ](mut self, other: MatrixView[Self.dtype, origin]) raises:
-        """In-place element-wise addition with a matrix view."""
+        """In-place element-wise addition with another matrix or view."""
         linamo.routines.math._elementwise_inplace[
             func=Scalar[Self.dtype].__add__
         ](self, other)
@@ -838,16 +802,10 @@ struct Matrix[dtype: DType](Copyable, MatrixLike, Movable, Sized, Writable):
             func=Scalar[Self.dtype].__add__
         ](self, other)
 
-    def __isub__(mut self, other: Self) raises:
-        """In-place element-wise subtraction with another matrix."""
-        linamo.routines.math._elementwise_inplace[
-            func=Scalar[Self.dtype].__sub__
-        ](self, other.view())
-
     def __isub__[
         origin: Origin
     ](mut self, other: MatrixView[Self.dtype, origin]) raises:
-        """In-place element-wise subtraction with a matrix view."""
+        """In-place element-wise subtraction with another matrix or view."""
         linamo.routines.math._elementwise_inplace[
             func=Scalar[Self.dtype].__sub__
         ](self, other)
@@ -858,16 +816,10 @@ struct Matrix[dtype: DType](Copyable, MatrixLike, Movable, Sized, Writable):
             func=Scalar[Self.dtype].__sub__
         ](self, other)
 
-    def __imul__(mut self, other: Self) raises:
-        """In-place element-wise multiplication with another matrix."""
-        linamo.routines.math._elementwise_inplace[
-            func=Scalar[Self.dtype].__mul__
-        ](self, other.view())
-
     def __imul__[
         origin: Origin
     ](mut self, other: MatrixView[Self.dtype, origin]) raises:
-        """In-place element-wise multiplication with a matrix view."""
+        """In-place element-wise multiplication with another matrix or view."""
         linamo.routines.math._elementwise_inplace[
             func=Scalar[Self.dtype].__mul__
         ](self, other)
@@ -878,16 +830,10 @@ struct Matrix[dtype: DType](Copyable, MatrixLike, Movable, Sized, Writable):
             func=Scalar[Self.dtype].__mul__
         ](self, other)
 
-    def __itruediv__(mut self, other: Self) raises:
-        """In-place element-wise division with another matrix."""
-        linamo.routines.math._elementwise_inplace[
-            func=Scalar[Self.dtype].__truediv__
-        ](self, other.view())
-
     def __itruediv__[
         origin: Origin
     ](mut self, other: MatrixView[Self.dtype, origin]) raises:
-        """In-place element-wise division with a matrix view."""
+        """In-place element-wise division with another matrix or view."""
         linamo.routines.math._elementwise_inplace[
             func=Scalar[Self.dtype].__truediv__
         ](self, other)
@@ -898,16 +844,10 @@ struct Matrix[dtype: DType](Copyable, MatrixLike, Movable, Sized, Writable):
             func=Scalar[Self.dtype].__truediv__
         ](self, other)
 
-    def __ifloordiv__(mut self, other: Self) raises:
-        """In-place element-wise floor division with another matrix."""
-        linamo.routines.math._elementwise_inplace[
-            func=Scalar[Self.dtype].__floordiv__
-        ](self, other.view())
-
     def __ifloordiv__[
         origin: Origin
     ](mut self, other: MatrixView[Self.dtype, origin]) raises:
-        """In-place element-wise floor division with a matrix view."""
+        """In-place element-wise floor division with another matrix or view."""
         linamo.routines.math._elementwise_inplace[
             func=Scalar[Self.dtype].__floordiv__
         ](self, other)
@@ -918,16 +858,10 @@ struct Matrix[dtype: DType](Copyable, MatrixLike, Movable, Sized, Writable):
             func=Scalar[Self.dtype].__floordiv__
         ](self, other)
 
-    def __imod__(mut self, other: Self) raises:
-        """In-place element-wise modulo with another matrix."""
-        linamo.routines.math._elementwise_inplace[
-            func=Scalar[Self.dtype].__mod__
-        ](self, other.view())
-
     def __imod__[
         origin: Origin
     ](mut self, other: MatrixView[Self.dtype, origin]) raises:
-        """In-place element-wise modulo with a matrix view."""
+        """In-place element-wise modulo with another matrix or view."""
         linamo.routines.math._elementwise_inplace[
             func=Scalar[Self.dtype].__mod__
         ](self, other)
@@ -946,84 +880,62 @@ struct Matrix[dtype: DType](Copyable, MatrixLike, Movable, Sized, Writable):
     # `EqualityComparable`; use `utils/test_utils.assert_matrices_equal` to ask
     # whether two matrices are wholly identical.
 
-    def __lt__(self, other: Self) raises -> Matrix[DType.bool]:
-        """Element-wise less-than comparison with another matrix."""
-        return linamo.routines.logic.less(self, other)
-
     def __lt__[
         origin: Origin
     ](self, other: MatrixView[Self.dtype, origin]) raises -> Matrix[DType.bool]:
-        """Element-wise less-than comparison with a matrix view."""
+        """Element-wise less-than comparison with another matrix or view."""
         return linamo.routines.logic.less(self, other)
 
     def __lt__(self, other: Self.ElementType) -> Matrix[DType.bool]:
         """Element-wise less-than comparison against a scalar."""
         return linamo.routines.logic.scalar_less(self, other)
 
-    def __le__(self, other: Self) raises -> Matrix[DType.bool]:
-        """Element-wise less-than-or-equal comparison with another matrix."""
-        return linamo.routines.logic.less_equal(self, other)
-
     def __le__[
         origin: Origin
     ](self, other: MatrixView[Self.dtype, origin]) raises -> Matrix[DType.bool]:
-        """Element-wise less-than-or-equal comparison with a matrix view."""
+        """Element-wise less-than-or-equal comparison with another matrix or view.
+        """
         return linamo.routines.logic.less_equal(self, other)
 
     def __le__(self, other: Self.ElementType) -> Matrix[DType.bool]:
         """Element-wise less-than-or-equal comparison against a scalar."""
         return linamo.routines.logic.scalar_less_equal(self, other)
 
-    def __gt__(self, other: Self) raises -> Matrix[DType.bool]:
-        """Element-wise greater-than comparison with another matrix."""
-        return linamo.routines.logic.greater(self, other)
-
     def __gt__[
         origin: Origin
     ](self, other: MatrixView[Self.dtype, origin]) raises -> Matrix[DType.bool]:
-        """Element-wise greater-than comparison with a matrix view."""
+        """Element-wise greater-than comparison with another matrix or view."""
         return linamo.routines.logic.greater(self, other)
 
     def __gt__(self, other: Self.ElementType) -> Matrix[DType.bool]:
         """Element-wise greater-than comparison against a scalar."""
         return linamo.routines.logic.scalar_greater(self, other)
 
-    def __ge__(self, other: Self) raises -> Matrix[DType.bool]:
-        """Element-wise greater-than-or-equal comparison with another matrix."""
-        return linamo.routines.logic.greater_equal(self, other)
-
     def __ge__[
         origin: Origin
     ](self, other: MatrixView[Self.dtype, origin]) raises -> Matrix[DType.bool]:
-        """Element-wise greater-than-or-equal comparison with a matrix view."""
+        """Element-wise greater-than-or-equal comparison with another matrix or view.
+        """
         return linamo.routines.logic.greater_equal(self, other)
 
     def __ge__(self, other: Self.ElementType) -> Matrix[DType.bool]:
         """Element-wise greater-than-or-equal comparison against a scalar."""
         return linamo.routines.logic.scalar_greater_equal(self, other)
 
-    def __eq__(self, other: Self) raises -> Matrix[DType.bool]:
-        """Element-wise equality comparison with another matrix."""
-        return linamo.routines.logic.equal(self, other)
-
     def __eq__[
         origin: Origin
     ](self, other: MatrixView[Self.dtype, origin]) raises -> Matrix[DType.bool]:
-        """Element-wise equality comparison with a matrix view."""
+        """Element-wise equality comparison with another matrix or view."""
         return linamo.routines.logic.equal(self, other)
 
     def __eq__(self, other: Self.ElementType) -> Matrix[DType.bool]:
         """Element-wise equality comparison against a scalar."""
         return linamo.routines.logic.scalar_equal(self, other)
 
-    def __ne__(self, other: Self) raises -> Matrix[DType.bool]:
-        """Element-wise inequality comparison with another matrix."""
-        return linamo.routines.logic.not_equal(self, other)
-
     def __ne__[
         origin: Origin
     ](self, other: MatrixView[Self.dtype, origin]) raises -> Matrix[DType.bool]:
-        """Element-wise inequality comparison with a matrix view."""
+        """Element-wise inequality comparison with another matrix or view."""
         return linamo.routines.logic.not_equal(self, other)
 
     def __ne__(self, other: Self.ElementType) -> Matrix[DType.bool]:

@@ -5,7 +5,9 @@ Every named routine in the library takes `MatrixView` operands and nothing
 else. A `Matrix` argument still works because `MatrixView` has an `@implicit`
 constructor from `Matrix`, so the compiler inserts the conversion. That is what
 replaced the four hand-written overloads (view x view, mat x mat, mat x view,
-view x mat) that each binary operation used to carry.
+view x mat) that each binary operation used to carry. The operator dunders on
+both types were collapsed the same way and are covered here too: the
+conversion fires under `a + b` sugar, not only in a direct call.
 
 Two properties have to hold for that to be safe, and both are tested here:
 
@@ -117,6 +119,112 @@ def test_mixed_matrix_and_own_slice() raises:
     var c = add(a[0:2, 0:2], a)
     testing.assert_equal(c[0, 0], 2.0)
     testing.assert_equal(c[1, 1], 8.0)
+
+
+# ===----------------------------------------------------------------------===#
+# The same collapse, one level up: operator sugar
+# ===----------------------------------------------------------------------===#
+# The dunders on `Matrix` and `MatrixView` declare their right-hand operand as
+# a `MatrixView` and have no `Matrix`-operand twin. These tests exist mostly to
+# be compiled: if a needed overload were missing, the file would not build.
+
+
+def test_arithmetic_operators_accept_all_four_combinations() raises:
+    """`+ - * / @` resolve for every mix of `Matrix` and `MatrixView`."""
+    var a = la.matrix[DType.float64]([[1.0, 2.0], [3.0, 4.0]])
+    var b = la.matrix[DType.float64]([[10.0, 20.0], [30.0, 40.0]])
+
+    for c in [a + b, a + b.view(), a.view() + b, a.view() + b.view()]:
+        testing.assert_equal(c[0, 0], 11.0)
+    for c in [a - b, a - b.view(), a.view() - b, a.view() - b.view()]:
+        testing.assert_equal(c[0, 0], -9.0)
+    for c in [a * b, a * b.view(), a.view() * b, a.view() * b.view()]:
+        testing.assert_equal(c[0, 0], 10.0)
+    for c in [b / a, b / a.view(), b.view() / a, b.view() / a.view()]:
+        testing.assert_equal(c[0, 0], 10.0)
+    for c in [a @ b, a @ b.view(), a.view() @ b, a.view() @ b.view()]:
+        testing.assert_equal(c[0, 0], 70.0)
+
+
+def test_floordiv_mod_pow_operators_accept_all_four_combinations() raises:
+    """`// % **` resolve for every mix of `Matrix` and `MatrixView`."""
+    var a = la.matrix[DType.float64]([[2.0, 2.0], [2.0, 2.0]])
+    var b = la.matrix[DType.float64]([[7.0, 7.0], [7.0, 7.0]])
+
+    for c in [b // a, b // a.view(), b.view() // a, b.view() // a.view()]:
+        testing.assert_equal(c[0, 0], 3.0)
+    for c in [b % a, b % a.view(), b.view() % a, b.view() % a.view()]:
+        testing.assert_equal(c[0, 0], 1.0)
+    for c in [a**a, a ** a.view(), a.view() ** a, a.view() ** a.view()]:
+        testing.assert_equal(c[0, 0], 4.0)
+
+
+def test_comparison_operators_accept_all_four_combinations() raises:
+    """The six comparisons resolve for every mix, returning a bool mask."""
+    var a = la.matrix[DType.float64]([[1.0, 2.0], [3.0, 4.0]])
+    var b = la.matrix[DType.float64]([[10.0, 20.0], [30.0, 40.0]])
+
+    for c in [a < b, a < b.view(), a.view() < b, a.view() < b.view()]:
+        testing.assert_equal(c[0, 0], True)
+    for c in [a <= b, a <= b.view(), a.view() <= b, a.view() <= b.view()]:
+        testing.assert_equal(c[0, 0], True)
+    for c in [a > b, a > b.view(), a.view() > b, a.view() > b.view()]:
+        testing.assert_equal(c[0, 0], False)
+    for c in [a >= b, a >= b.view(), a.view() >= b, a.view() >= b.view()]:
+        testing.assert_equal(c[0, 0], False)
+    for c in [a == b, a == b.view(), a.view() == b, a.view() == b.view()]:
+        testing.assert_equal(c[0, 0], False)
+    for c in [a != b, a != b.view(), a.view() != b, a.view() != b.view()]:
+        testing.assert_equal(c[0, 0], True)
+
+
+def test_inplace_operators_accept_a_matrix_and_a_view() raises:
+    """The in-place operators take either operand type on the right."""
+    var b = la.matrix[DType.float64]([[10.0, 20.0], [30.0, 40.0]])
+
+    var c = la.matrix[DType.float64]([[1.0, 2.0], [3.0, 4.0]])
+    c += b
+    c += b.view()
+    testing.assert_equal(c[0, 0], 21.0)
+
+    c -= b
+    c -= b.view()
+    testing.assert_equal(c[0, 0], 1.0)
+
+    c *= b
+    c /= b.view()
+    testing.assert_equal(c[0, 0], 1.0)
+
+    var d = la.matrix[DType.float64]([[7.0, 7.0], [7.0, 7.0]])
+    var two = la.matrix[DType.float64]([[2.0, 2.0], [2.0, 2.0]])
+    d //= two.view()
+    testing.assert_equal(d[0, 0], 3.0)
+    d %= two
+    testing.assert_equal(d[0, 0], 1.0)
+
+
+def test_scalar_operators_are_not_shadowed() raises:
+    """A scalar does not convert to a matrix, so it keeps its own overloads.
+
+    Collapsing the matrix-operand forms must not disturb these, nor the
+    reflected forms that put the scalar on the left.
+    """
+    var a = la.matrix[DType.float64]([[1.0, 2.0], [3.0, 4.0]])
+
+    testing.assert_equal((a + 1.0)[0, 0], 2.0)
+    testing.assert_equal((a.view() + 1.0)[0, 0], 2.0)
+    testing.assert_equal((1.0 + a)[0, 0], 2.0)
+    testing.assert_equal((1.0 - a)[0, 0], 0.0)
+    testing.assert_equal((2.0 / a)[0, 0], 2.0)
+    testing.assert_equal((a < 2.0)[0, 0], True)
+    testing.assert_equal((a.view() < 2.0)[0, 0], True)
+
+
+def test_operator_with_the_same_matrix_on_both_sides() raises:
+    """`a + a` stays legal: the conversion yields a read-only view."""
+    var a = la.matrix[DType.float64]([[1.0, 2.0], [3.0, 4.0]])
+    testing.assert_equal((a + a)[0, 0], 2.0)
+    testing.assert_equal((a + a[0:2, 0:2])[1, 1], 8.0)
 
 
 def main() raises:

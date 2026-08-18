@@ -128,19 +128,19 @@ struct MatrixView[mut: Bool, //, dtype: DType, origin: Origin[mut=mut]](
         self.offset = offset
 
     # [Mojo Miji]
-    # This is what lets one signature stand in for four. A routine declared as
-    # `def add(a: MatrixView[dtype, oa], b: MatrixView[dtype, ob])` now accepts
-    # a `Matrix` in either position, because the compiler inserts this
-    # conversion. See the note in `linamo.routines.math`.
+    # This is what lets one signature stand in for four. A parameter declared
+    # as `MatrixView[dtype, o]` accepts a `Matrix` too, because the compiler
+    # inserts this conversion. It applies to operator dunders as much as to
+    # plain routines: `A + B`, `A + V`, `V + B` and `V + V` all resolve to the
+    # single view-operand overload.
     #
     # Two details make it work. The argument is `ref m`: only `ref` binds the
     # origin to the caller's storage. Under `imm`, `read` or the default
     # convention, `origin_of(m.data)` names the callee's own parameter slot, so
-    # the conversion is one no caller can ever satisfy and every call site
-    # fails to compile. And the result is wrapped in `ImmOrigin(...)`, so a
-    # `var` matrix yields a
-    # *read-only* view: without that, `add(a, a)` would be two mutable borrows
-    # of one matrix and would not compile, which is the same wall 5.2 hit.
+    # the conversion is one no caller can satisfy and every call site fails to
+    # compile. And the result is wrapped in `ImmOrigin(...)`, so a `var` matrix
+    # yields a *read-only* view; without that, `add(a, a)` would be two mutable
+    # borrows of one matrix and would not compile.
     @implicit
     def __init__[
         d: DType
@@ -464,17 +464,17 @@ struct MatrixView[mut: Bool, //, dtype: DType, origin: Origin[mut=mut]](
     # ===--------------------------------------------------------------------===#
     # Basic math dunders
     # ===--------------------------------------------------------------------===#
+    # One overload per operation, taking a view. A `Matrix` right-hand side
+    # converts implicitly, so no `Matrix`-operand twin is needed; see the
+    # `@implicit` constructor above. The result is always an owning `Matrix`,
+    # since an element-wise operation has to allocate somewhere.
 
     def __add__[
         origin_b: Origin
     ](self, other: MatrixView[Self.dtype, origin_b]) raises -> Matrix[
         Self.dtype
     ]:
-        """Performs element-wise addition of two matrix views."""
-        return linamo.routines.math.add(self, other)
-
-    def __add__(self, other: Matrix[Self.dtype]) raises -> Matrix[Self.dtype]:
-        """Performs element-wise addition of a matrix view and a matrix."""
+        """Performs element-wise addition."""
         return linamo.routines.math.add(self, other)
 
     def __sub__[
@@ -482,11 +482,7 @@ struct MatrixView[mut: Bool, //, dtype: DType, origin: Origin[mut=mut]](
     ](self, other: MatrixView[Self.dtype, origin_b]) raises -> Matrix[
         Self.dtype
     ]:
-        """Performs element-wise subtraction of two matrix views."""
-        return linamo.routines.math.sub(self, other)
-
-    def __sub__(self, other: Matrix[Self.dtype]) raises -> Matrix[Self.dtype]:
-        """Performs element-wise subtraction of a matrix view and a matrix."""
+        """Performs element-wise subtraction."""
         return linamo.routines.math.sub(self, other)
 
     def __mul__[
@@ -494,12 +490,7 @@ struct MatrixView[mut: Bool, //, dtype: DType, origin: Origin[mut=mut]](
     ](self, other: MatrixView[Self.dtype, origin_b]) raises -> Matrix[
         Self.dtype
     ]:
-        """Performs element-wise multiplication of two matrix views."""
-        return linamo.routines.math.mul(self, other)
-
-    def __mul__(self, other: Matrix[Self.dtype]) raises -> Matrix[Self.dtype]:
-        """Performs element-wise multiplication of a matrix view and a matrix.
-        """
+        """Performs element-wise multiplication."""
         return linamo.routines.math.mul(self, other)
 
     def __truediv__[
@@ -507,13 +498,7 @@ struct MatrixView[mut: Bool, //, dtype: DType, origin: Origin[mut=mut]](
     ](self, other: MatrixView[Self.dtype, origin_b]) raises -> Matrix[
         Self.dtype
     ]:
-        """Performs element-wise division of two matrix views."""
-        return linamo.routines.math.div(self, other)
-
-    def __truediv__(
-        self, other: Matrix[Self.dtype]
-    ) raises -> Matrix[Self.dtype]:
-        """Performs element-wise division of a matrix view and a matrix."""
+        """Performs element-wise division."""
         return linamo.routines.math.div(self, other)
 
     def __matmul__[
@@ -521,13 +506,7 @@ struct MatrixView[mut: Bool, //, dtype: DType, origin: Origin[mut=mut]](
     ](self, other: MatrixView[Self.dtype, origin_b]) raises -> Matrix[
         Self.dtype
     ]:
-        """Performs matrix multiplication of two matrix views."""
-        return linamo.routines.math.matmul(self, other)
-
-    def __matmul__(
-        self, other: Matrix[Self.dtype]
-    ) raises -> Matrix[Self.dtype]:
-        """Performs matrix multiplication of a matrix view and a matrix."""
+        """Performs matrix multiplication."""
         return linamo.routines.math.matmul(self, other)
 
     # ===--------------------------------------------------------------------===#
@@ -572,14 +551,7 @@ struct MatrixView[mut: Bool, //, dtype: DType, origin: Origin[mut=mut]](
     ](self, other: MatrixView[Self.dtype, origin_b]) raises -> Matrix[
         Self.dtype
     ]:
-        """Performs element-wise floor division of two matrix views."""
-        return linamo.routines.math.floordiv(self, other)
-
-    def __floordiv__(
-        self, other: Matrix[Self.dtype]
-    ) raises -> Matrix[Self.dtype]:
-        """Performs element-wise floor division of a matrix view and a matrix.
-        """
+        """Performs element-wise floor division."""
         return linamo.routines.math.floordiv(self, other)
 
     def __mod__[
@@ -587,11 +559,7 @@ struct MatrixView[mut: Bool, //, dtype: DType, origin: Origin[mut=mut]](
     ](self, other: MatrixView[Self.dtype, origin_b]) raises -> Matrix[
         Self.dtype
     ]:
-        """Performs element-wise modulo of two matrix views."""
-        return linamo.routines.math.mod(self, other)
-
-    def __mod__(self, other: Matrix[Self.dtype]) raises -> Matrix[Self.dtype]:
-        """Performs element-wise modulo of a matrix view and a matrix."""
+        """Performs element-wise modulo."""
         return linamo.routines.math.mod(self, other)
 
     def __pow__[
@@ -599,12 +567,7 @@ struct MatrixView[mut: Bool, //, dtype: DType, origin: Origin[mut=mut]](
     ](self, other: MatrixView[Self.dtype, origin_b]) raises -> Matrix[
         Self.dtype
     ]:
-        """Performs element-wise exponentiation of two matrix views."""
-        return linamo.routines.math.pow(self, other)
-
-    def __pow__(self, other: Matrix[Self.dtype]) raises -> Matrix[Self.dtype]:
-        """Performs element-wise exponentiation of a matrix view and a matrix.
-        """
+        """Performs element-wise exponentiation."""
         return linamo.routines.math.pow(self, other)
 
     # ===--------------------------------------------------------------------===#
@@ -642,11 +605,7 @@ struct MatrixView[mut: Bool, //, dtype: DType, origin: Origin[mut=mut]](
     ](self, other: MatrixView[Self.dtype, origin_b]) raises -> Matrix[
         DType.bool
     ]:
-        """Element-wise less-than comparison with another matrix view."""
-        return linamo.routines.logic.less(self, other)
-
-    def __lt__(self, other: Matrix[Self.dtype]) raises -> Matrix[DType.bool]:
-        """Element-wise less-than comparison with a matrix."""
+        """Element-wise less-than comparison with another matrix or view."""
         return linamo.routines.logic.less(self, other)
 
     def __lt__(self, other: Scalar[Self.dtype]) -> Matrix[DType.bool]:
@@ -658,12 +617,8 @@ struct MatrixView[mut: Bool, //, dtype: DType, origin: Origin[mut=mut]](
     ](self, other: MatrixView[Self.dtype, origin_b]) raises -> Matrix[
         DType.bool
     ]:
-        """Element-wise less-than-or-equal comparison with another matrix view.
+        """Element-wise less-than-or-equal comparison with another matrix or view.
         """
-        return linamo.routines.logic.less_equal(self, other)
-
-    def __le__(self, other: Matrix[Self.dtype]) raises -> Matrix[DType.bool]:
-        """Element-wise less-than-or-equal comparison with a matrix."""
         return linamo.routines.logic.less_equal(self, other)
 
     def __le__(self, other: Scalar[Self.dtype]) -> Matrix[DType.bool]:
@@ -675,11 +630,7 @@ struct MatrixView[mut: Bool, //, dtype: DType, origin: Origin[mut=mut]](
     ](self, other: MatrixView[Self.dtype, origin_b]) raises -> Matrix[
         DType.bool
     ]:
-        """Element-wise greater-than comparison with another matrix view."""
-        return linamo.routines.logic.greater(self, other)
-
-    def __gt__(self, other: Matrix[Self.dtype]) raises -> Matrix[DType.bool]:
-        """Element-wise greater-than comparison with a matrix."""
+        """Element-wise greater-than comparison with another matrix or view."""
         return linamo.routines.logic.greater(self, other)
 
     def __gt__(self, other: Scalar[Self.dtype]) -> Matrix[DType.bool]:
@@ -691,12 +642,8 @@ struct MatrixView[mut: Bool, //, dtype: DType, origin: Origin[mut=mut]](
     ](self, other: MatrixView[Self.dtype, origin_b]) raises -> Matrix[
         DType.bool
     ]:
-        """Element-wise greater-than-or-equal comparison with another matrix view.
+        """Element-wise greater-than-or-equal comparison with another matrix or view.
         """
-        return linamo.routines.logic.greater_equal(self, other)
-
-    def __ge__(self, other: Matrix[Self.dtype]) raises -> Matrix[DType.bool]:
-        """Element-wise greater-than-or-equal comparison with a matrix."""
         return linamo.routines.logic.greater_equal(self, other)
 
     def __ge__(self, other: Scalar[Self.dtype]) -> Matrix[DType.bool]:
@@ -708,11 +655,7 @@ struct MatrixView[mut: Bool, //, dtype: DType, origin: Origin[mut=mut]](
     ](self, other: MatrixView[Self.dtype, origin_b]) raises -> Matrix[
         DType.bool
     ]:
-        """Element-wise equality comparison with another matrix view."""
-        return linamo.routines.logic.equal(self, other)
-
-    def __eq__(self, other: Matrix[Self.dtype]) raises -> Matrix[DType.bool]:
-        """Element-wise equality comparison with a matrix."""
+        """Element-wise equality comparison with another matrix or view."""
         return linamo.routines.logic.equal(self, other)
 
     def __eq__(self, other: Scalar[Self.dtype]) -> Matrix[DType.bool]:
@@ -724,11 +667,7 @@ struct MatrixView[mut: Bool, //, dtype: DType, origin: Origin[mut=mut]](
     ](self, other: MatrixView[Self.dtype, origin_b]) raises -> Matrix[
         DType.bool
     ]:
-        """Element-wise inequality comparison with another matrix view."""
-        return linamo.routines.logic.not_equal(self, other)
-
-    def __ne__(self, other: Matrix[Self.dtype]) raises -> Matrix[DType.bool]:
-        """Element-wise inequality comparison with a matrix."""
+        """Element-wise inequality comparison with another matrix or view."""
         return linamo.routines.logic.not_equal(self, other)
 
     def __ne__(self, other: Scalar[Self.dtype]) -> Matrix[DType.bool]:

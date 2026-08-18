@@ -1086,6 +1086,15 @@ A view is the *general* case and a matrix the special one, so everything is
 funnelled towards views rather than away from them. Below this line no code
 knows or cares which of the four permutations the user wrote.
 
+**The operator layer collapses the same way.** A dunder is a method, so its
+left operand is fixed by the receiver's type: `Matrix.__add__` and
+`MatrixView.__add__` both have to exist. The right operand is not fixed, and
+both declare it as a `MatrixView`, so the same implicit conversion covers the
+rest --- `A + B`, `A + V`, `V + B` and `V + V` reach two overloads between
+them rather than four. The only binary operator needing a second signature is
+the scalar form (`A + 2.0`), because a scalar is not a matrix and does not
+convert to one.
+
 **The layouts collapse inside the kernel.** A kernel branches on contiguity
 once, up front, and then runs a loop that has no further tests in it:
 

@@ -474,17 +474,18 @@ element. `randn` and the rest of the distribution family stay in Phase 9.
 | Make the whole-matrix scalar write non-raising           | `types/matrix.mojo`          | ✓      |
 | Give `fill` and `assign` whole-view forms                | `routines/mutation.mojo`     | ✓      |
 | Move the dtype aliases out of the prelude                | `__init__.mojo`, `prelude`   | ✓      |
-| Collapse the operator overloads onto implicit conversion | `types/matrix.mojo`, `_view` | □      |
+| Collapse the operator overloads onto implicit conversion | `types/matrix.mojo`, `_view` | ✓      |
 | Make the layout fields private; rename the accessors     | `types/`                     | □      |
 | Assert the layout invariant in the `Matrix` constructors | `types/matrix.mojo`          | □      |
 | Stop using `MatrixLike` (keep the file)                  | `traits/matrix_like.mojo`    | □      |
 
-All four are breaking changes to spellings users would already have written, so
-they land **before v0.1.0** — see [Release Plan](#release-plan--v010). The
-overload collapse should come before 5.6, for the reason the 5.2 collapse came
-before 5.3: every routine added meanwhile doubles the work.
+The three open items are breaking changes to spellings users would already have
+written, so they land **before v0.1.0** — see
+[Release Plan](#release-plan--v010). The overload collapse went first, for the
+reason the 5.2 collapse came before 5.3: every operator added meanwhile would
+have doubled the work.
 
-**The routine layer is now fully collapsed; the operators are not.** 5.2 did
+**The routine layer collapsed first.** 5.2 did
 `math.mojo` and `logic.mojo`, and 5.4's `manipulation.mojo` was written
 view-only from the start, which left `linalg.mojo` as the last module carrying
 `Matrix`-argument forwarders --- 13 of them, including the three-way
@@ -596,14 +597,27 @@ views of the same matrix in a single expression is a compile error
 case that could produce a wrong answer. Holding two handles and writing through
 them in sequence is well-defined.
 
-The operators never got the 5.2 treatment.** `types/matrix.mojo` still carries
+**The operators have now had the 5.2 treatment.** `types/matrix.mojo` carried
 both `__add__(self, other: Self)` and
 `__add__[origin](self, other: MatrixView[...])`, and `types/matrix_view.mojo`
-mirrors it with a `Matrix`-argument overload beside each view one. The `Self`
-and `Matrix` forms are redundant: implicit conversion fires on the *argument*
-(only `self` is beyond its reach), so deleting the `Self` overload leaves
-`a + b` compiling and correct — checked on 2026-08-18 by doing it. Roughly 20
-overloads per file, across `+ - * / // % ** @` and the six comparisons.
+mirrored it with a `Matrix`-argument overload beside each view one. Both
+redundant sets are gone: 32 overloads deleted — 19 from `matrix.mojo`, 13 from
+`matrix_view.mojo` — across `+ - * / // % ** @`, the six in-place operators and
+the six comparisons. 205 lines removed against 56 added.
+
+The load-bearing fact had to be verified rather than assumed: implicit
+conversion fires on the *argument*, and it fires **under operator sugar**, not
+only in direct calls. With `__add__(self, other: Self)` deleted, `A + B`
+resolves to the view-operand overload. Confirmed for all four operand
+permutations of every operator, plus the scalar and reflected forms, before
+touching the rest.
+
+Alone among the 5.9 items this one is **not** a breaking change: every spelling
+that compiled before still compiles, and `A += A` is still rejected by the
+borrow checker with a byte-identical diagnostic. What stays is what the
+conversion cannot reach — `self` is fixed by the receiver, so both types keep
+their own dunders, and the scalar overloads stay because nothing converts a
+scalar to a matrix.
 
 **Fields go private, accessors lose the `get_`.** `m.nrows` and `get_nrows()`
 are two spellings of one fact, and the fields are not merely informational:
@@ -877,3 +891,11 @@ what make a release usable rather than merely tagged.
 |            | Appendix A; Appendix B lists what is not documented yet.      |
 |            | Every snippet compiled and run. The per-symbol reference is   |
 |            | `mojo doc` output, not a hand-written file.                   |
+| 2026-08-18 | 5.9: collapsed the operator overloads onto the implicit       |
+|            | `Matrix` -> `MatrixView` conversion. 32 dunders deleted       |
+|            | (19 in `matrix.mojo`, 13 in `matrix_view.mojo`); 205 lines    |
+|            | removed, 56 added. Verified first that the conversion fires   |
+|            | under operator sugar, then across all four operand            |
+|            | permutations of every operator. Not a breaking change: no     |
+|            | call site moved, 435 tests unchanged, and `A += A` still      |
+|            | fails with a byte-identical borrow-checker diagnostic.        |
