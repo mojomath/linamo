@@ -344,7 +344,12 @@ def setitem_regions() raises:
 
     # `m[a:b, c:d] = src` is not spellable in Mojo 1.0 without breaking
     # ordinary slicing, so region writes are named calls.
-    var w = view_mut(m, Slice(0, 6), Slice(0, 6))
+    var w = m.view_mut(Slice(0, 6), Slice(0, 6))
+
+    # Dropping the slices writes the whole view. This form cannot fail, so
+    # unlike the region form it is not declared `raises`.
+    fill(w, -1)
+    print("fill(w, -1) - the whole view:\n", m)
 
     fill(w, Slice(0, 3), Slice(0, 3), 1)
     print("fill(w, 0:3, 0:3, 1):\n", m)
@@ -375,8 +380,8 @@ def setitem_regions() raises:
 
     # `Matrix` carries the same two operations as methods, for when you have
     # the owner in hand and do not need a view at all.
-    m.fill(Slice(2, 4), Slice(2, 4), 0)
-    print("m.fill(2:4, 2:4, 0) - the method form:\n", m)
+    m.set(Slice(2, 4), Slice(2, 4), 0)
+    print("m.set(2:4, 2:4, 0) - the method form:\n", m)
 
 
 # ===----------------------------------------------------------------------=== #

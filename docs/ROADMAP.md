@@ -468,6 +468,11 @@ element. `randn` and the rest of the distribution family stay in Phase 9.
 | Item                                                     | Module                       | Status |
 | -------------------------------------------------------- | ---------------------------- | ------ |
 | Collapse the `linalg` routine overloads                  | `routines/linalg.mojo`       | ✓      |
+| Unify the `Matrix` writes onto `set`                     | `types/matrix.mojo`          | ✓      |
+| Clamp negative view extents from backwards slices        | `types/matrix_view.mojo`     | ✓      |
+| Promote `view_mut` to a `Matrix` method                  | `types/matrix.mojo`          | ✓      |
+| Make the whole-matrix scalar write non-raising           | `types/matrix.mojo`          | ✓      |
+| Give `fill` and `assign` whole-view forms                | `routines/mutation.mojo`     | ✓      |
 | Collapse the operator overloads onto implicit conversion | `types/matrix.mojo`, `_view` | □      |
 | Make the layout fields private; rename the accessors     | `types/`                     | □      |
 | Assert the layout invariant in the `Matrix` constructors | `types/matrix.mojo`          | □      |
@@ -487,7 +492,99 @@ by deleting them and compiling a caller that passes a `Matrix` to every
 routine, then confirmed against the full suite: 121 lines gone, `linalg.mojo`
 594 -> 472, no call site changed.
 
-**The operators never got the 5.2 treatment.** `types/matrix.mojo` still carries
+**Every write on a `Matrix` is now `set`.** `fill(value)`, `fill(rows, cols,
+value)` and `assign(rows, cols, src)` became five `set` overloads that dispatch
+on their arguments: a `Self.ElementType` fills, a `Matrix` or `MatrixView`
+copies, and `set(row, col, value)` writes one element. Dispatch is unambiguous
+because nothing in the library converts a scalar to a matrix, and a `Matrix`
+source needs no `.view()` thanks to the implicit conversion. The free `assign`
+overload taking a `Matrix` source went the same way as the `linalg` forwarders.
+
+`set` **delegates to `routines/mutation.mojo`** rather than looping over
+`self.data`, and the reason is not tidiness. The duplicated loops had already
+drifted: both were written in `e41b9e4`, and by 2026-08-18 the method used
+`Slice.indices()` plus `range()` and agreed with Python on `m[3:1, :]`, while
+the `MatrixView` slicing constructor computed `ceildiv(end - start, step)` and
+produced `nrows = -2`. A view with a negative row count, reachable from plain
+public slicing, reporting `len(v) == -2`. Both extents are now clamped with
+`max(0, ...)`, which leaves genuine reversing slices alone
+(`4:0:-1` is `ceildiv(-4, -1) == 4`), and the loop exists once.
+
+None of the three excuses for the duplication survived checking. There is no
+circular-import wall — `types/matrix.mojo` imports `routines/mutation.mojo` at
+the top level and compiles, and it already imported `routines.math`,
+`routines.logic` and `routines.manipulation`. There is no cost —
+`MatrixView.__getitem__(i, j)` is an unchecked `offset + i*rs + j*cs`, the same
+arithmetic `get_offset` does. And it was not an evolution: `git log -S` puts
+both copies in one commit.
+
+`view_mut` stays a free function and does **not** become a method. It is
+technically possible — a `mut self` method returning
+`MatrixView[dtype, origin_of(self.data)]` compiles — but it would dissolve the
+one invariant this design is built on: a caller who never imports
+`routines.mutation` cannot construct a mutable view. `set` is different in kind:
+it creates a mutable view internally and consumes it before returning, so it
+hands nothing out.
+
+**`view_mut` became a method on `Matrix` after the import barrier was challenged
+and failed to justify itself. The original argument was that confining mutable
+views to `routines.mutation` meant a caller could not construct one without
+opting in. That is true but not useful: the thing it protects against is
+*accidental* write access, and nobody types `view_mut` by accident. What the
+barrier actually cost was an import line on every loop that writes.
+
+Testing settled the only part that was not taste. A method takes `ref self`,
+which raised the question of whether it could bind a temporary and hand back a
+mutable view onto dead storage - the failure mode that ruled out `__setitem__`.
+It cannot. `la.matrix(...).view_mut(...)` binds the temporary immutably, so the
+result is read-only and `fill` rejects it at compile time, identically to the
+free function. The same holds for a borrowed `Matrix` parameter. Adding the
+method also left `a[0:1, :] - a[1:2, :]` compiling, confirming this is unrelated
+to the `__setitem__` hazard, which was specific to how that operator perturbs
+`__getitem__` resolution.
+
+So the invariant was restated rather than abandoned. It was never really about
+the module: mutability is only ever inherited from a `var`, never manufactured,
+and every spelling that produces a mutable view carries `_mut` in its name -
+`grep -rn "def .*_mut" src/` lists all four. The name is the barrier, and it
+is the one that was doing the work all along. The free function stays for views
+of views, where there is no owner to call a method on.
+
+`set(value)` is the one write that does not delegate, and it is now
+non-raising. A `Matrix` owns exactly `nrows * ncols` elements at offset zero,
+so every slot in `data` belongs to it under either layout: the whole-matrix
+scalar write is a flat walk of the buffer with no index arithmetic and no
+bounds to check. Routing it through the region path had made it `raises` for no
+reason, and cost the stride arithmetic too. This is not the duplication that
+5.9 removed - it is a different and strictly better algorithm for the total
+case, and it is total, which is why it can drop `raises` at all. The other four
+overloads keep it: they can fail on a shape mismatch or an out-of-range index,
+and that is real.
+
+`fill` and `assign` gained whole-view forms for the same reason. The writing
+table in the manual had `m.set(value)` on the left against
+`fill(v, rows, cols, value)` on the right, which meant "write the whole thing"
+and "fill a region" were the same call spelled once - the slices were pure
+ceremony whenever they covered the view. `fill(v, value)` and `assign(v, src)`
+now mirror the `Matrix` side one for one, and `fill(v, value)` is non-raising
+on the same argument as `set(value)`: it visits every index of the view, so
+none of them can be out of range. `assign(v, src)` keeps `raises`, because a
+shape mismatch is real.
+
+A related question, and the answer is no: `view_mut(v, x, y)` stays. The worry
+is that a mutable sub-view of a mutable view puts two writable views on one
+matrix at once. It does - but so do `var a = m.view_mut(...)` and
+`var b = m.view_mut(...)`, and so does `var b = a`, since `MatrixView` is an
+`ImplicitlyCopyable` handle. Removing the sub-view form would leave both of
+those doors open while breaking `fill` and `assign`, which are built on it, and
+any blocked algorithm that writes into a quadrant of a view it was handed.
+What actually guards against aliasing is Mojo, one level down: two mutable
+views of the same matrix in a single expression is a compile error
+(`aliasing values passed mutably to 'self' ... and to 'other'`), which is the
+case that could produce a wrong answer. Holding two handles and writing through
+them in sequence is well-defined.
+
+The operators never got the 5.2 treatment.** `types/matrix.mojo` still carries
 both `__add__(self, other: Self)` and
 `__add__[origin](self, other: MatrixView[...])`, and `types/matrix_view.mojo`
 mirrors it with a `Matrix`-argument overload beside each view one. The `Self`
@@ -752,6 +849,16 @@ what make a release usable rather than merely tagged.
 |            | Also removed the 13 `Matrix`-argument forwarders from         |
 |            | `linalg.mojo` (121 lines), the last module the 5.2 overload   |
 |            | collapse had not reached.                                     |
+| 2026-08-18 | 5.9: unified every `Matrix` write onto `set`, five overloads  |
+|            | dispatching on their arguments, replacing `fill` and          |
+|            | `assign` as methods; removed the free `assign` overload       |
+|            | taking a `Matrix` source. `set` delegates to                  |
+|            | `routines/mutation.mojo` rather than repeating the loop.      |
+|            | Found while checking the two copies against each other: the   |
+|            | `MatrixView` slicing constructor computed a **negative**      |
+|            | extent for a backwards slice, so `m[3:1, :]` was a `-2 x 6`   |
+|            | view with `len(v) == -2`. Both extents clamped to 0.          |
+|            | 18 new tests (426 total).                                     |
 | 2026-08-18 | Renamed `docs/API.md` to `docs/MANUAL.md` and rewrote it as   |
 |            | the user manual, rather than shipping a separate `GUIDE.md`   |
 |            | that would duplicate its tables. The internals moved to       |

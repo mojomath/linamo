@@ -208,16 +208,16 @@ def region_writes() raises:
 
     # `m[a:b, c:d] = src` cannot be spelled in Mojo 1.0 without breaking
     # ordinary slicing expressions, so the region write is a named method.
-    m.fill(Slice(1, 4), Slice(1, 4), 7)
-    print("After m.fill(1:4, 1:4, 7):\n", m)
+    m.set(Slice(1, 4), Slice(1, 4), 7)
+    print("After m.set(1:4, 1:4, 7):\n", m)
 
     var block = la.matrix[int64]([[1, 2], [3, 4]])
-    m.assign(Slice(0, 2), Slice(0, 2), block.view())
-    print("After m.assign(0:2, 0:2, [[1, 2], [3, 4]]):\n", m)
+    m.set(Slice(0, 2), Slice(0, 2), block)
+    print("After m.set(0:2, 0:2, [[1, 2], [3, 4]]):\n", m)
 
     # A strided region works too - here every other row and column.
-    m.fill(Slice(0, 5, 2), Slice(0, 5, 2), -1)
-    print("After m.fill(0:5:2, 0:5:2, -1):\n", m)
+    m.set(Slice(0, 5, 2), Slice(0, 5, 2), -1)
+    print("After m.set(0:5:2, 0:5:2, -1):\n", m)
 
 
 # ===----------------------------------------------------------------------=== #

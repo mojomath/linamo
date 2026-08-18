@@ -9,12 +9,6 @@ A matrix and linear algebra library for Mojo.
 [![pixi](https://img.shields.io/badge/pixi%20add-linamo-purple)](https://prefix.dev/channels/modular-community/packages/linamo)
 <!-- [![CI](https://img.shields.io/github/actions/workflow/status/mojomath/linamo/run_tests.yaml?branch=main&label=tests)](https://github.com/mojomath/linamo/actions/workflows/run_tests.yaml) -->
 
-| Type           | Information                        |
-| -------------- | ---------------------------------- |
-| `Matrix`       | A 2-dimensional matrix type        |
-| `MatrixView`   | A non-owning view of `Matrix`      |
-| `StaticMatrix` | A matrix with a compile-time shape |
-
 - [Overview](#overview)
 - [Goals](#goals)
 - [Background](#background)
@@ -32,6 +26,12 @@ A matrix and linear algebra library for Mojo.
 
 Linamo focuses on efficient **matrix operations** and provides the foundations
 for **linear algebra** workflows in Mojo.
+
+| Type           | Information                        |
+| -------------- | ---------------------------------- |
+| `Matrix`       | A 2-dimensional matrix type        |
+| `MatrixView`   | A non-owning view of `Matrix`      |
+| `StaticMatrix` | A matrix with a compile-time shape |
 
 The name **Linamo** is **LIN**ear + **A**lgebra + **MO**jo: the field it
 covers, and the language it is written in. It can also be read as
@@ -79,7 +79,10 @@ details.
 
 - Keep the API small and easy to read while learning Mojo and this package.
 - Provide simple and intuitive syntax for matrix creation and operations.
-- Use **safe Mojo** features and avoid unsafe code as much as possible.
+- Use **safe Mojo** features and avoid unsafe code as much as possible. The data
+  buffer of `Matrix` is a `List` instead of a `Pointer`.
+- Differentiate a matrix and a view on the matrix and prevent unintentional
+  modifications to the matrices via views.
 - Emphasize contiguous storage for 2D matrices, but also support non-contiguous
   views through strides.
 - Optimize core operations like matrix multiplication which makes this package a

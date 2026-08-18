@@ -12,12 +12,18 @@ explicit spelling.
 
 The invariant, which is worth stating because it can be checked mechanically:
 
-    A `MatrixView` is mutable if and only if it came from a function in this
-    module. `grep "ref self" src/` returns exactly one line - element access
-    on `Matrix` - and nothing else in the library can propagate write access.
+    A `MatrixView` is mutable only if it was produced by a spelling with `_mut`
+    in its name. `grep -rn "def .*_mut" src/` lists all of them: `view_mut`,
+    `rows_mut` and `cols_mut` here, plus `Matrix.view_mut`, a one-line
+    delegation to the `view_mut` below. Nothing else in the library propagates
+    write access.
 
-So a caller who never imports from `linamo.routines.mutation` cannot construct
-a mutable view at all.
+The barrier that matters is the name, not the import. `Matrix.view_mut` is a
+method because there is nothing to protect a caller from: it cannot be reached
+by accident, it degrades to a read-only view when the receiver is immutable or
+a temporary, and a read-only view is rejected by `fill`, `store` and `assign`
+at compile time. Requiring an import on top of that bought no safety and cost
+every writer of a loop an import line.
 
 This module provides bulk write operations on mutable matrix views.
 
@@ -38,7 +44,9 @@ Note that region assignment cannot be spelled `m[a:b, c:d] = src`. Defining
 `__setitem__` on `Matrix` makes the compiler pass `self` to `__getitem__` as a
 temporary copy in some positions, so a sliced view ends up carrying the origin
 of a dead temporary and ordinary expressions like `a[0:1, :] - a[1:2, :]` stop
-compiling. `assign()` below is the region write.
+compiling. `assign()` below is the region write, and `Matrix.set()` - which
+delegates here rather than repeating the loop - is its spelling on an owned
+matrix.
 """
 
 from linamo.types.errors import IndexError, ValueError
@@ -94,6 +102,27 @@ def store[
 
 def fill[
     dtype: DType, origin: Origin[mut=True], //
+](view: MatrixView[dtype, origin], value: Scalar[dtype]):
+    """Writes one scalar into every element of the view.
+
+    The whole-view write is total - every index it visits is in range by
+    construction - so it is declared non-raising, like `Matrix.set(value)`.
+
+    Parameters:
+        dtype: The data type of the matrix elements.
+        origin: The origin of the target view, which must be mutable.
+
+    Args:
+        view: The view to write into.
+        value: The scalar written to every element.
+    """
+    for i in range(view.nrows):
+        for j in range(view.ncols):
+            view[i, j] = value
+
+
+def fill[
+    dtype: DType, origin: Origin[mut=True], //
 ](
     view: MatrixView[dtype, origin],
     rows: Slice,
@@ -116,6 +145,38 @@ def fill[
     for i in range(target.nrows):
         for j in range(target.ncols):
             target[i, j] = value
+
+
+def assign[
+    dtype: DType,
+    origin: Origin[mut=True],
+    mut_b: Bool,
+    //,
+    origin_b: Origin[mut=mut_b],
+](view: MatrixView[dtype, origin], src: MatrixView[dtype, origin_b],) raises:
+    """Copies `src` into the whole view.
+
+    Parameters:
+        dtype: The data type of the matrix elements.
+        origin: The origin of the target view, which must be mutable.
+        mut_b: Whether the source view is mutable.
+        origin_b: The origin of the source view.
+
+    Args:
+        view: The view to write into.
+        src: The source, which must match the view's shape exactly.
+
+    Raises:
+        ValueError: If the shapes do not match.
+    """
+    if view.nrows != src.nrows or view.ncols != src.ncols:
+        raise ValueError(
+            function="assign(view, src)",
+            message="Shape mismatch in whole-view assignment.",
+        )
+    for i in range(view.nrows):
+        for j in range(view.ncols):
+            view[i, j] = src[i, j]
 
 
 def assign[
@@ -156,32 +217,6 @@ def assign[
     for i in range(target.nrows):
         for j in range(target.ncols):
             target[i, j] = src[i, j]
-
-
-def assign[
-    dtype: DType, origin: Origin[mut=True], //
-](
-    view: MatrixView[dtype, origin],
-    rows: Slice,
-    cols: Slice,
-    src: Matrix[dtype],
-) raises:
-    """Copies a `Matrix` into the sub-view selected by `rows` and `cols`.
-
-    Parameters:
-        dtype: The data type of the matrix elements.
-        origin: The origin of the target view, which must be mutable.
-
-    Args:
-        view: The view to write into.
-        rows: The rows to assign into.
-        cols: The columns to assign into.
-        src: The source, which must match the target shape exactly.
-
-    Raises:
-        ValueError: If the shapes do not match.
-    """
-    assign(view, rows, cols, src.view())
 
 
 # ===----------------------------------------------------------------------===#

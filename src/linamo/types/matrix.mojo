@@ -2,7 +2,6 @@
 This module defines the `Matrix` type, which is a dynamically sized 2D matrix.
 """
 
-import std.math as builtin_math
 
 from linamo.traits.matrix_like import MatrixLike
 from linamo.types.errors import IndexError, ValueError
@@ -11,6 +10,7 @@ from linamo.types.matrix_view import MatrixView
 import linamo.routines.math
 import linamo.routines.logic
 import linamo.routines.manipulation
+import linamo.routines.mutation as mutation
 from linamo.utils.indexing import (
     get_offset,
     indices_within_bounds,
@@ -204,7 +204,7 @@ struct Matrix[dtype: DType](Copyable, MatrixLike, Movable, Sized, Writable):
     # makes the compiler pass `self` to `__getitem__` as a temporary copy in
     # some positions, so a view sliced from it carries the origin of a dead
     # temporary and `a[0:1, :] - a[1:2, :]` stops compiling. Region writes are
-    # spelled `assign(...)` from `routines.mutation` for the same reason.
+    # spelled `set(...)` for the same reason.
     def __getitem__(
         ref self, row: Int, col: Int
     ) raises -> ref[origin_of(self.data)] Self.ElementType:
@@ -450,43 +450,71 @@ struct Matrix[dtype: DType](Copyable, MatrixLike, Movable, Sized, Writable):
                 self.data[base + i * self.col_stride] = value[i]
 
     # ===--------------------------------------------------------------------===#
-    # Region assignment
+    # Region writes
     # ===--------------------------------------------------------------------===#
 
-    # Spelled as named methods rather than `__setitem__`: Mojo 1.0 routes
+    # Every write is spelled `set`, and which one runs is decided by the
+    # arguments: a `Self.ElementType` fills, a `MatrixView` copies. There is no
+    # ambiguity to worry about, because nothing in the library converts a
+    # scalar to a matrix, and a `Matrix` source is accepted through the
+    # implicit `Matrix` -> `MatrixView` conversion.
+    #
+    # These are named methods rather than `__setitem__`: Mojo 1.0 routes
     # `a[i:j, k:l] = rhs` through `__getitem__`, which would force `rhs` to be
-    # a view with this matrix's own origin. See `routines/mutation.mojo`.
-    def fill(mut self, value: Self.ElementType):
+    # a view carrying this matrix's own origin. See `routines/mutation.mojo`.
+    #
+    # Each one delegates to `routines.mutation` rather than looping over
+    # `self.data` itself. Writing the loop twice is what let the two copies
+    # drift: the version that lived here used `Slice.indices()` and agreed with
+    # Python on `m.set(3:1, ..)`, while the view constructor computed a
+    # negative extent for the same slice. One loop cannot disagree with itself.
+    #
+    # The whole-matrix scalar write is the one exception, and it does not
+    # duplicate anything: a `Matrix` owns exactly `nrows * ncols` elements at
+    # offset zero, so every slot in `data` belongs to it under either layout.
+    # That makes the write a flat walk of the buffer with no index arithmetic,
+    # no bounds to check and nothing to raise - both simpler and faster than
+    # the strided region path it would otherwise borrow.
+    def set(mut self, value: Self.ElementType):
         """Writes one scalar into every element of the matrix.
 
         Args:
             value: The scalar written to every element.
         """
-        for i in range(self.nrows):
-            for j in range(self.ncols):
-                self.data[
-                    get_offset(i, j, self.row_stride, self.col_stride)
-                ] = value
+        for i in range(len(self.data)):
+            self.data[i] = value
 
-    def fill(
-        mut self, rows: Slice, cols: Slice, value: Self.ElementType
-    ) raises:
+    def set(mut self, rows: Slice, cols: Slice, value: Self.ElementType) raises:
         """Writes one scalar into every element of the selected region.
 
         Args:
-            rows: The rows to fill.
-            cols: The columns to fill.
+            rows: The rows to write to.
+            cols: The columns to write to.
             value: The scalar written to every selected element.
         """
-        var start_row, end_row, step_row = rows.indices(self.nrows)
-        var start_col, end_col, step_col = cols.indices(self.ncols)
-        for i in range(start_row, end_row, step_row):
-            for j in range(start_col, end_col, step_col):
-                self.data[
-                    get_offset(i, j, self.row_stride, self.col_stride)
-                ] = value
+        var target = mutation.view_mut(self, rows, cols)
+        mutation.fill(
+            target, Slice(0, target.nrows), Slice(0, target.ncols), value
+        )
 
-    def assign[
+    def set[
+        mut_b: Bool, //, origin_b: Origin[mut=mut_b]
+    ](mut self, src: MatrixView[Self.dtype, origin_b]) raises:
+        """Copies `src` into the whole matrix.
+
+        Parameters:
+            mut_b: Whether the source view is mutable.
+            origin_b: The origin of the source view.
+
+        Args:
+            src: The source, which must match this matrix's shape exactly.
+
+        Raises:
+            ValueError: If the shapes do not match.
+        """
+        self.set(Slice(0, self.nrows), Slice(0, self.ncols), src)
+
+    def set[
         mut_b: Bool, //, origin_b: Origin[mut=mut_b]
     ](
         mut self,
@@ -496,33 +524,63 @@ struct Matrix[dtype: DType](Copyable, MatrixLike, Movable, Sized, Writable):
     ) raises:
         """Copies `src` into the region selected by `rows` and `cols`.
 
+        Parameters:
+            mut_b: Whether the source view is mutable.
+            origin_b: The origin of the source view.
+
         Args:
-            rows: The rows to assign into.
-            cols: The columns to assign into.
+            rows: The rows to write to.
+            cols: The columns to write to.
             src: The source, which must match the target shape exactly.
 
         Raises:
             ValueError: If the shapes do not match.
         """
-        var start_row, end_row, step_row = rows.indices(self.nrows)
-        var start_col, end_col, step_col = cols.indices(self.ncols)
-        var target_nrows = builtin_math.ceildiv(end_row - start_row, step_row)
-        var target_ncols = builtin_math.ceildiv(end_col - start_col, step_col)
-        if target_nrows != src.nrows or target_ncols != src.ncols:
-            raise ValueError(
-                function="Matrix.assign(mut self, rows, cols, src)",
-                message="Shape mismatch in region assignment.",
-            )
-        for i in range(target_nrows):
-            for j in range(target_ncols):
-                self.data[
-                    get_offset(
-                        start_row + i * step_row,
-                        start_col + j * step_col,
-                        self.row_stride,
-                        self.col_stride,
-                    )
-                ] = src[i, j]
+        var target = mutation.view_mut(self, rows, cols)
+        mutation.assign(
+            target, Slice(0, target.nrows), Slice(0, target.ncols), src
+        )
+
+    def set(mut self, row: Int, col: Int, value: Self.ElementType) raises:
+        """Writes one element.
+
+        `m[row, col] = value` does the same thing through the reference from
+        `__getitem__`; this overload exists so that every write can be spelled
+        the same way.
+
+        Args:
+            row: The row index.
+            col: The column index.
+            value: The value to write.
+
+        Raises:
+            IndexError: If the indices are out of bounds.
+        """
+        self[row, col] = value
+
+    def view_mut(
+        ref self, x: Slice, y: Slice
+    ) raises -> MatrixView[Self.dtype, origin_of(self.data)]:
+        """Gets a writable view of a region of this matrix.
+
+        The counterpart of `m[x, y]`, which is always read-only. The view
+        inherits the mutability of the receiver, so it is writable when bound
+        to a `var` and read-only otherwise - including when the receiver is a
+        temporary, where the result is read-only and passing it to `fill`,
+        `store` or `assign` fails to compile.
+
+        A mutable view is an exclusive borrow, so it cannot appear twice in one
+        expression. Use `MatrixView.as_imm()` to demote it when it has to be
+        combined with another view of the same matrix.
+
+        Args:
+            x: The rows to include.
+            y: The columns to include.
+
+        Returns:
+            A view of the region, writable exactly when the receiver is.
+        """
+        return mutation.view_mut(self, x, y)
 
     # ===--------------------------------------------------------------------===#
     # Type conversion

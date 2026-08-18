@@ -367,7 +367,7 @@ def test_astype_of_a_strided_view_is_dense() raises:
 
 def test_fill_whole_matrix() raises:
     var m = _m()
-    m.fill(7.0)
+    m.set(7.0)
     for i in range(2):
         for j in range(3):
             testing.assert_equal(m[i, j], 7.0)
@@ -375,7 +375,7 @@ def test_fill_whole_matrix() raises:
 
 def test_fill_whole_matrix_respects_strides() raises:
     var m = contiguous(_m(), "F")
-    m.fill(-1.0)
+    m.set(-1.0)
     testing.assert_true(m.is_f_contiguous())
     for i in range(2):
         for j in range(3):
@@ -384,7 +384,7 @@ def test_fill_whole_matrix_respects_strides() raises:
 
 def test_fill_region_still_works() raises:
     var m = _m()
-    m.fill(Slice(0, 1), Slice(0, 3), 0.0)
+    m.set(Slice(0, 1), Slice(0, 3), 0.0)
     testing.assert_equal(m[0, 0], 0.0)
     testing.assert_equal(m[0, 2], 0.0)
     testing.assert_equal(m[1, 0], 4.0)

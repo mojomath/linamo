@@ -27,6 +27,8 @@ manual is the prose half: the shape of the API, not an enumeration of it.
     - [Two things that are deliberately absent](#two-things-that-are-deliberately-absent)
     - [Why views are read-only](#why-views-are-read-only)
   - [Creating matrices](#creating-matrices)
+    - [Ranges, shapes copied from another matrix, and random values](#ranges-shapes-copied-from-another-matrix-and-random-values)
+    - [Parsing a matrix from text](#parsing-a-matrix-from-text)
   - [Indexing and slicing](#indexing-and-slicing)
   - [Copying and assignment](#copying-and-assignment)
   - [Operators](#operators)
@@ -204,7 +206,7 @@ you want to name the view, or to be explicit about where the borrow starts.
 
 A view's own mutability is carried in its type, as the `mut` field of its
 `origin` parameter - not as a runtime flag. A view is mutable only if it came
-from `linamo.routines.mutation`.
+from a spelling with `_mut` in its name.
 
 Same layout as above, with `v` the view on the left of the expression:
 
@@ -218,26 +220,35 @@ Same layout as above, with `v` the view on the left of the expression:
 
 Every *fixed* row is one-way: nothing turns a read-only view back into a
 mutable one. The *inherits* rows on a view are harmless precisely because a
-mutable view can only have come from the mutation module in the first place.
+mutable view can only have come from a `_mut` spelling in the first place.
 
 ### Writing
 
-| You want to          | Write                                        |
-| -------------------- | -------------------------------------------- |
-| write one element    | `m[i, j] = x`                                |
-| write a region       | `assign(view_mut(m, x, y), rows, cols, src)` |
-| fill a region        | `fill(view_mut(m, x, y), rows, cols, value)` |
-| write rows in a loop | `for row in rows_mut(m): ...`                |
-| get a writable view  | `view_mut(m, x, y)`                          |
+| You want to                | On a `Matrix`              | On a writable `MatrixView`   |
+| -------------------------- | -------------------------- | ---------------------------- |
+| write one element          | `m[i, j] = x`              | `v[i, j] = x`                |
+| write the whole thing      | `m.set(value)`             | `fill(v, value)`             |
+| copy another matrix in     | `m.set(src)`               | `assign(v, src)`             |
+| fill a region              | `m.set(rows, cols, value)` | `fill(v, rows, cols, value)` |
+| copy a block into a region | `m.set(rows, cols, src)`   | `assign(v, rows, cols, src)` |
+| write rows in a loop       | `for row in rows_mut(m)`   | -                            |
+| get a writable view        | `m.view_mut(x, y)`         | `view_mut(v, x, y)`          |
 
-All of these except the first come from `linamo.routines.mutation`. A caller
-who never imports that module cannot construct a mutable view at all.
+Every write on an owned matrix is spelled `set`; which one runs is decided by
+what you pass. A `Self.ElementType` fills, a `Matrix` or `MatrixView` copies.
+Nothing in the library converts a scalar to a matrix, so there is no ambiguity
+to keep track of.
+
+The right-hand column, and `rows_mut`, come from `linamo.routines.mutation`.
+`Matrix.view_mut` is a method, so a writable view of an owned matrix needs no
+import. Every spelling that produces a mutable view carries `_mut` in its name;
+nothing else in the library grants write access.
 
 ### Which conversions exist
 
 | From \ To              | `Matrix`        | `MatrixView` read-only | `MatrixView` mutable | element ref read-only | element ref mutable |
 | ---------------------- | --------------- | ---------------------- | -------------------- | --------------------- | ------------------- |
-| `var Matrix`           | `m.copy()`      | `m[a:b, c:d]`          | `view_mut(m, x, y)`  | -                     | `m[i, j]`           |
+| `var Matrix`           | `m.copy()`      | `m[a:b, c:d]`          | `m.view_mut(x, y)`   | -                     | `m[i, j]`           |
 | read-only `Matrix`     | `m.copy()`      | `m.view()`             | **impossible**       | `m[i, j]`             | **impossible**      |
 | read-only `MatrixView` | `v.to_matrix()` | `v[a:b, c:d]`          | **impossible**       | `v[i, j]`             | **impossible**      |
 | mutable `MatrixView`   | `v.to_matrix()` | `v.as_imm()`           | `view_mut(v, x, y)`  | `v.as_imm()[i, j]`    | `v[i, j]`           |
@@ -250,18 +261,20 @@ The audit is mechanical. A method can only hand back the caller's mutability by
 taking `ref self`, so:
 
 ```console
-$ grep -rn "ref self" src/linamo/types/
-src/linamo/types/matrix.mojo:208:        ref self, row: Int, col: Int
+$ grep -rn "ref self," src/linamo/types/
+src/linamo/types/matrix.mojo:209:        ref self, row: Int, col: Int
+src/linamo/types/matrix.mojo:562:        ref self, x: Slice, y: Slice
 ```
 
-One line, element access. Anything else appearing there is a hole.
+Two lines: element access, and `view_mut`. Both are named in the tables above.
+Anything else appearing there is a hole.
 
 ### Two things that are deliberately absent
 
 `m[a:b, c:d] = src` is not available. Defining `__setitem__` on `Matrix` makes
 the compiler pass `self` to `__getitem__` as a temporary copy in some
 positions, so a sliced view ends up carrying the origin of a dead temporary and
-`a[0:1, :] - a[1:2, :]` stops compiling. Region assignment is `assign(...)`.
+`a[0:1, :] - a[1:2, :]` stops compiling. Region assignment is `m.set(...)`.
 
 `m.view_mut(a:b, c:d)` is not available either: `a:b` is subscript syntax, not
 expression syntax, so no plain call can accept it. Pass `Slice(a, b)`.
@@ -560,21 +573,23 @@ in general - no runtime flag, no defensive copy.
 
 ## Mutating a matrix
 
-Single elements are written through indexing, and an owned matrix has `fill`,
-`assign` and `store` as ordinary methods:
+An owned matrix has one write method, `set`, plus `store` for a SIMD run.
+Single elements can also be written through indexing:
 
 ```mojo
 var A = la.zeros[DType.float64](3, 3)
 
-A[0, 0] = 1.0                              # one element
-A.fill(2.0)                                # the whole matrix
-A.fill(Slice(0, 2), Slice(0, 2), 9.0)      # a region
-A.assign(Slice(0, 1), Slice(0, 3), src)    # a block copied in
+A[0, 0] = 1.0                              # one element, by subscript
+A.set(0, 0, 1.0)                           # one element, by name
+A.set(2.0)                                 # every element
+A.set(src)                                 # a whole matrix copied in
+A.set(Slice(0, 2), Slice(0, 2), 9.0)       # a region
+A.set(Slice(0, 1), Slice(0, 3), src)       # a block copied into a region
 A.store[2](0, 0, SIMD[DType.float64, 2](1.0))  # a SIMD run along a row
 ```
 
-Everything beyond that goes through `linamo.routines.mutation`, which is the
-only place a writable `MatrixView` can come from:
+Everything beyond that goes through `linamo.routines.mutation`, the only
+module that writes through a `MatrixView`:
 
 ```mojo
 from linamo.routines.mutation import (
@@ -583,8 +598,9 @@ from linamo.routines.mutation import (
 
 var B = la.zeros[DType.float64](4, 4)
 
-var v = view_mut(B, Slice(0, 2), Slice(0, 2))   # writable 2 x 2 view
-fill(v, Slice(0, 2), Slice(0, 2), 5.0)
+var v = B.view_mut(Slice(0, 2), Slice(0, 2))    # writable 2 x 2 view
+fill(v, 5.0)                                    # the whole view
+fill(v, Slice(0, 1), Slice(0, 2), 5.0)          # a region of it
 assign(v, Slice(0, 1), Slice(0, 2), src.view())
 store[2](v, 0, 0, SIMD[DType.float64, 2](7.0))
 
@@ -598,9 +614,10 @@ Three things follow from the signatures, and are worth stating plainly:
 and the sub-view form of `view_mut` are pinned to `Origin[mut=True]`, so the
 mistake is caught at the call site, in the compiler, not at run time.
 
-**`view_mut(m, ...)` inherits the mutability of `m`.** It is writable when `m`
-is a `var`, read-only otherwise. This is the one function that grants write
-access, and it is why the module import is the boundary.
+**`view_mut` inherits the mutability of its source.** `m.view_mut(...)` is
+writable when `m` is a `var` and read-only otherwise - including when `m` is a
+temporary, so a view can never outlive what it points at. Mutability is only
+ever inherited, never manufactured.
 
 **A mutable view is an exclusive borrow.** It cannot appear twice in one
 expression, and nothing else may read the matrix while it is alive. Demote it
@@ -879,16 +896,24 @@ even be defined. Bulk writes on views are therefore free functions in
 `routines/mutation.mojo`, pinned to a mutable origin:
 
 - `store[width](view, row, col, value)` - write a SIMD run.
+- `fill(view, value)` - write one scalar across the whole view.
 - `fill(view, rows, cols, value)` - write one scalar across a region.
+- `assign(view, src)` - copy a block over the whole view.
 - `assign(view, rows, cols, src)` - copy a block into a region.
+
+The whole-view and region forms mirror `Matrix.set`, and `fill(view, value)` is
+non-raising for the same reason `m.set(value)` is: it visits every index of the
+view and none of them can be out of range.
 
 Passing a read-only view to any of them fails to compile at the call site,
 which is the guarantee we wanted. Single-element writes need none of this:
 `v[i, j] = x` writes through the reference returned by `__getitem__`, where the
 caller's origin is already concrete.
 
-`Matrix` carries `fill` and `assign` as methods too, for the common case where
-you are working with an owned matrix directly.
+`Matrix` needs none of that, so it carries a single `set` method instead,
+overloaded on its arguments. `set` delegates to the functions above rather than
+looping over `self.data` itself, so each write has exactly one implementation
+in the library.
 
 Note that region assignment is spelled as a named method rather than
 `m[a:b, c:d] = src`. Mojo routes slice-assignment through `__getitem__`, which
@@ -936,14 +961,16 @@ The file and line are captured at the raise site, and the absolute path is
 shortened to a `./`-relative one so a traceback does not leak the build
 machine's directory layout.
 
-| Constructor         | Raised when                                                                                                          |
-| ------------------- | -------------------------------------------------------------------------------------------------------------------- |
-| `ValueError`        | shapes disagree, an axis is not 0 or 1, an `order` is not `"C"`/`"F"`, a matrix is singular or not positive definite |
-| `IndexError`        | an index or a SIMD run leaves the matrix                                                                             |
-| `ZeroDivisionError` | division by zero where it is detectable                                                                              |
-| `ConversionError`   | a value cannot be converted to the requested type                                                                    |
-| `OverflowError`     | an operation overflows its element type                                                                              |
-| `KeyError`          | a lookup fails                                                                                                       |
+| Constructor         | Raised when                                       |
+| ------------------- | ------------------------------------------------- |
+| `ValueError`        | shapes disagree, an axis is not 0 or 1,           |
+|                     | an `order` is not `"C"`/`"F"`,                    |
+|                     | a matrix is singular or not positive definite     |
+| `IndexError`        | an index or a SIMD run leaves the matrix          |
+| `ZeroDivisionError` | division by zero where it is detectable           |
+| `ConversionError`   | a value cannot be converted to the requested type |
+| `OverflowError`     | an operation overflows its element type           |
+| `KeyError`          | a lookup fails                                    |
 
 These are constructor *functions* returning a plain `Error`, not distinct
 types, so catching is `except e:` and inspection is on the message. Mojo has no

@@ -181,8 +181,14 @@ struct MatrixView[mut: Bool, //, dtype: DType, origin: Origin[mut=mut]](
             + start_x * initial_row_stride
             + start_y * initial_col_stride
         )
-        self.nrows = builtin_math.ceildiv(end_x - start_x, step_x)
-        self.ncols = builtin_math.ceildiv(end_y - start_y, step_y)
+        # `ceildiv` alone goes negative when the slice selects nothing - the
+        # `3:1` and `1:4:-1` forms both give a negative count - and a view with
+        # `nrows = -2` reports `len(v) == -2` and silently disagrees with every
+        # loop written as `range(start, end, step)`. Python calls these empty,
+        # so clamp. Genuine negative steps are untouched: `4:0:-1` is
+        # `ceildiv(-4, -1) == 4`.
+        self.nrows = max(0, builtin_math.ceildiv(end_x - start_x, step_x))
+        self.ncols = max(0, builtin_math.ceildiv(end_y - start_y, step_y))
         self.row_stride = initial_row_stride * step_x
         self.col_stride = initial_col_stride * step_y
 

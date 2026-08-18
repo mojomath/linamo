@@ -137,12 +137,12 @@ def test_view_store_contiguous_and_strided() raises:
     testing.assert_equal(mat[1, 2], 6.0)
 
 
-def test_fill_region() raises:
-    """`fill` writes one scalar across the selected region only."""
+def test_set_region_scalar() raises:
+    """`set` writes one scalar across the selected region only."""
     var mat = la.matrix[DType.float64](
         [[1.0, 2.0, 3.0], [4.0, 5.0, 6.0], [7.0, 8.0, 9.0]]
     )
-    mat.fill(Slice(0, 2), Slice(1, 3), Float64(0.0))
+    mat.set(Slice(0, 2), Slice(1, 3), Float64(0.0))
     testing.assert_equal(mat[0, 1], 0.0)
     testing.assert_equal(mat[1, 2], 0.0)
     # Outside the region is untouched.
@@ -164,13 +164,48 @@ def test_fill_region_through_view() raises:
     testing.assert_equal(mat[1, 0], 3.0)
 
 
-def test_assign_region() raises:
-    """`assign` copies a source block into the selected region."""
+def whole_view_fill_needs_no_try[
+    o: Origin[mut=True], //
+](v: la.MatrixView[DType.float64, o]):
+    """`fill(v, value)` is callable from a non-raising context.
+
+    This `def` carries no `raises`, so it would not compile if the whole-view
+    scalar write could fail. That is the assertion; the body is incidental.
+    """
+    fill(v, 5.0)
+
+
+def test_fill_whole_view_does_not_raise() raises:
+    """The whole-view scalar write is total, so it is declared non-raising."""
+    var mat = la.matrix[DType.float64]([[1.0, 2.0], [3.0, 4.0]])
+    whole_view_fill_needs_no_try(mat.view_mut(Slice(0, 1), Slice(0, 2)))
+    testing.assert_equal(mat[0, 0], 5.0)
+    testing.assert_equal(mat[0, 1], 5.0)
+    testing.assert_equal(mat[1, 0], 3.0)
+
+
+def test_fill_whole_view_covers_strided() raises:
+    """The whole-view write visits every element of a strided view."""
+    var mat = la.matrix[DType.float64](
+        [[0.0, 1.0, 0.0, 1.0], [0.0, 1.0, 0.0, 1.0]]
+    )
+    fill(view_mut(mat, Slice(0, 2), Slice(0, 4, 2)), Float64(9.0))
+    testing.assert_equal(mat[0, 0], 9.0)
+    testing.assert_equal(mat[0, 2], 9.0)
+    testing.assert_equal(mat[1, 0], 9.0)
+    testing.assert_equal(mat[1, 2], 9.0)
+    # The columns the view skips are untouched.
+    testing.assert_equal(mat[0, 1], 1.0)
+    testing.assert_equal(mat[1, 3], 1.0)
+
+
+def test_set_region_source() raises:
+    """`set` copies a source block into the selected region."""
     var mat = la.matrix[DType.float64](
         [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0]]
     )
     var src = la.matrix[DType.float64]([[1.0, 2.0], [3.0, 4.0]])
-    mat.assign(Slice(1, 3), Slice(0, 2), src.view())
+    mat.set(Slice(1, 3), Slice(0, 2), src.view())
     testing.assert_equal(mat[1, 0], 1.0)
     testing.assert_equal(mat[1, 1], 2.0)
     testing.assert_equal(mat[2, 0], 3.0)
@@ -178,12 +213,12 @@ def test_assign_region() raises:
     testing.assert_equal(mat[0, 0], 0.0)
 
 
-def test_assign_shape_mismatch_raises() raises:
+def test_set_shape_mismatch_raises() raises:
     """A mismatched source shape is rejected."""
     var mat = la.matrix[DType.float64]([[0.0, 0.0], [0.0, 0.0]])
     var src = la.matrix[DType.float64]([[1.0, 2.0, 3.0]])
     with testing.assert_raises():
-        mat.assign(Slice(0, 1), Slice(0, 2), src.view())
+        mat.set(Slice(0, 1), Slice(0, 2), src.view())
 
 
 def test_assign_into_view() raises:
@@ -199,6 +234,26 @@ def test_assign_into_view() raises:
     testing.assert_equal(mat[0, 1], 5.0)
     testing.assert_equal(mat[0, 2], 6.0)
     testing.assert_equal(mat[0, 0], 0.0)
+
+
+def test_assign_whole_view() raises:
+    """`assign(v, src)` copies into every element of the view."""
+    var mat = la.matrix[DType.float64]([[0.0, 0.0, 0.0], [0.0, 0.0, 0.0]])
+    var src = la.matrix[DType.float64]([[1.0, 2.0], [3.0, 4.0]])
+    assign(view_mut(mat, Slice(0, 2), Slice(1, 3)), src)
+    testing.assert_equal(mat[0, 1], 1.0)
+    testing.assert_equal(mat[0, 2], 2.0)
+    testing.assert_equal(mat[1, 1], 3.0)
+    testing.assert_equal(mat[1, 2], 4.0)
+    testing.assert_equal(mat[0, 0], 0.0)
+
+
+def test_assign_whole_view_shape_mismatch_raises() raises:
+    """A source that does not match the view's shape is rejected."""
+    var mat = la.matrix[DType.float64]([[0.0, 0.0], [0.0, 0.0]])
+    var src = la.matrix[DType.float64]([[1.0, 2.0, 3.0]])
+    with testing.assert_raises():
+        assign(view_mut(mat, Slice(0, 2), Slice(0, 2)), src)
 
 
 def test_to_matrix_materialises_strided_view() raises:
