@@ -10,6 +10,7 @@ matrices are wholly identical is a separate question (see
 """
 
 from std.algorithm import vectorize
+from std.math import isfinite, isnan
 from std.sys import simd_width_of
 
 from linamo.types.errors import ValueError
@@ -259,6 +260,431 @@ def scalar_not_equal[
 ](mat: MatrixView[dtype, origin], scalar: Scalar[dtype]) -> Matrix[DType.bool]:
     """Element-wise inequality comparison of a matrix view against a scalar."""
     return _scalar_compare_view[func=Scalar[dtype].__ne__](mat, scalar)
+
+
+# ===---------------------------------------------------------------------- ===#
+# Approximate comparison
+# ===---------------------------------------------------------------------- ===#
+# `isclose` answers the question `equal` cannot: whether two floating-point
+# results agree to within a tolerance. `allclose` is that mask reduced with
+# `all`, but it is written as its own walk so that it can stop at the first
+# element that fails rather than allocate one bool per element first.
+
+
+def _isclose_elem[
+    dtype: DType
+](
+    a: Scalar[dtype],
+    b: Scalar[dtype],
+    rtol: Scalar[dtype],
+    atol: Scalar[dtype],
+    equal_nan: Bool,
+) -> Scalar[DType.bool]:
+    """Tests one pair of elements for closeness, following NumPy.
+
+    The tolerance test is `|a - b| <= atol + rtol * |b|`, asymmetric in the
+    operands exactly as NumPy's is: `b` is read as the reference value.
+
+    Non-finite operands never reach that test. Two equal infinities are close
+    and opposite ones are not, which is what `a == b` already says, whereas
+    `inf - inf` is a NaN that compares false against every tolerance. A NaN is
+    close to nothing at all, itself included, unless `equal_nan` is set.
+    """
+    var a_nan = Bool(isnan(a))
+    var b_nan = Bool(isnan(b))
+    if a_nan or b_nan:
+        return Scalar[DType.bool](equal_nan and a_nan and b_nan)
+    if not Bool(isfinite(a)) or not Bool(isfinite(b)):
+        return a == b
+    return abs(a - b) <= atol + rtol * abs(b)
+
+
+def _isclose_view[
+    dtype: DType, origin_a: Origin, origin_b: Origin
+](
+    a: MatrixView[dtype, origin_a],
+    b: MatrixView[dtype, origin_b],
+    rtol: Scalar[dtype],
+    atol: Scalar[dtype],
+    equal_nan: Bool,
+) raises -> Matrix[DType.bool]:
+    """Core element-wise closeness test of two MatrixView operands.
+
+    Laid out like `_compare_view`: a SIMD-vectorised fast path when both
+    operands are C-contiguous, a stride-aware double loop otherwise. The
+    tolerances are runtime arguments rather than a compile-time kernel, which
+    is the one reason this cannot go through `_compare_view` itself.
+
+    The result is always a freshly allocated, C-contiguous `Matrix[bool]`.
+    """
+    if a.nrows() != b.nrows() or a.ncols() != b.ncols():
+        raise ValueError(
+            function="_isclose_view()",
+            message="Input matrices must have the same shape.",
+        )
+    var M = a.nrows()
+    var N = a.ncols()
+    var total = M * N
+    var result = Matrix[DType.bool](M, N, N, 1)
+
+    if a.is_c_contiguous() and b.is_c_contiguous():
+        comptime simd_w = simd_width_of[dtype]()
+        var a_ptr = a._data.unsafe_ptr()
+        var b_ptr = b._data.unsafe_ptr()
+        var a_off = a.offset()
+        var b_off = b.offset()
+
+        def vec_close[
+            w: Int
+        ](idx: Int) {
+            mut result,
+            imm a_ptr,
+            imm b_ptr,
+            imm a_off,
+            imm b_off,
+            imm rtol,
+            imm atol,
+            imm equal_nan,
+        }:
+            var a_chunk = a_ptr.unsafe_load[width=w](a_off + idx)
+            var b_chunk = b_ptr.unsafe_load[width=w](b_off + idx)
+            var res = SIMD[DType.bool, w](fill=False)
+
+            comptime for lane in range(w):
+                res[lane] = _isclose_elem(
+                    a_chunk[lane], b_chunk[lane], rtol, atol, equal_nan
+                )
+            result._data._data.unsafe_store[width=w](idx, res)
+
+        vectorize[simd_w](total, vec_close)
+    else:
+        for i in range(M):
+            for j in range(N):
+                result._data[i * N + j] = _isclose_elem(
+                    a[i, j], b[i, j], rtol, atol, equal_nan
+                )
+
+    return result^
+
+
+def _scalar_isclose_view[
+    dtype: DType, origin: Origin
+](
+    mat: MatrixView[dtype, origin],
+    scalar: Scalar[dtype],
+    rtol: Scalar[dtype],
+    atol: Scalar[dtype],
+    equal_nan: Bool,
+) -> Matrix[DType.bool]:
+    """Core element-wise closeness test of a MatrixView against a scalar.
+
+    The scalar is the reference operand, so the test is
+    `|m[i, j] - scalar| <= atol + rtol * |scalar|`.
+
+    The result is always a freshly allocated, C-contiguous `Matrix[bool]`.
+    """
+    var M = mat.nrows()
+    var N = mat.ncols()
+    var total = M * N
+    var result = Matrix[DType.bool](M, N, N, 1)
+
+    if mat.is_c_contiguous():
+        comptime simd_w = simd_width_of[dtype]()
+        var m_ptr = mat._data.unsafe_ptr()
+        var m_off = mat.offset()
+
+        def vec_close[
+            w: Int
+        ](idx: Int) {
+            mut result,
+            imm m_ptr,
+            imm m_off,
+            imm scalar,
+            imm rtol,
+            imm atol,
+            imm equal_nan,
+        }:
+            var m_chunk = m_ptr.unsafe_load[width=w](m_off + idx)
+            var res = SIMD[DType.bool, w](fill=False)
+
+            comptime for lane in range(w):
+                res[lane] = _isclose_elem(
+                    m_chunk[lane], scalar, rtol, atol, equal_nan
+                )
+            result._data._data.unsafe_store[width=w](idx, res)
+
+        vectorize[simd_w](total, vec_close)
+    else:
+        for i in range(M):
+            for j in range(N):
+                result._data[i * N + j] = _isclose_elem(
+                    mat[i, j], scalar, rtol, atol, equal_nan
+                )
+
+    return result^
+
+
+def isclose[
+    dtype: DType, origin_a: Origin, origin_b: Origin
+](
+    a: MatrixView[dtype, origin_a],
+    b: MatrixView[dtype, origin_b],
+    rtol: Scalar[dtype] = 1e-5,
+    atol: Scalar[dtype] = 1e-8,
+    equal_nan: Bool = False,
+) raises -> Matrix[DType.bool]:
+    """Returns an element-wise mask of `|a - b| <= atol + rtol * |b|`.
+
+    Parameters:
+        dtype: The data type of the matrix elements. Must be floating-point.
+        origin_a: The origin of the first operand.
+        origin_b: The origin of the second operand.
+
+    Args:
+        a: The first matrix or view.
+        b: The second matrix or view, read as the reference operand.
+        rtol: The relative tolerance, as a fraction of `|b|`.
+        atol: The absolute tolerance, which is what decides the comparison
+            when `b` is at or near zero.
+        equal_nan: Whether a NaN counts as close to a NaN.
+
+    Returns:
+        A boolean matrix of the same shape.
+
+    Raises:
+        ValueError: If the two operands have different shapes.
+    """
+    comptime assert dtype.is_floating_point(), (
+        "isclose and allclose require a floating-point dtype: integers are"
+        " exact, so `equal` is the comparison for them"
+    )
+    return _isclose_view(a, b, rtol, atol, equal_nan)
+
+
+def scalar_isclose[
+    dtype: DType, origin: Origin
+](
+    mat: MatrixView[dtype, origin],
+    scalar: Scalar[dtype],
+    rtol: Scalar[dtype] = 1e-5,
+    atol: Scalar[dtype] = 1e-8,
+    equal_nan: Bool = False,
+) -> Matrix[DType.bool]:
+    """Returns an element-wise mask of closeness to a single value.
+
+    Parameters:
+        dtype: The data type of the matrix elements. Must be floating-point.
+        origin: The origin of the operand.
+
+    Args:
+        mat: The matrix or view to test.
+        scalar: The reference value.
+        rtol: The relative tolerance, as a fraction of `|scalar|`.
+        atol: The absolute tolerance, which is what decides the comparison
+            when `scalar` is zero.
+        equal_nan: Whether a NaN element counts as close to a NaN reference.
+
+    Returns:
+        A boolean matrix of the same shape as `mat`.
+    """
+    comptime assert dtype.is_floating_point(), (
+        "isclose and allclose require a floating-point dtype: integers are"
+        " exact, so `equal` is the comparison for them"
+    )
+    return _scalar_isclose_view(mat, scalar, rtol, atol, equal_nan)
+
+
+def allclose[
+    dtype: DType, origin_a: Origin, origin_b: Origin
+](
+    a: MatrixView[dtype, origin_a],
+    b: MatrixView[dtype, origin_b],
+    rtol: Scalar[dtype] = 1e-5,
+    atol: Scalar[dtype] = 1e-8,
+    equal_nan: Bool = False,
+) raises -> Bool:
+    """Returns True if every pair of elements is close.
+
+    True for an empty operand, as in NumPy: there is no element that fails.
+
+    Parameters:
+        dtype: The data type of the matrix elements. Must be floating-point.
+        origin_a: The origin of the first operand.
+        origin_b: The origin of the second operand.
+
+    Args:
+        a: The first matrix or view.
+        b: The second matrix or view, read as the reference operand.
+        rtol: The relative tolerance, as a fraction of `|b|`.
+        atol: The absolute tolerance.
+        equal_nan: Whether a NaN counts as close to a NaN.
+
+    Returns:
+        True if no pair of elements falls outside the tolerance.
+
+    Raises:
+        ValueError: If the two operands have different shapes.
+    """
+    comptime assert dtype.is_floating_point(), (
+        "isclose and allclose require a floating-point dtype: integers are"
+        " exact, so `equal` is the comparison for them"
+    )
+    if a.nrows() != b.nrows() or a.ncols() != b.ncols():
+        raise ValueError(
+            function="allclose()",
+            message="Input matrices must have the same shape.",
+        )
+    for i in range(a.nrows()):
+        for j in range(a.ncols()):
+            if not _isclose_elem(a[i, j], b[i, j], rtol, atol, equal_nan):
+                return False
+    return True
+
+
+def scalar_allclose[
+    dtype: DType, origin: Origin
+](
+    mat: MatrixView[dtype, origin],
+    scalar: Scalar[dtype],
+    rtol: Scalar[dtype] = 1e-5,
+    atol: Scalar[dtype] = 1e-8,
+    equal_nan: Bool = False,
+) -> Bool:
+    """Returns True if every element is close to a single value.
+
+    True for an empty operand, as in NumPy.
+
+    Parameters:
+        dtype: The data type of the matrix elements. Must be floating-point.
+        origin: The origin of the operand.
+
+    Args:
+        mat: The matrix or view to test.
+        scalar: The reference value.
+        rtol: The relative tolerance, as a fraction of `|scalar|`.
+        atol: The absolute tolerance.
+        equal_nan: Whether a NaN element counts as close to a NaN reference.
+
+    Returns:
+        True if no element falls outside the tolerance.
+    """
+    comptime assert dtype.is_floating_point(), (
+        "isclose and allclose require a floating-point dtype: integers are"
+        " exact, so `equal` is the comparison for them"
+    )
+    for i in range(mat.nrows()):
+        for j in range(mat.ncols()):
+            if not _isclose_elem(mat[i, j], scalar, rtol, atol, equal_nan):
+                return False
+    return True
+
+
+# ===---------------------------------------------------------------------- ===#
+# Logical connectives
+# ===---------------------------------------------------------------------- ===#
+# These are the element-wise connectives, not the bitwise ones: an operand of
+# any dtype is read for truthiness first, so `logical_and` on two float
+# matrices asks whether both entries are non-zero, and on two masks it is the
+# ordinary conjunction. That is NumPy's `logical_*` rather than its `&`.
+#
+# Each is a kernel handed to the comparison cores above, so the strided and
+# vectorised paths are the ones the comparisons already use.
+
+
+def _logical_and_elem[
+    dtype: DType
+](a: Scalar[dtype], b: Scalar[dtype]) -> Scalar[DType.bool]:
+    """Conjunction of the truthiness of two elements."""
+    var zero = Scalar[dtype](0)
+    return (a != zero) & (b != zero)
+
+
+def _logical_or_elem[
+    dtype: DType
+](a: Scalar[dtype], b: Scalar[dtype]) -> Scalar[DType.bool]:
+    """Disjunction of the truthiness of two elements."""
+    var zero = Scalar[dtype](0)
+    return (a != zero) | (b != zero)
+
+
+def _logical_xor_elem[
+    dtype: DType
+](a: Scalar[dtype], b: Scalar[dtype]) -> Scalar[DType.bool]:
+    """Exclusive disjunction of the truthiness of two elements."""
+    var zero = Scalar[dtype](0)
+    return (a != zero) ^ (b != zero)
+
+
+def logical_and[
+    dtype: DType, origin_a: Origin, origin_b: Origin
+](
+    a: MatrixView[dtype, origin_a], b: MatrixView[dtype, origin_b]
+) raises -> Matrix[DType.bool]:
+    """Element-wise conjunction: True where both operands are non-zero."""
+    return _compare_view[func=_logical_and_elem[dtype]](a, b)
+
+
+def scalar_logical_and[
+    dtype: DType, origin: Origin
+](mat: MatrixView[dtype, origin], scalar: Scalar[dtype]) -> Matrix[DType.bool]:
+    """Element-wise conjunction of a matrix view with a single value."""
+    return _scalar_compare_view[func=_logical_and_elem[dtype]](mat, scalar)
+
+
+def logical_or[
+    dtype: DType, origin_a: Origin, origin_b: Origin
+](
+    a: MatrixView[dtype, origin_a], b: MatrixView[dtype, origin_b]
+) raises -> Matrix[DType.bool]:
+    """Element-wise disjunction: True where either operand is non-zero."""
+    return _compare_view[func=_logical_or_elem[dtype]](a, b)
+
+
+def scalar_logical_or[
+    dtype: DType, origin: Origin
+](mat: MatrixView[dtype, origin], scalar: Scalar[dtype]) -> Matrix[DType.bool]:
+    """Element-wise disjunction of a matrix view with a single value."""
+    return _scalar_compare_view[func=_logical_or_elem[dtype]](mat, scalar)
+
+
+def logical_xor[
+    dtype: DType, origin_a: Origin, origin_b: Origin
+](
+    a: MatrixView[dtype, origin_a], b: MatrixView[dtype, origin_b]
+) raises -> Matrix[DType.bool]:
+    """Element-wise exclusive disjunction: True where exactly one is non-zero.
+    """
+    return _compare_view[func=_logical_xor_elem[dtype]](a, b)
+
+
+def scalar_logical_xor[
+    dtype: DType, origin: Origin
+](mat: MatrixView[dtype, origin], scalar: Scalar[dtype]) -> Matrix[DType.bool]:
+    """Element-wise exclusive disjunction with a single value."""
+    return _scalar_compare_view[func=_logical_xor_elem[dtype]](mat, scalar)
+
+
+def logical_not[
+    dtype: DType, origin: Origin
+](mat: MatrixView[dtype, origin]) -> Matrix[DType.bool]:
+    """Element-wise negation: True where the operand is zero.
+
+    Negating truthiness is testing against zero, so this is the scalar
+    equality kernel with zero on the right; it needs no kernel of its own.
+
+    Parameters:
+        dtype: The data type of the matrix elements.
+        origin: The origin of the operand.
+
+    Args:
+        mat: The matrix or view to negate.
+
+    Returns:
+        A boolean matrix of the same shape as `mat`.
+    """
+    return _scalar_compare_view[func=Scalar[dtype].__eq__](
+        mat, Scalar[dtype](0)
+    )
 
 
 # ===---------------------------------------------------------------------- ===#
