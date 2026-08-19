@@ -18,7 +18,7 @@ from linamo.types.matrix import Matrix
 from linamo.types.matrix_view import MatrixView
 
 
-def _argextreme[
+def _arg_extreme[
     dtype: DType, origin: Origin[mut=False], //, want_max: Bool
 ](v: MatrixView[dtype, origin]) -> Int:
     """Returns the row-major position of the first extremum in `v`."""
@@ -53,14 +53,14 @@ def _arg_axis[
         var result = Matrix[DType.int64](1, m.ncols(), m.ncols(), 1)
         for j in range(m.ncols()):
             result._data[j] = Int64(
-                _argextreme[want_max=want_max](m[:, j : j + 1])
+                _arg_extreme[want_max=want_max](m[:, j : j + 1])
             )
         return result^
     elif axis == 1:
         var result = Matrix[DType.int64](m.nrows(), 1, 1, 1)
         for i in range(m.nrows()):
             result._data[i] = Int64(
-                _argextreme[want_max=want_max](m[i : i + 1, :])
+                _arg_extreme[want_max=want_max](m[i : i + 1, :])
             )
         return result^
     raise ValueError(
@@ -90,7 +90,7 @@ def argmin[
         raise ValueError(
             function="argmin(m)", message="Cannot search an empty matrix."
         )
-    return _argextreme[want_max=False](m)
+    return _arg_extreme[want_max=False](m)
 
 
 def argmin[
@@ -138,7 +138,7 @@ def argmax[
         raise ValueError(
             function="argmax(m)", message="Cannot search an empty matrix."
         )
-    return _argextreme[want_max=True](m)
+    return _arg_extreme[want_max=True](m)
 
 
 def argmax[

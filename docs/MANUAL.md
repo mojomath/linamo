@@ -45,6 +45,9 @@ manual is the prose half: the shape of the API, not an enumeration of it.
   - [Linear algebra](#linear-algebra)
   - [SIMD access](#simd-access)
   - [NumPy interoperability](#numpy-interoperability)
+  - [NuMojo interoperability](#numojo-interoperability)
+    - [Contiguity is not required](#contiguity-is-not-required)
+    - [The one rule: do not reallocate](#the-one-rule-do-not-reallocate)
   - [Errors](#errors)
   - [StaticMatrix](#staticmatrix)
     - [Crossing over to `Matrix`](#crossing-over-to-matrix)
@@ -969,7 +972,156 @@ not inferred from the array — name it as a parameter, and the conversion raise
 if the array cannot supply it.
 
 There is no `to_ndarray` for NuMojo. NuMojo's own `Matrix` type is gone, and
-reproducing its N-dimensional array here would mean depending on it.
+reproducing its N-dimensional array here would mean depending on it. You do not
+need one to use Linamo on a NuMojo array, though — see
+[NuMojo interoperability](#numojo-interoperability), which borrows the array's
+buffer instead of copying it.
+
+---
+
+## NuMojo interoperability
+
+Linamo does not depend on NuMojo and ships no bridge, but it does not need one.
+`MatrixView` is parametric over its origin and holds nothing but a `Span`, a
+shape, two strides and an offset, so it can view *any* allocation — including
+one NuMojo owns. The two functions below are the entire bridge. Paste them into
+your own project, where both packages are on the import path; they copy nothing
+and are `O(1)`.
+
+```mojo
+import numojo as nm
+from linamo import MatrixView
+
+def as_matrix_view[
+    dtype: DType
+](imm a: nm.NDArray[dtype]) raises -> MatrixView[dtype, origin_of(a)]:
+    """Read-only 2-D view of a NuMojo array. No data is copied."""
+    if a.ndim != 2:
+        raise Error("as_matrix_view: expected a 2-D NDArray")
+    return MatrixView[dtype, origin_of(a)](
+        buffer=Span[Scalar[dtype], origin_of(a)](
+            unsafe_ptr=a._buf.get_ptr()
+            .as_imm()
+            .unsafe_origin_cast[origin_of(a)](),
+            length=len(a._buf),
+        ),
+        nrows=Int(a.shape[0]),
+        ncols=Int(a.shape[1]),
+        row_stride=Int(a.strides[0]),
+        col_stride=Int(a.strides[1]),
+        offset=a.offset,
+    )
+
+def as_matrix_view_mut[
+    dtype: DType
+](mut a: nm.NDArray[dtype]) raises -> MatrixView[dtype, origin_of(a)]:
+    """Writable 2-D view of a NuMojo array. No data is copied."""
+    if a.ndim != 2:
+        raise Error("as_matrix_view_mut: expected a 2-D NDArray")
+    return MatrixView[dtype, origin_of(a)](
+        buffer=Span[Scalar[dtype], origin_of(a)](
+            unsafe_ptr=a._buf.get_ptr().unsafe_origin_cast[origin_of(a)](),
+            length=len(a._buf),
+        ),
+        nrows=Int(a.shape[0]),
+        ncols=Int(a.shape[1]),
+        row_stride=Int(a.strides[0]),
+        col_stride=Int(a.strides[1]),
+        offset=a.offset,
+    )
+```
+
+The two libraries line up field for field, which is why this is so short.
+NuMojo's strides and `offset` are counted in *elements*, exactly as Linamo's
+are, and its buffer pointer is already a `Pointer[Scalar[dtype], ...]` — the one
+thing `Span`'s unsafe constructor asks for.
+
+Use them like any other view:
+
+```mojo
+from linamo import det, inv
+from linamo.routines.mutation import assign
+
+def main() raises:
+    var a = nm.array[nm.f64]("[[4.0, 7.0], [2.0, 6.0]]")
+    var v = as_matrix_view(a)
+
+    print(det(v))          # 10.0
+    print(inv(v))
+    print(v @ v)
+
+    # Send a result back into NuMojo memory without a copy out:
+    var out = nm.zeros[nm.f64](nm.Shape(2, 2))
+    var ov = as_matrix_view_mut(out)
+    assign(ov, v @ v)
+```
+
+Reach for `as_matrix_view` by default and `as_matrix_view_mut` only to write.
+That is not merely stylistic: around thirty routines — `sum`, `cumsum`, the
+`logic` predicates, the searches and sorts — bind their operand as
+`Origin[mut=False]` and will not accept a writable view at all. A mutable view
+reaches them through `.as_imm()`, but taking the read-only overload up front is
+simpler.
+
+### Contiguity is not required
+
+A NuMojo array does **not** have to be contiguous. Every Linamo kernel is
+stride-aware, and the `is_c_contiguous` / `is_row_contiguous` tests scattered
+through `math`, `logic` and `manipulation` select a faster path rather than
+gate a correct one — `matmul` alone has four, the last of which is a general
+stride-aware loop that any layout lands on. A view with `row_stride = 8` and
+`col_stride = 2` gives the same answers as the densified copy of itself.
+
+Layout is therefore a performance question, and the answer usually favours
+densifying. Multiplying two 256×256 views carved column-wise out of a wider
+buffer:
+
+| Path                                     | Time     |
+| ---------------------------------------- | -------- |
+| `matmul` on the strided views directly   | ~2800 µs |
+| `contiguous()` on both operands          | ~260 µs  |
+| `matmul` on the densified copies         | ~1100 µs |
+
+The copy costs about a quarter of one dense multiply and removes about 1700 µs
+from it, so it repays itself before the first operation finishes. Call
+`contiguous()` once when a non-contiguous array is about to see real work, and
+skip it for a one-off `det` or `sum`.
+
+### The one rule: do not reallocate
+
+While a view is alive, the array it borrows from must keep the same buffer.
+Changing the *values* is fine — that is what `as_matrix_view_mut` is for, and
+NuMojo and Linamo will simply see each other's writes. What must not happen is
+anything that frees or moves the allocation: `resize()` above all, but equally
+letting the array go out of scope or moving out of it with `^`.
+
+Mojo catches some of this. Because the view carries `origin_of(a)` rather than
+an untracked origin, moving the array out from under a live view is a compile
+error:
+
+```console
+error: use of uninitialized value 'a'
+```
+
+But it does not catch all of it, and the gap is quiet:
+
+```mojo
+var out = nm.zeros[nm.f64](nm.Shape(2, 2))
+var ov = as_matrix_view_mut(out)
+out.resize(nm.Shape(4, 4))    # reallocates; `ov` now points at freed memory
+assign(ov, matmul(v, v))      # writes into the freed block — silently lost
+```
+
+This compiles, runs, prints no warning, and `out` ends up all zeros. An origin
+tracks the array *handle*, not the heap block behind it, so a reallocation slips
+underneath it. The same hole exists for `Matrix` and is described in
+[Appendix A](#appendix-a-how-it-works-inside); Linamo's own code avoids it by
+never growing a buffer that a view might be borrowing, and code using this
+bridge has to make the same promise by hand.
+
+The narrow rule, then: **treat the NuMojo array as frozen in shape for as long
+as the view lives.** Read it, write through it, but do not resize it, and let
+the view die before the array does.
 
 ---
 

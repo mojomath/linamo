@@ -257,7 +257,7 @@ struct MatrixView[mut: Bool, //, dtype: DType, origin: Origin[mut=mut]](
             offset=self._offset,
         )
 
-    def get_unsafe(self, row: Int, col: Int) -> Scalar[Self.dtype]:
+    def unsafe_get(self, row: Int, col: Int) -> Scalar[Self.dtype]:
         """Gets the element at the specified indices without bounds checking.
 
         This method is unsafe because it does not perform bounds checking on

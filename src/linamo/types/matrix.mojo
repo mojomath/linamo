@@ -322,7 +322,7 @@ struct Matrix[dtype: DType](Copyable, Movable, Sized, Writable):
             initial_offset=0,
         )
 
-    def get_unsafe(self, row: Int, col: Int) -> Self.ElementType:
+    def unsafe_get(self, row: Int, col: Int) -> Self.ElementType:
         """Gets the element at the specified indices without bounds checking.
 
         This method is unsafe because it does not perform bounds checking on

@@ -271,7 +271,7 @@ def scalar_not_equal[
 # element that fails rather than allocate one bool per element first.
 
 
-def _isclose_elem[
+def _isclose_element[
     dtype: DType
 ](
     a: Scalar[dtype],
@@ -351,7 +351,7 @@ def _isclose_view[
             var res = SIMD[DType.bool, w](fill=False)
 
             comptime for lane in range(w):
-                res[lane] = _isclose_elem(
+                res[lane] = _isclose_element(
                     a_chunk[lane], b_chunk[lane], rtol, atol, equal_nan
                 )
             result._data._data.unsafe_store[width=w](idx, res)
@@ -360,7 +360,7 @@ def _isclose_view[
     else:
         for i in range(M):
             for j in range(N):
-                result._data[i * N + j] = _isclose_elem(
+                result._data[i * N + j] = _isclose_element(
                     a[i, j], b[i, j], rtol, atol, equal_nan
                 )
 
@@ -408,7 +408,7 @@ def _scalar_isclose_view[
             var res = SIMD[DType.bool, w](fill=False)
 
             comptime for lane in range(w):
-                res[lane] = _isclose_elem(
+                res[lane] = _isclose_element(
                     m_chunk[lane], scalar, rtol, atol, equal_nan
                 )
             result._data._data.unsafe_store[width=w](idx, res)
@@ -417,7 +417,7 @@ def _scalar_isclose_view[
     else:
         for i in range(M):
             for j in range(N):
-                result._data[i * N + j] = _isclose_elem(
+                result._data[i * N + j] = _isclose_element(
                     mat[i, j], scalar, rtol, atol, equal_nan
                 )
 
@@ -536,7 +536,7 @@ def allclose[
         )
     for i in range(a.nrows()):
         for j in range(a.ncols()):
-            if not _isclose_elem(a[i, j], b[i, j], rtol, atol, equal_nan):
+            if not _isclose_element(a[i, j], b[i, j], rtol, atol, equal_nan):
                 return False
     return True
 
@@ -574,7 +574,7 @@ def scalar_allclose[
     )
     for i in range(mat.nrows()):
         for j in range(mat.ncols()):
-            if not _isclose_elem(mat[i, j], scalar, rtol, atol, equal_nan):
+            if not _isclose_element(mat[i, j], scalar, rtol, atol, equal_nan):
                 return False
     return True
 
@@ -591,7 +591,7 @@ def scalar_allclose[
 # vectorised paths are the ones the comparisons already use.
 
 
-def _logical_and_elem[
+def _logical_and_element[
     dtype: DType
 ](a: Scalar[dtype], b: Scalar[dtype]) -> Scalar[DType.bool]:
     """Conjunction of the truthiness of two elements."""
@@ -599,7 +599,7 @@ def _logical_and_elem[
     return (a != zero) & (b != zero)
 
 
-def _logical_or_elem[
+def _logical_or_element[
     dtype: DType
 ](a: Scalar[dtype], b: Scalar[dtype]) -> Scalar[DType.bool]:
     """Disjunction of the truthiness of two elements."""
@@ -607,7 +607,7 @@ def _logical_or_elem[
     return (a != zero) | (b != zero)
 
 
-def _logical_xor_elem[
+def _logical_xor_element[
     dtype: DType
 ](a: Scalar[dtype], b: Scalar[dtype]) -> Scalar[DType.bool]:
     """Exclusive disjunction of the truthiness of two elements."""
@@ -621,14 +621,14 @@ def logical_and[
     a: MatrixView[dtype, origin_a], b: MatrixView[dtype, origin_b]
 ) raises -> Matrix[DType.bool]:
     """Element-wise conjunction: True where both operands are non-zero."""
-    return _compare_view[func=_logical_and_elem[dtype]](a, b)
+    return _compare_view[func=_logical_and_element[dtype]](a, b)
 
 
 def scalar_logical_and[
     dtype: DType, origin: Origin
 ](mat: MatrixView[dtype, origin], scalar: Scalar[dtype]) -> Matrix[DType.bool]:
     """Element-wise conjunction of a matrix view with a single value."""
-    return _scalar_compare_view[func=_logical_and_elem[dtype]](mat, scalar)
+    return _scalar_compare_view[func=_logical_and_element[dtype]](mat, scalar)
 
 
 def logical_or[
@@ -637,14 +637,14 @@ def logical_or[
     a: MatrixView[dtype, origin_a], b: MatrixView[dtype, origin_b]
 ) raises -> Matrix[DType.bool]:
     """Element-wise disjunction: True where either operand is non-zero."""
-    return _compare_view[func=_logical_or_elem[dtype]](a, b)
+    return _compare_view[func=_logical_or_element[dtype]](a, b)
 
 
 def scalar_logical_or[
     dtype: DType, origin: Origin
 ](mat: MatrixView[dtype, origin], scalar: Scalar[dtype]) -> Matrix[DType.bool]:
     """Element-wise disjunction of a matrix view with a single value."""
-    return _scalar_compare_view[func=_logical_or_elem[dtype]](mat, scalar)
+    return _scalar_compare_view[func=_logical_or_element[dtype]](mat, scalar)
 
 
 def logical_xor[
@@ -654,14 +654,14 @@ def logical_xor[
 ) raises -> Matrix[DType.bool]:
     """Element-wise exclusive disjunction: True where exactly one is non-zero.
     """
-    return _compare_view[func=_logical_xor_elem[dtype]](a, b)
+    return _compare_view[func=_logical_xor_element[dtype]](a, b)
 
 
 def scalar_logical_xor[
     dtype: DType, origin: Origin
 ](mat: MatrixView[dtype, origin], scalar: Scalar[dtype]) -> Matrix[DType.bool]:
     """Element-wise exclusive disjunction with a single value."""
-    return _scalar_compare_view[func=_logical_xor_elem[dtype]](mat, scalar)
+    return _scalar_compare_view[func=_logical_xor_element[dtype]](mat, scalar)
 
 
 def logical_not[

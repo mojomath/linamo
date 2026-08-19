@@ -21,28 +21,28 @@ is the shape such a trait would take.
 trait MatrixLike(Copyable):
     """A common interface for matrix-like types. Currently unused."""
 
-    def get_nrows(self) -> Int:
+    def nrows(self) -> Int:
         """Returns the number of rows in the matrix-like object."""
         ...
 
-    def get_ncols(self) -> Int:
+    def ncols(self) -> Int:
         """Returns the number of columns in the matrix-like object."""
         ...
 
-    def get_row_stride(self) -> Int:
+    def row_stride(self) -> Int:
         """Returns the row stride of the matrix-like object."""
         ...
 
-    def get_col_stride(self) -> Int:
+    def col_stride(self) -> Int:
         """Returns the column stride of the matrix-like object."""
         ...
 
-    def get_offset(self) -> Int:
+    def offset(self) -> Int:
         """Returns the offset in the underlying data buffer for the matrix-like
         object."""
         ...
 
-    def get_size(self) -> Int:
+    def size(self) -> Int:
         """Returns the total number of elements in the matrix-like object."""
         ...
 

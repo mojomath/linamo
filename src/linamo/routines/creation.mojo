@@ -694,7 +694,7 @@ def from_list[
 
 def _parse_element[
     dtype: DType
-](token: String, fn_name: String) raises -> Scalar[dtype]:
+](token: String, function: String) raises -> Scalar[dtype]:
     """Parses one whitespace-free token into an element of the matrix.
 
     Parameters:
@@ -702,7 +702,7 @@ def _parse_element[
 
     Args:
         token: The text to parse.
-        fn_name: The caller's name, for the error message.
+        function: The caller's name, for the error message.
 
     Returns:
         The parsed value.
@@ -717,14 +717,14 @@ def _parse_element[
             return Scalar[dtype](atol(token))
     except:
         raise ValueError(
-            function=fn_name,
+            function=function,
             message=String("Cannot parse '", token, "' as a number."),
         )
 
 
 def _tokenize_rows[
     dtype: DType
-](text: String, fn_name: String) raises -> List[List[Scalar[dtype]]]:
+](text: String, function: String) raises -> List[List[Scalar[dtype]]]:
     """Splits a bracketed matrix literal into rows of parsed elements.
 
     Elements are separated by whitespace or by commas; a nested `[...]` opens
@@ -736,7 +736,7 @@ def _tokenize_rows[
 
     Args:
         text: The literal to split.
-        fn_name: The caller's name, for the error message.
+        function: The caller's name, for the error message.
 
     Returns:
         One list of elements per row.
@@ -772,7 +772,9 @@ def _tokenize_rows[
 
         if (opens or closes or separates) and token_start >= 0:
             current.append(
-                _parse_element[dtype](String(text[byte=token_start:i]), fn_name)
+                _parse_element[dtype](
+                    String(text[byte=token_start:i]), function
+                )
             )
             token_start = -1
 
@@ -780,7 +782,7 @@ def _tokenize_rows[
             depth += 1
             if depth > 2:
                 raise ValueError(
-                    function=fn_name,
+                    function=function,
                     message=(
                         "A matrix literal nests at most two levels deep,"
                         " as in '[[1, 2], [3, 4]]'."
@@ -789,7 +791,7 @@ def _tokenize_rows[
         elif closes:
             if depth == 0:
                 raise ValueError(
-                    function=fn_name,
+                    function=function,
                     message="Unbalanced brackets: a ']' has no matching '['.",
                 )
             if depth == 2:
@@ -802,12 +804,12 @@ def _tokenize_rows[
     if token_start >= 0:
         current.append(
             _parse_element[dtype](
-                String(text[byte = token_start : len(bytes)]), fn_name
+                String(text[byte = token_start : len(bytes)]), function
             )
         )
     if depth != 0:
         raise ValueError(
-            function=fn_name,
+            function=function,
             message="Unbalanced brackets: a '[' has no matching ']'.",
         )
     if len(current) > 0:
@@ -815,7 +817,7 @@ def _tokenize_rows[
         rows.append(current^)
     if len(rows) == 0:
         raise ValueError(
-            function=fn_name,
+            function=function,
             message=String("No elements found in '", text, "'."),
         )
     return rows^

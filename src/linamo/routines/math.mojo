@@ -4,7 +4,11 @@ Defines mathematical routines for matrices.
 
 from std.algorithm import vectorize
 from max.algorithm import parallelize
-from std.sys import simd_width_of
+from std.sys import (
+    CompilationTarget,
+    num_physical_cores,
+    simd_width_of,
+)
 
 from linamo.types.errors import ValueError
 from linamo.types.static_matrix import StaticMatrix
@@ -138,6 +142,61 @@ def matmul[
 # This avoids duplicating the implementation for every Matrix/View combination.
 
 
+# --------------------------------------------------------------------------- #
+# Matmul tuning constants
+# --------------------------------------------------------------------------- #
+# `vectorize[w]` hands the kernel `w` elements per call. Once `w` is wider than
+# a physical vector register the compiler lowers the wide `SIMD` value into
+# several registers, so `w` is an unroll factor counted in registers, not a
+# hardware width. The optimum is therefore a fixed register count rather than
+# a fixed element count, which is why it cannot be one literal shared by every
+# dtype: on a 128-bit vector unit throughput peaks at 32 elements for float64,
+# 64 for float32 and 128 for float16. `_MATMUL_UNROLL_REGISTERS` registers
+# in all three cases. Below that count the pipeline is underfed; above it the
+# kernel spills to the stack, which costs more than the unrolling saves.
+comptime _VECTOR_REGISTERS = 32 if (
+    CompilationTarget.has_neon() or CompilationTarget.has_avx512f()
+) else 16
+"""Architectural vector registers: 32 under NEON and AVX-512, 16 under SSE/AVX2.
+"""
+
+comptime _MATMUL_UNROLL_REGISTERS = _VECTOR_REGISTERS // 2
+"""Registers the unrolled body may fill.
+
+Each FMA keeps two vectors live, the accumulator and the `B` operand, so the
+unroll saturates the register file at half its size.
+"""
+
+# Rows (or columns) a worker must own before spawning it pays for itself.
+comptime _MATMUL_ITEMS_PER_WORKER = 24
+
+
+def _matmul_workers(items: Int) -> Int:
+    """Worker count for splitting `items` rows (or columns) across cores.
+
+    Returns 0 or 1 when the work is too small to be worth dispatching, which
+    the caller reads as "run this loop serially".
+
+    Args:
+        items: The number of rows or columns the parallel loop ranges over.
+
+    Returns:
+        The number of workers to hand to `parallelize`.
+    """
+    # One task per row asks the scheduler to dispatch work items far smaller
+    # than the dispatch itself; chunking amortises that. The cap sits below the
+    # core count because a barrier-synchronised loop finishes no sooner than
+    # its slowest worker, and the slowest core on an asymmetric machine is much
+    # slower than the rest.
+    var cap = num_physical_cores() * 3 // 4
+    if cap < 1:
+        cap = 1
+    var workers = items // _MATMUL_ITEMS_PER_WORKER
+    if workers > cap:
+        workers = cap
+    return workers
+
+
 def _matmul_view_simd[
     dtype: DType,
     origin_a: Origin,
@@ -170,7 +229,7 @@ def _matmul_view_simd[
 
     The result is always a freshly allocated, C-contiguous Matrix.
     """
-    comptime simd_w = simd_width_of[dtype]()
+    comptime simd_w = _MATMUL_UNROLL_REGISTERS * simd_width_of[dtype]()
 
     if a.ncols() != b.nrows():
         raise ValueError(
@@ -206,12 +265,12 @@ def _matmul_view_simd[
     if b.is_row_contiguous():
 
         @parameter
-        def process_row_br(i: Int):
+        def process_row_broadcast(i: Int):
             for k in range(K):
                 # [Mojo Miji]
                 # Broadcast A[i,k] (scalar) and SIMD-multiply with row k of B,
                 # accumulating into row i of result.
-                def vec_col_br[
+                def vec_col_broadcast[
                     w: Int
                 ](j: Int) {
                     mut result,
@@ -236,9 +295,14 @@ def _matmul_view_simd[
                         * b_ptr.unsafe_load[width=w](b_off + k * b_rs + j),
                     )
 
-                vectorize[simd_w](N, vec_col_br)
+                vectorize[simd_w](N, vec_col_broadcast)
 
-        parallelize[process_row_br](M, M)
+        var workers = _matmul_workers(M)
+        if workers > 1:
+            parallelize[process_row_broadcast](M, workers)
+        else:
+            for i in range(M):
+                process_row_broadcast(i)
 
     # ---------------------------------------------------------------------- #
     # Path 2: A row-contiguous, B column-contiguous  (C × F)
@@ -248,11 +312,11 @@ def _matmul_view_simd[
     elif a.is_row_contiguous() and b.is_col_contiguous():
 
         @parameter
-        def process_row_cxf(i: Int):
+        def process_row_dot(i: Int):
             for j in range(N):
                 var dot_sum: Scalar[dtype] = 0
 
-                def dot_k[
+                def vec_k_dot[
                     w: Int
                 ](k: Int) {
                     mut dot_sum,
@@ -270,10 +334,15 @@ def _matmul_view_simd[
                         * b_ptr.unsafe_load[width=w](b_off + j * b_cs + k)
                     ).reduce_add()
 
-                vectorize[simd_w](K, dot_k)
+                vectorize[simd_w](K, vec_k_dot)
                 result._data._data.unsafe_store[width=1](i * N + j, dot_sum)
 
-        parallelize[process_row_cxf](M, M)
+        var workers = _matmul_workers(M)
+        if workers > 1:
+            parallelize[process_row_dot](M, workers)
+        else:
+            for i in range(M):
+                process_row_dot(i)
 
     # ---------------------------------------------------------------------- #
     # Path 3: A column-contiguous  (covers F × F, F × weird)
@@ -284,7 +353,7 @@ def _matmul_view_simd[
     elif a.is_col_contiguous():
 
         @parameter
-        def process_col_ff(j: Int):
+        def process_col_accumulate(j: Int):
             # Temporary column buffer for SIMD accumulation.
             var temp = List[Scalar[dtype]](length=M, fill=0)
             var temp_ptr = temp._data
@@ -294,7 +363,7 @@ def _matmul_view_simd[
                     b_off + k * b_rs + j * b_cs
                 )
 
-                def vec_rows_ff[
+                def vec_row_accumulate[
                     w: Int
                 ](i: Int) {
                     imm temp_ptr,
@@ -311,7 +380,7 @@ def _matmul_view_simd[
                         * b_kj,
                     )
 
-                vectorize[simd_w](M, vec_rows_ff)
+                vectorize[simd_w](M, vec_row_accumulate)
 
             # Scatter temp column into result's column j.
             for i in range(M):
@@ -319,7 +388,12 @@ def _matmul_view_simd[
                     i * N + j, temp_ptr.unsafe_load[width=1](i)
                 )
 
-        parallelize[process_col_ff](N, N)
+        var workers = _matmul_workers(N)
+        if workers > 1:
+            parallelize[process_col_accumulate](N, workers)
+        else:
+            for j in range(N):
+                process_col_accumulate(j)
 
     # ---------------------------------------------------------------------- #
     # Path 4: General fallback – any memory layout
@@ -337,7 +411,12 @@ def _matmul_view_simd[
                     )
                 result._data._data.unsafe_store[width=1](i * N + j, sum)
 
-        parallelize[process_row_general](M, M)
+        var workers = _matmul_workers(M)
+        if workers > 1:
+            parallelize[process_row_general](M, workers)
+        else:
+            for i in range(M):
+                process_row_general(i)
 
     return result^
 

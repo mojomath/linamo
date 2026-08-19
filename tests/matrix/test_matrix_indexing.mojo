@@ -81,7 +81,7 @@ def test_matrix_setitem_via_ref() raises:
     testing.assert_equal(mat[1, 0], 3.0)
 
 
-def test_matrix_get_unsafe() raises:
+def test_matrix_unsafe_get() raises:
     """Test unsafe element access (no bounds checking)."""
     var mat = la.matrix[DType.float64](
         [
@@ -89,10 +89,10 @@ def test_matrix_get_unsafe() raises:
             [40.0, 50.0, 60.0],
         ]
     )
-    testing.assert_equal(mat.get_unsafe(0, 0), 10.0)
-    testing.assert_equal(mat.get_unsafe(0, 2), 30.0)
-    testing.assert_equal(mat.get_unsafe(1, 1), 50.0)
-    testing.assert_equal(mat.get_unsafe(1, 2), 60.0)
+    testing.assert_equal(mat.unsafe_get(0, 0), 10.0)
+    testing.assert_equal(mat.unsafe_get(0, 2), 30.0)
+    testing.assert_equal(mat.unsafe_get(1, 1), 50.0)
+    testing.assert_equal(mat.unsafe_get(1, 2), 60.0)
 
 
 def test_matrix_attributes() raises:

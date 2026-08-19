@@ -119,7 +119,7 @@ def test_view_write_to_metadata() raises:
     testing.assert_true("float64" in s, "write_to should include dtype")
 
 
-def test_view_get_unsafe() raises:
+def test_view_unsafe_get() raises:
     """Test unsafe element access on a view."""
     var mat = la.matrix[DType.float64](
         [
@@ -128,10 +128,10 @@ def test_view_get_unsafe() raises:
         ]
     )
     var v = mat[0:2, 1:3]
-    testing.assert_equal(v.get_unsafe(0, 0), 2.0)
-    testing.assert_equal(v.get_unsafe(0, 1), 3.0)
-    testing.assert_equal(v.get_unsafe(1, 0), 5.0)
-    testing.assert_equal(v.get_unsafe(1, 1), 6.0)
+    testing.assert_equal(v.unsafe_get(0, 0), 2.0)
+    testing.assert_equal(v.unsafe_get(0, 1), 3.0)
+    testing.assert_equal(v.unsafe_get(1, 0), 5.0)
+    testing.assert_equal(v.unsafe_get(1, 1), 6.0)
 
 
 def main() raises:
