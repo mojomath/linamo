@@ -16,8 +16,8 @@ def test_view_from_matrix_full() raises:
         ]
     )
     var v = mat.view()
-    testing.assert_equal(v.nrows, 3)
-    testing.assert_equal(v.ncols, 3)
+    testing.assert_equal(v.nrows(), 3)
+    testing.assert_equal(v.ncols(), 3)
     testing.assert_equal(v[0, 0], 1.0)
     testing.assert_equal(v[1, 1], 5.0)
     testing.assert_equal(v[2, 2], 9.0)
@@ -34,8 +34,8 @@ def test_view_slice_rows_and_cols() raises:
     )
     # Slice rows 0:2, cols 1:3 -> 2x2 submatrix
     var v = mat[0:2, 1:3]
-    testing.assert_equal(v.nrows, 2)
-    testing.assert_equal(v.ncols, 2)
+    testing.assert_equal(v.nrows(), 2)
+    testing.assert_equal(v.ncols(), 2)
     testing.assert_equal(v[0, 0], 2.0)
     testing.assert_equal(v[0, 1], 3.0)
     testing.assert_equal(v[1, 0], 6.0)
@@ -54,8 +54,8 @@ def test_view_slice_with_step() raises:
     )
     # Every other row and column: rows 0:4:2, cols 0:4:2
     var v = mat[0:4:2, 0:4:2]
-    testing.assert_equal(v.nrows, 2)
-    testing.assert_equal(v.ncols, 2)
+    testing.assert_equal(v.nrows(), 2)
+    testing.assert_equal(v.ncols(), 2)
     testing.assert_equal(v[0, 0], 1.0)
     testing.assert_equal(v[0, 1], 3.0)
     testing.assert_equal(v[1, 0], 9.0)
@@ -85,13 +85,13 @@ def test_view_on_view() raises:
         ]
     )
     var v1 = mat[0:4, 1:4]  # 4x3 view
-    testing.assert_equal(v1.nrows, 4)
-    testing.assert_equal(v1.ncols, 3)
+    testing.assert_equal(v1.nrows(), 4)
+    testing.assert_equal(v1.ncols(), 3)
     testing.assert_equal(v1[0, 0], 2.0)
 
     var v2 = v1[1:3, 0:2]  # 2x2 view from v1
-    testing.assert_equal(v2.nrows, 2)
-    testing.assert_equal(v2.ncols, 2)
+    testing.assert_equal(v2.nrows(), 2)
+    testing.assert_equal(v2.ncols(), 2)
     testing.assert_equal(v2[0, 0], 7.0)
     testing.assert_equal(v2[0, 1], 8.0)
     testing.assert_equal(v2[1, 0], 12.0)

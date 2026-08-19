@@ -7,7 +7,7 @@ zeros, ones, full, eye, diag, and random matrix creation.
 
 import std.testing as testing
 from linamo.routines.creation import zeros, ones, full, eye, diag
-from linamo.routines.numpy_interop import matrix_from_numpy, to_numpy
+from linamo.routines.numpy_interop import from_numpy, to_numpy
 from linamo.utils.test_utils import (
     assert_matrices_equal,
     assert_matrices_close,
@@ -23,7 +23,7 @@ from std.python import Python, PythonObject
 def _test_round_trip(np: PythonObject, r: Int, c: Int) raises:
     """Helper: round-trip numpy -> Matrix -> numpy for one shape."""
     var a_np = np.random.rand(r, c)
-    var mat = matrix_from_numpy(a_np)
+    var mat = from_numpy(a_np)
     var back = to_numpy(mat)
     testing.assert_true(
         Bool(np.allclose(a_np, back)),
@@ -85,7 +85,7 @@ def test_round_trip_integer_data() raises:
     """Round-trip preserves integer-valued data."""
     var np = Python.import_module("numpy")
     var a_np = np.arange(1.0, 21.0).reshape(4, 5)
-    var mat = matrix_from_numpy(a_np)
+    var mat = from_numpy(a_np)
     var back = to_numpy(mat)
     testing.assert_true(
         Bool(np.array_equal(a_np, back)),
@@ -97,7 +97,7 @@ def test_round_trip_f_contiguous() raises:
     """Round-trip from F-contiguous numpy array."""
     var np = Python.import_module("numpy")
     var a_np = np.asfortranarray(np.random.rand(4, 6))
-    var mat = matrix_from_numpy(a_np)
+    var mat = from_numpy(a_np)
     var back = to_numpy(mat)
     testing.assert_true(
         Bool(np.allclose(a_np, back)),
@@ -164,7 +164,7 @@ def test_diag_extract_vs_numpy() raises:
     """Diag(A) matches np.diag(A) for extracting diagonal."""
     var np = Python.import_module("numpy")
     var a_np = np.random.rand(5, 5)
-    var a = matrix_from_numpy(a_np)
+    var a = from_numpy(a_np)
     var d = diag(a)
     var d_np = np.diag(a_np)
     for i in range(5):

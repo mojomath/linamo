@@ -67,3 +67,58 @@ def indices_within_bounds(row: Int, col: Int, nrows: Int, ncols: Int) -> Bool:
 def indices_out_of_bounds(row: Int, col: Int, nrows: Int, ncols: Int) -> Bool:
     """Checks if the given row and column indices are out of bounds."""
     return (row < 0) or (row >= nrows) or (col < 0) or (col >= ncols)
+
+
+@always_inline
+def layout_fits_buffer(
+    nrows: Int, ncols: Int, row_stride: Int, col_stride: Int, length: Int
+) -> Bool:
+    """Checks that every index of a matrix lands inside a buffer.
+
+    The largest offset any index reaches is the one at `[nrows - 1,
+    ncols - 1]`, so bounding that bounds them all. An empty matrix reaches no
+    offset at all and always fits.
+
+    Args:
+        nrows: The number of rows.
+        ncols: The number of columns.
+        row_stride: The stride for the row dimension.
+        col_stride: The stride for the column dimension.
+        length: The number of elements in the buffer.
+
+    Returns:
+        True if every index is in range.
+    """
+    if nrows == 0 or ncols == 0:
+        return True
+    return (nrows - 1) * row_stride + (ncols - 1) * col_stride < length
+
+
+@always_inline
+def layout_is_dense(
+    nrows: Int, ncols: Int, row_stride: Int, col_stride: Int
+) -> Bool:
+    """Checks that a stride pair maps distinct indices to distinct offsets.
+
+    Positive strides are necessary but not sufficient: `(1, 1)` on a 2x2 sends
+    both `[0, 1]` and `[1, 0]` to offset 1. What rules that out is the stride
+    pair being C-major (`row_stride == ncols * col_stride`) or F-major
+    (`col_stride == nrows * row_stride`), which are the only two layouts an
+    owning matrix is built with. A zero stride fails the positivity test; it is
+    a legitimate state for a `MatrixView`, where `broadcast_to` produces one,
+    and never for a matrix that owns its buffer.
+
+    Args:
+        nrows: The number of rows.
+        ncols: The number of columns.
+        row_stride: The stride for the row dimension.
+        col_stride: The stride for the column dimension.
+
+    Returns:
+        True if the layout is C-major or F-major with no padding.
+    """
+    if nrows == 0 or ncols == 0:
+        return True
+    if row_stride <= 0 or col_stride <= 0:
+        return False
+    return row_stride == ncols * col_stride or col_stride == nrows * row_stride

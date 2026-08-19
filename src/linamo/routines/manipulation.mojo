@@ -15,10 +15,10 @@ the borrow checker keeps the source alive for exactly as long as the result is.
 > **Invariant: a matrix's element buffer is fixed at construction.** Nothing in
 > this module grows, shrinks or reallocates the `data` of an existing matrix.
 > This is a safety rule, not a style preference. A `MatrixView` holds a `Span`
-> over `origin_of(m.data)`, which captures the `List`'s heap pointer; growing
+> over `origin_of(m._data)`, which captures the `List`'s heap pointer; growing
 > that `List` reallocates and leaves every live view dangling, and Mojo 1.0
 > does not catch it --- the borrow checker enforces origins at *call sites*,
-> and a later `m.data.append(...)` in the same scope is not a call site it
+> and a later `m._data.append(...)` in the same scope is not a call site it
 > inspects. `resize` therefore returns a new matrix where NuMojo's mutated one
 > in place.
 
@@ -105,7 +105,7 @@ def reshape[
     """
     comptime fn_name = "reshape(a, nrows, ncols, order)"
     _check_order(order, fn_name)
-    var size = a.nrows * a.ncols
+    var size = a.nrows() * a.ncols()
     if nrows < 0 or ncols < 0 or nrows * ncols != size:
         raise ValueError(
             function=fn_name,
@@ -123,11 +123,11 @@ def reshape[
     var c_order = order == "C"
     var data = List[Scalar[dtype]](unsafe_uninit_length=size)
     for k in range(size):
-        var src_row, src_col = _unravel(k, a.nrows, a.ncols, c_order)
+        var src_row, src_col = _unravel(k, a.nrows(), a.ncols(), c_order)
         var dst_row, dst_col = _unravel(k, nrows, ncols, c_order)
         data[dst_row * ncols + dst_col] = a[src_row, src_col]
     return Matrix[dtype](
-        data=data^, nrows=nrows, ncols=ncols, row_stride=ncols, col_stride=1
+        buffer=data^, nrows=nrows, ncols=ncols, row_stride=ncols, col_stride=1
     )
 
 
@@ -170,7 +170,7 @@ def reshape_view[
             is neither C- nor F-contiguous.
     """
     comptime fn_name = "reshape_view(a, nrows, ncols)"
-    var size = a.nrows * a.ncols
+    var size = a.nrows() * a.ncols()
     if nrows < 0 or ncols < 0 or nrows * ncols != size:
         raise ValueError(
             function=fn_name,
@@ -203,12 +203,12 @@ def reshape_view[
         )
 
     return MatrixView[dtype, ImmOrigin(origin)](
-        data=a.data.as_imm(),
+        buffer=a._data.as_imm(),
         nrows=nrows,
         ncols=ncols,
         row_stride=row_stride,
         col_stride=col_stride,
-        offset=a.offset,
+        offset=a.offset(),
     )
 
 
@@ -235,7 +235,7 @@ def flatten[
         ValueError: If `order` is neither "C" nor "F".
     """
     _check_order(order, "flatten(a, order)")
-    return reshape(a, 1, a.nrows * a.ncols, order)
+    return reshape(a, 1, a.nrows() * a.ncols(), order)
 
 
 def resize[
@@ -279,14 +279,14 @@ def resize[
         )
 
     var size = nrows * ncols
-    var kept = min(size, a.nrows * a.ncols)
+    var kept = min(size, a.nrows() * a.ncols())
     var data = List[Scalar[dtype]](unsafe_uninit_length=size)
     for k in range(kept):
-        data[k] = a[k // a.ncols, k % a.ncols]
+        data[k] = a[k // a.ncols(), k % a.ncols()]
     for k in range(kept, size):
         data[k] = 0
     return Matrix[dtype](
-        data=data^, nrows=nrows, ncols=ncols, row_stride=ncols, col_stride=1
+        buffer=data^, nrows=nrows, ncols=ncols, row_stride=ncols, col_stride=1
     )
 
 
@@ -324,8 +324,8 @@ def contiguous[
         ValueError: If `order` is neither "C" nor "F".
     """
     _check_order(order, "contiguous(a, order)")
-    var nrows = a.nrows
-    var ncols = a.ncols
+    var nrows = a.nrows()
+    var ncols = a.ncols()
     var row_stride = ncols if order == "C" else 1
     var col_stride = 1 if order == "C" else nrows
     var data = List[Scalar[dtype]](unsafe_uninit_length=nrows * ncols)
@@ -333,7 +333,7 @@ def contiguous[
         for j in range(ncols):
             data[i * row_stride + j * col_stride] = a[i, j]
     return Matrix[dtype](
-        data=data^,
+        buffer=data^,
         nrows=nrows,
         ncols=ncols,
         row_stride=row_stride,
@@ -418,16 +418,16 @@ def broadcast_to[
     comptime fn_name = "broadcast_to(a, nrows, ncols)"
 
     var row_stride: Int
-    if a.nrows == nrows:
-        row_stride = a.row_stride
-    elif a.nrows == 1:
+    if a.nrows() == nrows:
+        row_stride = a.row_stride()
+    elif a.nrows() == 1:
         row_stride = 0
     else:
         raise ValueError(
             function=fn_name,
             message=String(
                 "Cannot broadcast ",
-                a.nrows,
+                a.nrows(),
                 " rows to ",
                 nrows,
                 ". A dimension must match the target or be 1.",
@@ -435,16 +435,16 @@ def broadcast_to[
         )
 
     var col_stride: Int
-    if a.ncols == ncols:
-        col_stride = a.col_stride
-    elif a.ncols == 1:
+    if a.ncols() == ncols:
+        col_stride = a.col_stride()
+    elif a.ncols() == 1:
         col_stride = 0
     else:
         raise ValueError(
             function=fn_name,
             message=String(
                 "Cannot broadcast ",
-                a.ncols,
+                a.ncols(),
                 " columns to ",
                 ncols,
                 ". A dimension must match the target or be 1.",
@@ -452,12 +452,12 @@ def broadcast_to[
         )
 
     return MatrixView[dtype, ImmOrigin(origin)](
-        data=a.data.as_imm(),
+        buffer=a._data.as_imm(),
         nrows=nrows,
         ncols=ncols,
         row_stride=row_stride,
         col_stride=col_stride,
-        offset=a.offset,
+        offset=a.offset(),
     )
 
 
@@ -485,12 +485,12 @@ def astype[
     Returns:
         A new `Matrix[target]` with the same shape.
     """
-    var nrows = a.nrows
-    var ncols = a.ncols
+    var nrows = a.nrows()
+    var ncols = a.ncols()
     var data = List[Scalar[target]](unsafe_uninit_length=nrows * ncols)
     for i in range(nrows):
         for j in range(ncols):
             data[i * ncols + j] = a[i, j].cast[target]()
     return Matrix[target](
-        data=data^, nrows=nrows, ncols=ncols, row_stride=ncols, col_stride=1
+        buffer=data^, nrows=nrows, ncols=ncols, row_stride=ncols, col_stride=1
     )

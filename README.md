@@ -192,7 +192,7 @@ linamo
 │   │   ├── static_matrix.mojo   # Compile-time sized Matrix
 │   │   └── errors.mojo          # ValueError, IndexError, etc.
 │   ├── routines/
-│   │   ├── creation.mojo        # matrix, zeros, ones, full, eye, diag, arange, linspace, *_like, fromstring
+│   │   ├── creation.mojo        # matrix, zeros, ones, full, eye, diag, arange, linspace, *_like, from_string
 │   │   ├── math.mojo            # add, sub, mul, div, matmul, scalar ops, min, max, prod
 │   │   ├── logic.mojo           # comparisons, all, any
 │   │   ├── functional.mojo      # fold, apply_along_axis
@@ -202,7 +202,7 @@ linamo
 │   │   ├── sorting.mojo         # sort, argsort, sort_inplace
 │   │   ├── statistics.mojo      # sum, cumsum
 │   │   ├── random.mojo          # rand, seed
-│   │   ├── numpy_interop.mojo   # to_numpy, matrix_from_numpy
+│   │   ├── numpy_interop.mojo   # from_numpy, to_numpy
 │   │   └── linalg.mojo          # transpose, trace, lu, cholesky, qr, det, solve, inv, lstsq
 │   ├── traits/
 │   │   └── matrix_like.mojo     # MatrixLike trait

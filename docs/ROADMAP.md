@@ -28,6 +28,7 @@ Last reviewed: **2026-08-18**
 - [Phase 10 — Performance \& Polish](#phase-10--performance--polish)
 - [Documentation](#documentation)
 - [Release Plan — v0.1.0](#release-plan--v010)
+  - [Mixing `StaticMatrix` with `Matrix`](#mixing-staticmatrix-with-matrix)
 - [Review Log](#review-log)
 
 ---
@@ -395,7 +396,7 @@ and raises on a strided input because there is no layout to flip.
 | `arange`                                                | `routines/creation.mojo` | ✓      |
 | `linspace`                                              | `routines/creation.mojo` | ✓      |
 | `zeros_like` / `ones_like` / `full_like` / `empty_like` | `routines/creation.mojo` | ✓      |
-| `fromlist` / `fromstring`                               | `routines/creation.mojo` | ✓      |
+| `from_list` / `from_string`                             | `routines/creation.mojo` | ✓      |
 | `rand` / `seed` (see also Phase 9)                      | `routines/random.mojo`   | ✓      |
 
 **Range constructors return a `1 x n` row.** Linamo has no 1-D type, and a row
@@ -414,16 +415,17 @@ for the case the family most needs to accept --- a strided view, which has no
 layout to reproduce. `full_like` was added alongside the three in the sketch,
 since its absence next to `full` would be the odd gap.
 
-**`fromstring` parses one grammar, and `fromlist` is a rename.** Elements are
+**`from_string` parses one grammar, and `from_list` is a rename.** Elements are
 separated by whitespace or commas and rows by nested brackets, so
 `"[[1, 2], [3, 4]]"` is 2x2 and an unnested `"1 2 3"` is one row; a second
 overload takes an explicit shape and ignores the bracket structure entirely.
 Tokenising is deliberately liberal --- anything that is not a separator or a
 bracket accumulates into a token --- so a bad cell is reported by name
 (`Cannot parse 'x' as a number`) rather than guessed at by the scanner.
-`fromlist` is the positional spelling of the keyword-only
-`matrix(flat_list=..., nrows=..., ncols=...)` that already existed, kept because
-it is the name the NuMojo routine had.
+`from_list` is the positional spelling of the keyword-only
+`matrix(flat_list=..., nrows=..., ncols=...)` that already existed. Both carry
+the underscore rather than NuMojo's `fromlist`/`fromstring`, so that every
+constructor named for its source reads as one family with `from_numpy`.
 
 **`seed` came along with `rand`.** A generator that cannot be pinned cannot be
 tested, so `seed()` forwards to the standard library's global RNG that `rand`
@@ -432,14 +434,23 @@ element. `randn` and the rest of the distribution family stay in Phase 9.
 
 ### 5.6 — Element-wise math & logic
 
+**In the v0.1.0 gate.** These are what a new user needs to check a result, so
+without them the opening moves of a session do not close.
+
+| Item                                                         | Module                | Status |
+| ------------------------------------------------------------ | --------------------- | ------ |
+| `isclose` / `allclose`                                       | `routines/logic.mojo` | □      |
+| `logical_and` / `logical_or` / `logical_not` / `logical_xor` | `routines/logic.mojo` | □      |
+
+**Deferred to 0.2.0.** Each of these only *adds* a signature, so shipping them
+later breaks nothing that 0.1.0 users will have written. Decided 2026-08-19.
+
 | Item                                                          | Module                | Status |
 | ------------------------------------------------------------- | --------------------- | ------ |
 | Trig: `sin`, `cos`, `tan`, `asin`, `acos`, `atan`, `atan2`    | `routines/math.mojo`  | □      |
 | Hyperbolic: `sinh`, `cosh`, `tanh`, `asinh`, `acosh`, `atanh` | `routines/math.mojo`  | □      |
 | `round`                                                       | `routines/math.mojo`  | □      |
-| `isclose` / `allclose`                                        | `routines/logic.mojo` | □      |
 | `isposinf` / `isneginf`                                       | `routines/logic.mojo` | □      |
-| `logical_and` / `logical_or` / `logical_not` / `logical_xor`  | `routines/logic.mojo` | □      |
 
 ### 5.7 — Linear algebra gaps
 
@@ -451,9 +462,9 @@ element. `randn` and the rest of the distribution family stay in Phase 9.
 
 ### 5.8 — Interop
 
-| Item                             | Module                        | Status |
-| -------------------------------- | ----------------------------- | ------ |
-| `to_numpy` / `matrix_from_numpy` | `routines/numpy_interop.mojo` | ✓      |
+| Item                      | Module                        | Status |
+| ------------------------- | ----------------------------- | ------ |
+| `to_numpy` / `from_numpy` | `routines/numpy_interop.mojo` | ✓      |
 
 > **No NuMojo bridge, and no migration guide.** NuMojo's `Matrix` is gone as of
 > its Mojo 1.0.0 release, so there is no installed base to migrate and nothing
@@ -475,15 +486,14 @@ element. `randn` and the rest of the distribution family stay in Phase 9.
 | Give `fill` and `assign` whole-view forms                | `routines/mutation.mojo`     | ✓      |
 | Move the dtype aliases out of the prelude                | `__init__.mojo`, `prelude`   | ✓      |
 | Collapse the operator overloads onto implicit conversion | `types/matrix.mojo`, `_view` | ✓      |
-| Make the layout fields private; rename the accessors     | `types/`                     | □      |
-| Assert the layout invariant in the `Matrix` constructors | `types/matrix.mojo`          | □      |
-| Stop using `MatrixLike` (keep the file)                  | `traits/matrix_like.mojo`    | □      |
+| Make the layout fields private; rename the accessors     | `types/`                     | ✓      |
+| Assert the layout invariant in the `Matrix` constructors | `types/matrix.mojo`          | ✓      |
+| Stop using `MatrixLike` (keep the file)                  | `traits/matrix_like.mojo`    | ✓      |
 
-The three open items are breaking changes to spellings users would already have
-written, so they land **before v0.1.0** — see
-[Release Plan](#release-plan--v010). The overload collapse went first, for the
-reason the 5.2 collapse came before 5.3: every operator added meanwhile would
-have doubled the work.
+**5.9 is complete.** Its breaking items were the reason it had to precede
+v0.1.0 — see [Release Plan](#release-plan--v010). The overload collapse went
+first, for the reason the 5.2 collapse came before 5.3: every operator added
+meanwhile would have doubled the work.
 
 **The routine layer collapsed first.** 5.2 did
 `math.mojo` and `logic.mojo`, and 5.4's `manipulation.mojo` was written
@@ -582,7 +592,10 @@ as `la.float64`, qualified like every other name the library exports. Each type
 also gained a short form, so `la.f64`, `la.i32` and `la.u8` are the same
 aliases under Rust-style names; they cost nothing now that they are namespaced,
 and the two spellings suit the two audiences the library has. The prelude is
-down to `import linamo as la`, which makes it a candidate for deletion.
+down to `import linamo as la`, and stays that way as a placeholder (decided
+2026-08-19). It is the right home for whatever a future version decides every
+user should have unqualified, and keeping the file means that decision will
+not also have to re-add a public module.
 
 A related question, and the answer is no: `view_mut(v, x, y)` stays. The worry
 is that a mutable sub-view of a mutable view puts two writable views on one
@@ -619,33 +632,89 @@ conversion cannot reach — `self` is fixed by the receiver, so both types keep
 their own dunders, and the scalar overloads stay because nothing converts a
 scalar to a matrix.
 
-**Fields go private, accessors lose the `get_`.** `m.nrows` and `get_nrows()`
-are two spellings of one fact, and the fields are not merely informational:
-`nrows`, `ncols`, the two strides and the length of `data` are one invariant
-bundle, so assigning to any of them alone produces a matrix that indexes outside
-its own buffer. So `_nrows`, `_ncols`, `_row_stride`, `_col_stride`, `_offset`,
-`_data`, and `get_nrows()` becomes `nrows()`. `data` goes private with the rest:
-users are not expected to write `origin_of(m.data)` themselves, and if that
-turns out to be wrong the type grows a public way to spell its own origin rather
-than reopening the field. Mojo 1.0 has no access control, so the underscore is a
-convention and the real enforcement is the assertion below.
+**The fields are private and the accessors have lost the `get_`.** `m.nrows`
+and `get_nrows()` were two spellings of one fact, and the fields are not merely
+informational: `nrows`, `ncols`, the two strides and the length of `data` are
+one invariant bundle, so assigning to any of them alone produces a matrix that
+indexes outside its own buffer. They are now `_nrows`, `_ncols`,
+`_row_stride`, `_col_stride`, `_offset`, `_data`, and `get_nrows()` is
+`nrows()`. Mojo 1.0 has no access control, so the underscore is a convention
+and the real enforcement is the constructor assertion above.
 
-**The constructors accept any strides at all.** `Matrix.__init__` stores
-`row_stride` and `col_stride` as given, checking them against nothing. Aliasing
-gets through (`row_stride=0` makes every row the same row, so `m[0, 0] = 5` also
-changes `m[1, 0]`) and so does overrun (`row_stride=100` on a six-element buffer
-indexes past the end — caught by `List` under `-D ASSERT=all`, undefined in
-release). A zero stride is a legitimate state for a `MatrixView` now that
-`broadcast_to` produces one, and never legitimate for an owning matrix. Two
-`debug_assert`s per constructor — positive strides, and
-`(nrows - 1) * row_stride + (ncols - 1) * col_stride < len(data)` — state that
-executably and cost nothing in release.
+Checked first, because it decided the shape of the change: **Mojo 1.0 has no
+`@property`** (`@property` is not a known declaration). So `m.nrows` is either
+a public field or a method call; there is no third spelling that keeps the
+field private and the parentheses off. The parentheses are the price of the
+underscore.
 
-**`MatrixLike` stops being used.** Nothing in the library is generic over it:
+Routines call the accessor rather than reaching for `_nrows`, so the underscore
+means "the type itself, nobody else" instead of merely "not for users". That
+costs nothing: every accessor is `@always_inline`, and a kernel that reads
+`nrows()`, `ncols()`, both strides and `offset()` in a loop compiles to
+assembly containing **no call instructions at all** — the accessors and the
+enclosing function are inlined into `main` and no accessor symbol survives.
+Verified with `mojo build --emit asm`.
+
+`data` is the exception at both ends. Internally it stays a raw field: kernels
+in `linalg.mojo` and `statistics.mojo` index and write the buffer directly, and
+`numpy_interop.mojo` needs `mat._data._data` for the memcpy. Externally it
+keeps a public `data()` returning a `Span`, which is what the examples use to
+show a C- and an F-ordered matrix having different buffers. The one thing
+`data()` cannot do is name an origin: `origin_of(a.data())` is the origin of a
+temporary. The public spelling for that turns out to already exist and to be
+better than the old one — `type_of(a.view()).origin` says "the origin a view of
+`a` carries" without mentioning a buffer at all.
+
+Three findings the plan did not anticipate:
+
+- **`StaticMatrix` cannot follow the same naming, and does not need to.** Its
+  `nrows` and `ncols` are struct *parameters* and its strides are `comptime`
+  aliases, so `def nrows(self)` is an `invalid redefinition`. It needs no
+  accessor either: `m.nrows` already reads on an instance as a compile-time
+  constant that nothing can assign to. Its four shape accessors were deleted
+  rather than renamed, leaving only `data()`, `offset()` and `size()`.
+- **The `data()` accessor collides with the constructors' `data` argument.**
+  Inside the body, the bare name resolves to the method. The argument is now
+  `buffer`, which is also the more accurate word for it: flat storage, not the
+  matrix's view of it.
+- **`MatrixAxisIter` carries the same bundle** and was privatised with it.
+  Nothing outside its own file ever read those fields, so this half of the
+  change has no API surface at all.
+
+**The constructors now assert their layout.** `Matrix.__init__` used to store
+`row_stride` and `col_stride` as given, checking them against nothing. Both
+failure modes were reproduced before the fix: aliasing (`row_stride=0` makes
+every row the same row, so `m[0, 0] = 99` also wrote `m[1, 0]` and `m[2, 0]`)
+and overrun (`row_stride=100` on a six-element buffer reached offset 201 and
+returned garbage without crashing).
+
+Two predicates in `utils/indexing.mojo` state the invariant, and the two
+stride-taking constructors `debug_assert` both. `layout_fits_buffer` is the
+bound the plan called for. `layout_is_dense` came out **stronger** than the
+planned positivity test, and the strengthening was free: positivity alone
+still admits `(1, 1)` on a 2x2, where `[0, 1]` and `[1, 0]` both land on
+offset 1. Requiring C-major (`row_stride == ncols * col_stride`) or F-major
+(`col_stride == nrows * row_stride`) rules that out, and the whole suite plus
+every example passes under `-D ASSERT=all` with it in place — which is the
+evidence that the library builds nothing else. If a padded owning matrix is
+ever wanted, this assertion is the thing that will have to be relaxed
+deliberately rather than discovered by accident.
+
+The checks are independent, and each catches what the other misses: `(2, 1)`
+on a 3x2 is dense and overruns a four-element buffer; `(0, 1)` fits a
+six-element buffer comfortably and aliases. Both cases are covered in
+`tests/matrix/test_matrix_layout_invariant.mojo` (15 tests), which tests the
+predicates rather than the assertions, since `debug_assert` aborts and cannot
+be caught by `assert_raises`. The copying and moving constructors take their
+layout from a matrix that already satisfies the invariant, so they assert
+nothing.
+
+**`MatrixLike` is no longer used.** Nothing in the library was generic over it:
 twelve methods, declared by three types and consumed by none, whose only real
 effect is to pin the accessor spellings the item above changes. The conformances
-come off `Matrix`, `MatrixView` and `StaticMatrix`, and the accessors stay as
-ordinary methods. The file and the `traits/` folder stay in the tree, because
+came off `Matrix`, `MatrixView` and `StaticMatrix` and the accessors stayed as
+ordinary methods; no call site moved and the suite was green on the first run.
+The file and the `traits/` folder stay in the tree, because
 the trait is not a bad idea, only an unused one: Mojo 1.0 supports associated
 aliases, so `comptime dtype: DType` plus
 `def at(self, r: Int, c: Int) -> Scalar[Self.dtype]` is expressible (probed
@@ -653,6 +722,10 @@ aliases, so `comptime dtype: DType` plus
 with `__str__` / `write_to`, duplicated almost line for line between the two
 types today. This does not reopen 5.2: operand genericity still cannot go
 through a trait.
+
+Keeping an unimported module means keeping a module the compiler never looks
+at, so `tests/traits/test_matrix_like.mojo` imports it and nothing else. The
+import is the test.
 
 ---
 
@@ -779,13 +852,20 @@ only story is `-I src`, and either the package gets published to
 
 ## Release Plan — v0.1.0
 
-**Gate: Phase 5 through 5.6, plus 5.9, plus the user guide.**
+**Gate: Phase 5 through 5.5, the gated half of 5.6, plus 5.9, plus the user
+guide.**
 
-Earlier is not shippable. Without 5.5 and 5.6 there is no `arange`, no
-`linspace`, no `isclose`, no `sin`, and a new user's opening moves are "build a
-test vector, transform it, check it against an expected answer" — only the
-middle one works today. Neither phase is large: `fold` and `apply_along_axis`
+Earlier is not shippable. Without 5.5 and the comparison half of 5.6 there is
+no `arange`, no `linspace` and no `isclose`, and a new user's opening moves are
+"build a test vector, transform it, check it against an expected answer" — only
+the middle one works today. Neither is large: `fold` and `apply_along_axis`
 already exist, and most of the entries are one-liners over them.
+
+5.6 is **split** rather than taken whole. `isclose`/`allclose` and the
+`logical_*` family are how a user confirms a result, so their absence blocks
+the first thing anyone does. Trig, hyperbolic, `round` and the infinity
+predicates only add signatures; deferring them to 0.2.0 breaks nothing written
+against 0.1.0 and takes real work off the gate.
 
 Later buys little. `eig`, norms, random generation and the Phase 10 performance
 work all *add* signatures rather than change them, so they are 0.2.0 material.
@@ -796,13 +876,33 @@ The rest of the checklist is [Documentation](#documentation): the user manual
 kept level with 5.5–5.7, and an install path that is not `-I src`. Those are
 what make a release usable rather than merely tagged.
 
+### Mixing `StaticMatrix` with `Matrix`
+
+`StaticMatrix` shares no operator with `Matrix` or `MatrixView`, so `m + s`
+does not compile. The bridge is one method, `s.to_matrix()`, which copies a
+static matrix into a newly allocated dense one; from there everything in the
+library applies. The name is not new: `MatrixView.to_matrix()` already does the
+same job for the other non-owning type, walking a source whose layout is not
+dense and producing owned C-contiguous storage. Here what is walked is the
+power-of-two padding, which does not survive the copy. Seven tests in
+`tests/static_matrix/test_static_matrix.mojo` cover it.
+
+An `@implicit` conversion was considered and rejected. Mojo applies a single
+implicit conversion and never chains two, and every operator and routine here
+takes a `MatrixView`, so a conversion landing on `Matrix` stops one step short
+of all of them. Reaching the operators would instead mean letting a
+wrong-shaped `StaticMatrix` convert and fall through to the dynamic kernel,
+which turns a compile-time shape error into a runtime `ValueError` --- the
+compile-time shape check is what `StaticMatrix` is for. Writing the hop at the
+call site keeps it.
+
 ---
 
 ## Review Log
 
 | Date       | Notes                                                         |
 | ---------- | ------------------------------------------------------------- |
-| 2026-02-18 | Initial roadmap created. Phase 0 complete.                    |
+| 2025-02-18 | Initial roadmap created. Phase 0 complete.                    |
 | 2025-07-11 | Phase 1 complete: creation, linalg, elementwise & scalar ops, |
 |            | dunders. 88 tests total.                                      |
 | 2026-02-19 | Phase 2 complete: LU (partial pivoting), Cholesky,            |
@@ -868,7 +968,7 @@ what make a release usable rather than merely tagged.
 |            | section and gated v0.1.0 on it.                               |
 | 2026-08-18 | Phase 5.5 done: `empty`, `arange`, `linspace`,                |
 |            | `zeros_like`/`ones_like`/`full_like`/`empty_like`,            |
-|            | `fromlist`, `fromstring`, and a new `routines/random.mojo`    |
+|            | `from_list`, `from_string`, and a new `routines/random.mojo`  |
 |            | with `rand` and `seed`. Range constructors return a `1 x n`   |
 |            | row and raise rather than yield an empty matrix. 45 new       |
 |            | tests (408 total).                                            |
@@ -899,3 +999,31 @@ what make a release usable rather than merely tagged.
 |            | permutations of every operator. Not a breaking change: no     |
 |            | call site moved, 435 tests unchanged, and `A += A` still      |
 |            | fails with a byte-identical borrow-checker diagnostic.        |
+| 2026-08-19 | 5.9 complete. Asserted the `Matrix` layout invariant in the   |
+|            | constructors (`layout_is_dense` came out stronger than        |
+|            | planned: C-/F-major, not just positive strides, and the whole |
+|            | suite passes under `-D ASSERT=all` with it). Dropped the      |
+|            | `MatrixLike` conformances. Made the layout fields private and |
+|            | renamed `get_nrows()` to `nrows()` across `types/`, all       |
+|            | routines, tests and examples. Mojo 1.0 has no `@property`, so |
+|            | the parentheses are unavoidable; `@always_inline` makes the   |
+|            | layer free, checked in emitted assembly. `StaticMatrix` keeps |
+|            | bare `m.nrows` --- parameters, not fields. 457 tests.         |
+| 2026-08-19 | Added `StaticMatrix.to_matrix()`, the explicit bridge to      |
+|            | `Matrix`, named to match `MatrixView.to_matrix()`. Rejected   |
+|            | an `@implicit` conversion first: Mojo applies one implicit    |
+|            | conversion and never chains two, so one landing on `Matrix`   |
+|            | reaches none of the library's `MatrixView` signatures, and    |
+|            | one reaching the operators would let a wrong-shaped           |
+|            | `StaticMatrix` through to a dynamic kernel, downgrading a     |
+|            | compile-time shape error to a runtime `ValueError`. Explicit  |
+|            | keeps the check. 7 tests, 464 total.                          |
+| 2026-08-19 | Renamed `matrix_from_numpy` to `from_numpy`, `fromlist` to    |
+|            | `from_list` and `fromstring` to `from_string`, all exported   |
+|            | from `linamo`. The `matrix_` prefix was the only type tag on  |
+|            | a routine returning a `Matrix` --- `zeros`, `arange` and the  |
+|            | rest are bare, and only the `StaticMatrix` variants are       |
+|            | marked (`smatrix`) --- and it broke the pair with             |
+|            | `to_numpy`. The underscore replaces NuMojo's spelling so the  |
+|            | three read as one family. No alias kept: pre-1.0, and every   |
+|            | call site is in-tree.                                         |

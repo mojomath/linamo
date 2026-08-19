@@ -3,7 +3,7 @@ Numpy interoperability for Linamo.
 
 Provides functions to convert between numpy ndarrays and Linamo matrices:
 
-- `matrix_from_numpy()`: Create a Matrix from a 2D numpy ndarray (data copy).
+- `from_numpy()`: Create a Matrix from a 2D numpy ndarray (data copy).
 - `to_numpy()`: Export a Matrix to a numpy ndarray (data copy).
 """
 
@@ -18,7 +18,7 @@ from linamo.types.matrix import Matrix
 # ===----------------------------------------------------------------------===#
 
 
-def matrix_from_numpy[
+def from_numpy[
     dtype: DType = DType.float64
 ](data: PythonObject) raises -> Matrix[dtype]:
     """Create a Matrix from a numpy ndarray.
@@ -42,12 +42,12 @@ def matrix_from_numpy[
     Example:
         ```mojo
         from std.python import Python
-        from linamo.routines.numpy_interop import matrix_from_numpy
+        from linamo import from_numpy
 
         def main() raises:
             var np = Python.import_module("numpy")
             var np_arr = np.arange(6.0).reshape(2, 3)
-            var mat = matrix_from_numpy(np_arr)
+            var mat = from_numpy(np_arr)
         ```
     """
     var np = Python.import_module("numpy")
@@ -55,15 +55,13 @@ def matrix_from_numpy[
     # Validate dimensionality
     var ndim = Int(py=data.ndim)
     if ndim != 2:
-        raise Error(
-            "matrix_from_numpy: expected 2D array, got " + String(ndim) + "D"
-        )
+        raise Error("from_numpy: expected 2D array, got " + String(ndim) + "D")
 
     var nrows = Int(py=data.shape[0])
     var ncols = Int(py=data.shape[1])
 
     if nrows == 0 or ncols == 0:
-        raise Error("matrix_from_numpy: array must not be empty")
+        raise Error("from_numpy: array must not be empty")
 
     # Map Mojo DType to numpy dtype for correct interpretation
     var np_dtype = np.float64
@@ -94,7 +92,7 @@ def matrix_from_numpy[
     unsafe_memcpy(dest=mat_data._data, src=pointer, count=nrows * ncols)
 
     return Matrix[dtype](
-        data=mat_data^,
+        buffer=mat_data^,
         nrows=nrows,
         ncols=ncols,
         row_stride=ncols,
@@ -123,8 +121,7 @@ def to_numpy[dtype: DType](mat: Matrix[dtype]) raises -> PythonObject:
 
     Example:
         ```mojo
-        from linamo import matrix
-        from linamo.routines.numpy_interop import to_numpy
+        from linamo import matrix, to_numpy
 
         def main() raises:
             var mat = matrix[DType.float64]([[1.0, 2.0], [3.0, 4.0]])
@@ -150,8 +147,8 @@ def to_numpy[dtype: DType](mat: Matrix[dtype]) raises -> PythonObject:
         np_dtype = np.int8
 
     # Create a numpy array and copy data into it
-    var nrows = mat.nrows
-    var ncols = mat.ncols
+    var nrows = mat.nrows()
+    var ncols = mat.ncols()
     var result = np.zeros(nrows * ncols, dtype=np_dtype).reshape(nrows, ncols)
 
     # Get target pointer
@@ -161,13 +158,13 @@ def to_numpy[dtype: DType](mat: Matrix[dtype]) raises -> PythonObject:
 
     # For C-contiguous matrix, straight memcpy
     if mat.is_c_contiguous():
-        unsafe_memcpy(dest=np_ptr, src=mat.data._data, count=nrows * ncols)
+        unsafe_memcpy(dest=np_ptr, src=mat._data._data, count=nrows * ncols)
     else:
         # General case: copy element by element
         for i in range(nrows):
             for j in range(ncols):
-                np_ptr[unsafe_offset=i * ncols + j] = mat.data[
-                    i * mat.row_stride + j * mat.col_stride
+                np_ptr[unsafe_offset=i * ncols + j] = mat._data[
+                    i * mat.row_stride() + j * mat.col_stride()
                 ]
 
     return result^

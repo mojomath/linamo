@@ -8,7 +8,7 @@ linamo results against numpy as ground truth.
 import std.testing as testing
 from linamo.routines.math import add, sub, mul, div, matmul
 from linamo.routines.math import scalar_add, scalar_sub, scalar_mul, scalar_div
-from linamo.routines.numpy_interop import matrix_from_numpy, to_numpy
+from linamo.routines.numpy_interop import from_numpy, to_numpy
 from linamo.utils.test_utils import assert_matrices_close
 from std.python import Python, PythonObject
 
@@ -27,34 +27,34 @@ def _test_elementwise_op(
     """Helper: test a+b, a-b, a*b, a/b against numpy for shape (r, c)."""
     var a_np = np.random.rand(r, c)
     var b_np = np.random.rand(r, c) + 0.1  # avoid near-zero for div
-    var a = matrix_from_numpy(a_np)
-    var b = matrix_from_numpy(b_np)
+    var a = from_numpy(a_np)
+    var b = from_numpy(b_np)
     var label = op_name + " " + String(r) + "x" + String(c)
     if op_name == "add":
         assert_matrices_close(
             add(a, b),
-            matrix_from_numpy(np.add(a_np, b_np)),
+            from_numpy(np.add(a_np, b_np)),
             msg=label,
             atol=1e-12,
         )
     elif op_name == "sub":
         assert_matrices_close(
             sub(a, b),
-            matrix_from_numpy(np.subtract(a_np, b_np)),
+            from_numpy(np.subtract(a_np, b_np)),
             msg=label,
             atol=1e-12,
         )
     elif op_name == "mul":
         assert_matrices_close(
             mul(a, b),
-            matrix_from_numpy(np.multiply(a_np, b_np)),
+            from_numpy(np.multiply(a_np, b_np)),
             msg=label,
             atol=1e-12,
         )
     elif op_name == "div":
         assert_matrices_close(
             div(a, b),
-            matrix_from_numpy(np.divide(a_np, b_np)),
+            from_numpy(np.divide(a_np, b_np)),
             msg=label,
             atol=1e-10,
         )
@@ -64,9 +64,9 @@ def _test_matmul(np: PythonObject, m: Int, k: Int, n: Int) raises:
     """Helper: test matmul (m,k) @ (k,n) against numpy."""
     var a_np = np.random.rand(m, k)
     var b_np = np.random.rand(k, n)
-    var a = matrix_from_numpy(a_np)
-    var b = matrix_from_numpy(b_np)
-    var expected = matrix_from_numpy(np.matmul(a_np, b_np))
+    var a = from_numpy(a_np)
+    var b = from_numpy(b_np)
+    var expected = from_numpy(np.matmul(a_np, b_np))
     assert_matrices_close(
         matmul(a, b),
         expected,
@@ -167,8 +167,8 @@ def test_scalar_add_random() raises:
     var np = Python.import_module("numpy")
     var a_np = np.random.rand(5, 7)
     var s = Float64(py=np.random.rand())
-    var a = matrix_from_numpy(a_np)
-    var expected = matrix_from_numpy(a_np + s)
+    var a = from_numpy(a_np)
+    var expected = from_numpy(a_np + s)
     assert_matrices_close(
         scalar_add(a, s),
         expected,
@@ -182,8 +182,8 @@ def test_scalar_sub_random() raises:
     var np = Python.import_module("numpy")
     var a_np = np.random.rand(6, 4)
     var s = Float64(py=np.random.rand())
-    var a = matrix_from_numpy(a_np)
-    var expected = matrix_from_numpy(a_np - s)
+    var a = from_numpy(a_np)
+    var expected = from_numpy(a_np - s)
     assert_matrices_close(
         scalar_sub(a, s),
         expected,
@@ -197,8 +197,8 @@ def test_scalar_mul_random() raises:
     var np = Python.import_module("numpy")
     var a_np = np.random.rand(8, 3)
     var s = Float64(py=np.random.rand()) * 10.0
-    var a = matrix_from_numpy(a_np)
-    var expected = matrix_from_numpy(a_np * s)
+    var a = from_numpy(a_np)
+    var expected = from_numpy(a_np * s)
     assert_matrices_close(
         scalar_mul(a, s),
         expected,
@@ -212,8 +212,8 @@ def test_scalar_div_random() raises:
     var np = Python.import_module("numpy")
     var a_np = np.random.rand(4, 9)
     var s = Float64(py=np.random.rand()) + 0.5  # avoid near-zero
-    var a = matrix_from_numpy(a_np)
-    var expected = matrix_from_numpy(a_np / s)
+    var a = from_numpy(a_np)
+    var expected = from_numpy(a_np / s)
     assert_matrices_close(
         scalar_div(a, s),
         expected,

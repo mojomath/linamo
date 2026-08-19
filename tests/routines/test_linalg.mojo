@@ -16,8 +16,8 @@ def test_transpose_basic() raises:
     """Test basic matrix transpose."""
     var mat = la.matrix[DType.float64]([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]])
     var t = transpose(mat)
-    testing.assert_equal(t.nrows, 3)
-    testing.assert_equal(t.ncols, 2)
+    testing.assert_equal(t.nrows(), 3)
+    testing.assert_equal(t.ncols(), 2)
     testing.assert_equal(t[0, 0], 1.0)
     testing.assert_equal(t[0, 1], 4.0)
     testing.assert_equal(t[1, 0], 2.0)
@@ -40,8 +40,8 @@ def test_transpose_single_row() raises:
     """Test transpose of a single-row matrix becomes a column matrix."""
     var mat = la.matrix[DType.float64]([[1.0, 2.0, 3.0]])
     var t = transpose(mat)
-    testing.assert_equal(t.nrows, 3)
-    testing.assert_equal(t.ncols, 1)
+    testing.assert_equal(t.nrows(), 3)
+    testing.assert_equal(t.ncols(), 1)
     testing.assert_equal(t[0, 0], 1.0)
     testing.assert_equal(t[1, 0], 2.0)
     testing.assert_equal(t[2, 0], 3.0)
@@ -51,8 +51,8 @@ def test_transpose_single_col() raises:
     """Test transpose of a single-column matrix becomes a row matrix."""
     var mat = la.matrix[DType.float64]([[1.0], [2.0], [3.0]])
     var t = transpose(mat)
-    testing.assert_equal(t.nrows, 1)
-    testing.assert_equal(t.ncols, 3)
+    testing.assert_equal(t.nrows(), 1)
+    testing.assert_equal(t.ncols(), 3)
     testing.assert_equal(t[0, 0], 1.0)
     testing.assert_equal(t[0, 1], 2.0)
     testing.assert_equal(t[0, 2], 3.0)
@@ -72,8 +72,8 @@ def test_transpose_double() raises:
     """Test that transposing twice gives back the original values."""
     var mat = la.matrix[DType.float64]([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]])
     var tt = transpose(transpose(mat))
-    testing.assert_equal(tt.nrows, 2)
-    testing.assert_equal(tt.ncols, 3)
+    testing.assert_equal(tt.nrows(), 2)
+    testing.assert_equal(tt.ncols(), 3)
     for i in range(2):
         for j in range(3):
             testing.assert_equal(tt[i, j], mat[i, j])

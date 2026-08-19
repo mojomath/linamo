@@ -3,7 +3,6 @@ This module defines the `Matrix` type, which is a dynamically sized 2D matrix.
 """
 
 
-from linamo.traits.matrix_like import MatrixLike
 from linamo.types.errors import IndexError, ValueError
 from linamo.types.matrix_iter import MatrixAxisIter
 from linamo.types.matrix_view import MatrixView
@@ -14,10 +13,12 @@ import linamo.routines.mutation as mutation
 from linamo.utils.indexing import (
     get_offset,
     indices_within_bounds,
+    layout_fits_buffer,
+    layout_is_dense,
 )
 
 
-struct Matrix[dtype: DType](Copyable, MatrixLike, Movable, Sized, Writable):
+struct Matrix[dtype: DType](Copyable, Movable, Sized, Writable):
     """A 2D matrix type.
     A matrix owns its data and can write to it. The elements are stored in a
     contiguous block of memory in either row-major (C-contiguous) or
@@ -63,87 +64,125 @@ struct Matrix[dtype: DType](Copyable, MatrixLike, Movable, Sized, Writable):
     # compile time. This also applies to the strides.
     #
     # CORE ATTRIBUTES
-    var data: List[Self.ElementType]
+    var _data: List[Self.ElementType]
     """The elements of the matrix stored in a contiguous block of memory."""
-    var nrows: Int
+    var _nrows: Int
     """The number of rows in the matrix."""
-    var ncols: Int
+    var _ncols: Int
     """The number of columns in the matrix."""
-    var row_stride: Int
+    var _row_stride: Int
     """The stride (in number of elements) to move to the next row."""
-    var col_stride: Int
+    var _col_stride: Int
     """The stride (in number of elements) to move to the next column."""
 
     # ===--------------------------------------------------------------------===#
     # Retrieve attributes
     # ===--------------------------------------------------------------------===#
-    def get_data(self) -> Span[Self.ElementType, origin_of(self.data)]:
+    @always_inline
+    def data(self) -> Span[Self.ElementType, origin_of(self._data)]:
         """Returns the underlying data of the matrix."""
-        return Span(self.data)
+        return Span(self._data)
 
-    def get_nrows(self) -> Int:
+    @always_inline
+    def nrows(self) -> Int:
         """Returns the number of rows in the matrix."""
-        return self.nrows
+        return self._nrows
 
-    def get_ncols(self) -> Int:
+    @always_inline
+    def ncols(self) -> Int:
         """Returns the number of columns in the matrix."""
-        return self.ncols
+        return self._ncols
 
-    def get_row_stride(self) -> Int:
+    @always_inline
+    def row_stride(self) -> Int:
         """Returns the row stride of the matrix."""
-        return self.row_stride
+        return self._row_stride
 
-    def get_col_stride(self) -> Int:
+    @always_inline
+    def col_stride(self) -> Int:
         """Returns the column stride of the matrix."""
-        return self.col_stride
+        return self._col_stride
 
-    def get_offset(self) -> Int:
+    @always_inline
+    def offset(self) -> Int:
         """Returns the offset in the underlying data buffer for the matrix."""
         return 0
 
-    def get_size(self) -> Int:
+    @always_inline
+    def size(self) -> Int:
         """Returns the total number of elements in the matrix."""
-        return self.nrows * self.ncols
+        return self._nrows * self._ncols
 
     def is_c_contiguous(self) -> Bool:
         """Returns True if the matrix is C-contiguous (row-major, dense)."""
-        return self.col_stride == 1 and self.row_stride == self.ncols
+        return self._col_stride == 1 and self._row_stride == self._ncols
 
     def is_f_contiguous(self) -> Bool:
         """Returns True if the matrix is F-contiguous (column-major, dense)."""
-        return self.row_stride == 1 and self.col_stride == self.nrows
+        return self._row_stride == 1 and self._col_stride == self._nrows
 
     def is_row_contiguous(self) -> Bool:
         """Returns True if elements within each row are contiguous (col_stride == 1).
 
         Allows padding between rows (row_stride >= ncols).
         """
-        return self.col_stride == 1
+        return self._col_stride == 1
 
     def is_col_contiguous(self) -> Bool:
         """Returns True if elements within each column are contiguous (row_stride == 1).
 
         Allows padding between columns (col_stride >= nrows).
         """
-        return self.row_stride == 1
+        return self._row_stride == 1
 
     # ===--------------------------------------------------------------------===#
     # Life Cycle Management
     # ===--------------------------------------------------------------------===#
 
+    # [Mojo Miji]
+    # The shape, the two strides and the length of `data` are one invariant
+    # bundle, not five independent numbers: indexing computes
+    # `row * row_stride + col * col_stride`, so together they decide which
+    # buffer slots `m[i, j]` can reach. Two properties have to hold, and the
+    # constructors below are the only place they can be established.
+    #
+    # `layout_fits_buffer` is the easier one --- `row_stride = 100` over a
+    # six-element buffer indexes past the end, which `List` catches under
+    # `-D ASSERT=all` and is undefined in release. `layout_is_dense` is the
+    # subtler one: `row_stride = 0` makes every row the same row, so
+    # `m[0, 0] = 5` silently also writes `m[1, 0]`. That is a legitimate state
+    # for a `MatrixView` --- it is what `broadcast_to` produces --- and never
+    # for a matrix that owns its buffer, which is why the check lives here and
+    # not on the view.
+    #
+    # `debug_assert` costs nothing in release, so this is a statement of the
+    # invariant that the test suite executes rather than a runtime tax. The
+    # copying and moving constructors below take their layout from a matrix
+    # that already satisfies both, so they have nothing to establish.
+
     def __init__(
         out self,
-        var data: List[Self.ElementType],
+        var buffer: List[Self.ElementType],
         nrows: Int,
         ncols: Int,
         row_stride: Int,
         col_stride: Int,
     ):
-        self.data = data^
-        self.nrows = nrows
-        self.ncols = ncols
-        self.row_stride = row_stride
-        self.col_stride = col_stride
+        debug_assert(
+            layout_is_dense(nrows, ncols, row_stride, col_stride),
+            "Debug assertion failed: `Matrix` layout is not C- or F-major",
+        )
+        debug_assert(
+            layout_fits_buffer(
+                nrows, ncols, row_stride, col_stride, len(buffer)
+            ),
+            "Debug assertion failed: `Matrix` layout overruns its buffer",
+        )
+        self._data = buffer^
+        self._nrows = nrows
+        self._ncols = ncols
+        self._row_stride = row_stride
+        self._col_stride = col_stride
 
     def __init__(
         out self,
@@ -152,27 +191,37 @@ struct Matrix[dtype: DType](Copyable, MatrixLike, Movable, Sized, Writable):
         row_stride: Int,
         col_stride: Int,
     ):
-        self.data = List[Self.ElementType](length=nrows * ncols, fill=0)
-        self.nrows = nrows
-        self.ncols = ncols
-        self.row_stride = row_stride
-        self.col_stride = col_stride
+        debug_assert(
+            layout_is_dense(nrows, ncols, row_stride, col_stride),
+            "Debug assertion failed: `Matrix` layout is not C- or F-major",
+        )
+        debug_assert(
+            layout_fits_buffer(
+                nrows, ncols, row_stride, col_stride, nrows * ncols
+            ),
+            "Debug assertion failed: `Matrix` layout overruns its buffer",
+        )
+        self._data = List[Self.ElementType](length=nrows * ncols, fill=0)
+        self._nrows = nrows
+        self._ncols = ncols
+        self._row_stride = row_stride
+        self._col_stride = col_stride
 
     def __init__(out self, *, copy: Self):
         """Initializes the matrix by copying another matrix."""
-        self.data = copy.data.copy()
-        self.nrows = copy.nrows
-        self.ncols = copy.ncols
-        self.row_stride = copy.row_stride
-        self.col_stride = copy.col_stride
+        self._data = copy._data.copy()
+        self._nrows = copy._nrows
+        self._ncols = copy._ncols
+        self._row_stride = copy._row_stride
+        self._col_stride = copy._col_stride
 
     def __init__(out self, *, deinit move: Self):
         """Initializes the matrix by moving another matrix."""
-        self.data = move.data^
-        self.nrows = move.nrows
-        self.ncols = move.ncols
-        self.row_stride = move.row_stride
-        self.col_stride = move.col_stride
+        self._data = move._data^
+        self._nrows = move._nrows
+        self._ncols = move._ncols
+        self._row_stride = move._row_stride
+        self._col_stride = move._col_stride
 
     # ===--------------------------------------------------------------------===#
     # Element Access and Mutation
@@ -182,14 +231,14 @@ struct Matrix[dtype: DType](Copyable, MatrixLike, Movable, Sized, Writable):
     # [Mojo Miji]
     # This method returns a reference to the element at the specified indices.
     # The mutability of the reference is determined by the mutability of the
-    # underlying data (self.data). Since self.data is a mutable list, the
+    # underlying data (self._data). Since self._data is a mutable list, the
     # reference returned by __getitem__ is mutable, allowing for both reading
     # and writing to the matrix elements.
     # Thus, `__setitem__` is not needed as a separate method.
     #
     # [Mojo Miji]
-    # The returned origin is `origin_of(self.data)` - the whole buffer - and
-    # not the finer `self.data[row * row_stride + col * col_stride]`, which is
+    # The returned origin is `origin_of(self._data)` - the whole buffer - and
+    # not the finer `self._data[row * row_stride + col * col_stride]`, which is
     # what this method used to name. A per-element origin sounds more precise,
     # and it is, but forming a second one invalidated the first, so
     #
@@ -197,7 +246,7 @@ struct Matrix[dtype: DType](Copyable, MatrixLike, Movable, Sized, Writable):
     #
     # did not compile on a `var` matrix. Naming the buffer instead lets any
     # number of element references coexist. The reference has to be built from
-    # a pointer because `self.data[i]` would re-derive the narrow origin.
+    # a pointer because `self._data[i]` would re-derive the narrow origin.
     #
     # `__setitem__` is deliberately absent, and not only because the mutable
     # reference above makes it unnecessary. Defining `__setitem__` on this type
@@ -207,7 +256,7 @@ struct Matrix[dtype: DType](Copyable, MatrixLike, Movable, Sized, Writable):
     # spelled `set(...)` for the same reason.
     def __getitem__(
         ref self, row: Int, col: Int
-    ) raises -> ref[origin_of(self.data)] Self.ElementType:
+    ) raises -> ref[origin_of(self._data)] Self.ElementType:
         """Gets the element at the specified indices.
 
         Args:
@@ -220,7 +269,7 @@ struct Matrix[dtype: DType](Copyable, MatrixLike, Movable, Sized, Writable):
         Returns:
             The element at the specified indices.
         """
-        if row < 0 or row >= self.nrows or col < 0 or col >= self.ncols:
+        if row < 0 or row >= self._nrows or col < 0 or col >= self._ncols:
             raise IndexError(
                 function=(
                     "Matrix.__getitem__(self, row: Int, col: Int) ->"
@@ -228,8 +277,8 @@ struct Matrix[dtype: DType](Copyable, MatrixLike, Movable, Sized, Writable):
                 ),
                 message="Index out of bounds.",
             )
-        return self.data._data.unsafe_offset(
-            row * self.row_stride + col * self.col_stride
+        return self._data._data.unsafe_offset(
+            row * self._row_stride + col * self._col_stride
         )[]
 
     # [Mojo Miji]
@@ -247,7 +296,7 @@ struct Matrix[dtype: DType](Copyable, MatrixLike, Movable, Sized, Writable):
     # [Mojo Miji]
     # Note that `self` is taken by `read` and not by `ref` here. That single
     # word decides the mutability of every view slicing produces: with `ref`,
-    # `origin_of(self.data)` would inherit the caller's mutability, so slicing
+    # `origin_of(self._data)` would inherit the caller's mutability, so slicing
     # a `var` matrix would hand back a *mutable* view. Two mutable views of the
     # same matrix cannot be passed to one call, which would make the most
     # ordinary expressions in linear algebra illegal:
@@ -260,16 +309,16 @@ struct Matrix[dtype: DType](Copyable, MatrixLike, Movable, Sized, Writable):
     # `view(x, y)`, which does inherit mutability.
     def __getitem__(
         self, x: Slice, y: Slice
-    ) raises -> MatrixView[dtype=Self.dtype, origin=origin_of(self.data)]:
+    ) raises -> MatrixView[dtype=Self.dtype, origin=origin_of(self._data)]:
         """Gets a read-only view of the specified rows and columns."""
         return MatrixView(
-            data=self.data,
+            buffer=self._data,
             slice_x=x,
             slice_y=y,
-            initial_nrows=self.nrows,
-            initial_ncols=self.ncols,
-            initial_row_stride=self.row_stride,
-            initial_col_stride=self.col_stride,
+            initial_nrows=self._nrows,
+            initial_ncols=self._ncols,
+            initial_row_stride=self._row_stride,
+            initial_col_stride=self._col_stride,
             initial_offset=0,
         )
 
@@ -288,11 +337,11 @@ struct Matrix[dtype: DType](Copyable, MatrixLike, Movable, Sized, Writable):
             The element at the specified indices.
         """
         debug_assert(
-            indices_within_bounds(row, col, self.nrows, self.ncols),
+            indices_within_bounds(row, col, self._nrows, self._ncols),
             "Debug assertion failed: Indices out of bounds in `unsafe_load`",
         )
-        var offset = get_offset(row, col, self.row_stride, self.col_stride)
-        return self.data._data.unsafe_offset(offset)[]
+        var offset = get_offset(row, col, self._row_stride, self._col_stride)
+        return self._data._data.unsafe_offset(offset)[]
 
     # [Mojo Miji]
     # `read self`, not `ref self`. This method is the Matrix -> MatrixView
@@ -302,7 +351,7 @@ struct Matrix[dtype: DType](Copyable, MatrixLike, Movable, Sized, Writable):
     # `m.view() - m.view()` was rejected as two mutable borrows of one matrix,
     # and meant an innocuous-looking call was a write door. It is now a
     # shorthand for `m[:, :]` and nothing more.
-    def view(imm self) -> MatrixView[Self.dtype, origin_of(self.data)]:
+    def view(imm self) -> MatrixView[Self.dtype, origin_of(self._data)]:
         """Gets a read-only view of the entire matrix.
 
         This is the same thing `m[:, :]` produces, and is the conversion the
@@ -311,11 +360,11 @@ struct Matrix[dtype: DType](Copyable, MatrixLike, Movable, Sized, Writable):
         `linamo.routines.mutation`.
         """
         return MatrixView(
-            data=Span(self.data),
-            nrows=self.nrows,
-            ncols=self.ncols,
-            row_stride=self.row_stride,
-            col_stride=self.col_stride,
+            buffer=Span(self._data),
+            nrows=self._nrows,
+            ncols=self._ncols,
+            row_stride=self._row_stride,
+            col_stride=self._col_stride,
             offset=0,
         )
 
@@ -328,13 +377,13 @@ struct Matrix[dtype: DType](Copyable, MatrixLike, Movable, Sized, Writable):
 
         This is the row count rather than the element count so that `len()`
         agrees with what `__iter__` yields, the way it does for any Python
-        sequence. Use `get_size()` for `nrows * ncols`.
+        sequence. Use `size()` for `nrows * ncols`.
         """
-        return self.nrows
+        return self._nrows
 
     def rows[
         forward: Bool = True
-    ](self) -> MatrixAxisIter[Self.dtype, origin_of(self.data), 0, forward]:
+    ](self) -> MatrixAxisIter[Self.dtype, origin_of(self._data), 0, forward]:
         """Iterates over the rows, yielding each as a `1 x ncols` view.
 
         Nothing is copied. The rows are read-only regardless of how the
@@ -349,7 +398,7 @@ struct Matrix[dtype: DType](Copyable, MatrixLike, Movable, Sized, Writable):
 
     def cols[
         forward: Bool = True
-    ](self) -> MatrixAxisIter[Self.dtype, origin_of(self.data), 1, forward]:
+    ](self) -> MatrixAxisIter[Self.dtype, origin_of(self._data), 1, forward]:
         """Iterates over the columns, yielding each as an `nrows x 1` view.
 
         Parameters:
@@ -359,7 +408,7 @@ struct Matrix[dtype: DType](Copyable, MatrixLike, Movable, Sized, Writable):
 
     def __iter__(
         self,
-    ) -> MatrixAxisIter[Self.dtype, origin_of(self.data), 0, True]:
+    ) -> MatrixAxisIter[Self.dtype, origin_of(self._data), 0, True]:
         """Iterates over the rows, so `for row in matrix` walks row views."""
         return self.rows()
 
@@ -369,7 +418,7 @@ struct Matrix[dtype: DType](Copyable, MatrixLike, Movable, Sized, Writable):
     # lands.
     def __reversed__(
         self,
-    ) -> MatrixAxisIter[Self.dtype, origin_of(self.data), 0, False]:
+    ) -> MatrixAxisIter[Self.dtype, origin_of(self._data), 0, False]:
         """Iterates over the rows from last to first."""
         return self.rows[False]()
 
@@ -399,22 +448,27 @@ struct Matrix[dtype: DType](Copyable, MatrixLike, Movable, Sized, Writable):
         Returns:
             The `width` elements as a SIMD vector.
         """
-        if row < 0 or row >= self.nrows or col < 0 or col + width > self.ncols:
+        if (
+            row < 0
+            or row >= self._nrows
+            or col < 0
+            or col + width > self._ncols
+        ):
             raise IndexError(
                 function="Matrix.load[width](self, row: Int, col: Int)",
                 message="SIMD load runs past the end of the matrix.",
             )
-        var base = get_offset(row, col, self.row_stride, self.col_stride)
-        if self.col_stride == 1:
+        var base = get_offset(row, col, self._row_stride, self._col_stride)
+        if self._col_stride == 1:
             return (
-                Span(self.data)
+                Span(self._data)
                 .unsafe_ptr()
                 .unsafe_offset(base)
                 .unsafe_load[width=width]()
             )
         var result = SIMD[Self.dtype, width]()
         for i in range(width):
-            result[i] = self.data[base + i * self.col_stride]
+            result[i] = self._data[base + i * self._col_stride]
         return result
 
     def store[
@@ -437,17 +491,24 @@ struct Matrix[dtype: DType](Copyable, MatrixLike, Movable, Sized, Writable):
         Raises:
             IndexError: If the run would leave the matrix.
         """
-        if row < 0 or row >= self.nrows or col < 0 or col + width > self.ncols:
+        if (
+            row < 0
+            or row >= self._nrows
+            or col < 0
+            or col + width > self._ncols
+        ):
             raise IndexError(
                 function="Matrix.store[width](mut self, row, col, value)",
                 message="SIMD store runs past the end of the matrix.",
             )
-        var base = get_offset(row, col, self.row_stride, self.col_stride)
-        if self.col_stride == 1:
-            Span(self.data).unsafe_ptr().unsafe_offset(base).unsafe_store(value)
+        var base = get_offset(row, col, self._row_stride, self._col_stride)
+        if self._col_stride == 1:
+            Span(self._data).unsafe_ptr().unsafe_offset(base).unsafe_store(
+                value
+            )
         else:
             for i in range(width):
-                self.data[base + i * self.col_stride] = value[i]
+                self._data[base + i * self._col_stride] = value[i]
 
     # ===--------------------------------------------------------------------===#
     # Region writes
@@ -464,7 +525,7 @@ struct Matrix[dtype: DType](Copyable, MatrixLike, Movable, Sized, Writable):
     # a view carrying this matrix's own origin. See `routines/mutation.mojo`.
     #
     # Each one delegates to `routines.mutation` rather than looping over
-    # `self.data` itself. Writing the loop twice is what let the two copies
+    # `self._data` itself. Writing the loop twice is what let the two copies
     # drift: the version that lived here used `Slice.indices()` and agreed with
     # Python on `m.set(3:1, ..)`, while the view constructor computed a
     # negative extent for the same slice. One loop cannot disagree with itself.
@@ -481,8 +542,8 @@ struct Matrix[dtype: DType](Copyable, MatrixLike, Movable, Sized, Writable):
         Args:
             value: The scalar written to every element.
         """
-        for i in range(len(self.data)):
-            self.data[i] = value
+        for i in range(len(self._data)):
+            self._data[i] = value
 
     def set(mut self, rows: Slice, cols: Slice, value: Self.ElementType) raises:
         """Writes one scalar into every element of the selected region.
@@ -494,7 +555,7 @@ struct Matrix[dtype: DType](Copyable, MatrixLike, Movable, Sized, Writable):
         """
         var target = mutation.view_mut(self, rows, cols)
         mutation.fill(
-            target, Slice(0, target.nrows), Slice(0, target.ncols), value
+            target, Slice(0, target.nrows()), Slice(0, target.ncols()), value
         )
 
     def set[
@@ -512,7 +573,7 @@ struct Matrix[dtype: DType](Copyable, MatrixLike, Movable, Sized, Writable):
         Raises:
             ValueError: If the shapes do not match.
         """
-        self.set(Slice(0, self.nrows), Slice(0, self.ncols), src)
+        self.set(Slice(0, self._nrows), Slice(0, self._ncols), src)
 
     def set[
         mut_b: Bool, //, origin_b: Origin[mut=mut_b]
@@ -538,7 +599,7 @@ struct Matrix[dtype: DType](Copyable, MatrixLike, Movable, Sized, Writable):
         """
         var target = mutation.view_mut(self, rows, cols)
         mutation.assign(
-            target, Slice(0, target.nrows), Slice(0, target.ncols), src
+            target, Slice(0, target.nrows()), Slice(0, target.ncols()), src
         )
 
     def set(mut self, row: Int, col: Int, value: Self.ElementType) raises:
@@ -560,7 +621,7 @@ struct Matrix[dtype: DType](Copyable, MatrixLike, Movable, Sized, Writable):
 
     def view_mut(
         ref self, x: Slice, y: Slice
-    ) raises -> MatrixView[Self.dtype, origin_of(self.data)]:
+    ) raises -> MatrixView[Self.dtype, origin_of(self._data)]:
         """Gets a writable view of a region of this matrix.
 
         The counterpart of `m[x, y]`, which is always read-only. The view
@@ -604,17 +665,17 @@ struct Matrix[dtype: DType](Copyable, MatrixLike, Movable, Sized, Writable):
     def __str__(self) -> String:
         """Returns a string representation of the matrix."""
         var result = String("")
-        for i in range(self.nrows):
-            for j in range(self.ncols):
+        for i in range(self._nrows):
+            for j in range(self._ncols):
                 result += (
                     String(
-                        self.data[
-                            get_offset(i, j, self.row_stride, self.col_stride)
+                        self._data[
+                            get_offset(i, j, self._row_stride, self._col_stride)
                         ]
                     )
                     + "\t"
                 )
-            if i < self.nrows - 1:
+            if i < self._nrows - 1:
                 result += "\n"
         return result
 
@@ -623,28 +684,28 @@ struct Matrix[dtype: DType](Copyable, MatrixLike, Movable, Sized, Writable):
         writer.write("Matrix, ")
         writer.write(self.dtype)
         writer.write(", ")
-        writer.write(self.nrows)
+        writer.write(self._nrows)
         writer.write("x")
-        writer.write(self.ncols)
+        writer.write(self._ncols)
         writer.write(", strides: ")
-        writer.write(self.row_stride)
+        writer.write(self._row_stride)
         writer.write("-")
-        writer.write(self.col_stride)
+        writer.write(self._col_stride)
         writer.write(":\n")
-        for i in range(self.nrows):
+        for i in range(self._nrows):
             if i == 0:
                 writer.write("[[\t")
             else:
                 writer.write(" [\t")
-            for j in range(self.ncols):
+            for j in range(self._ncols):
                 writer.write(
-                    self.data[
-                        get_offset(i, j, self.row_stride, self.col_stride)
+                    self._data[
+                        get_offset(i, j, self._row_stride, self._col_stride)
                     ]
                 )
                 writer.write("\t")
             writer.write("]")
-            if i < self.nrows - 1:
+            if i < self._nrows - 1:
                 writer.write("\n")
             else:
                 writer.write("]\n")
@@ -782,7 +843,7 @@ struct Matrix[dtype: DType](Copyable, MatrixLike, Movable, Sized, Writable):
     # a result, so a transposed or otherwise non-contiguous matrix keeps its
     # layout. There is no `MatrixView` counterpart: a view is generic over
     # `origin` and Mojo checks the body against the read-only instantiation
-    # too, so no method writing through `self.data` can be defined on it. Use
+    # too, so no method writing through `self._data` can be defined on it. Use
     # the free functions in `routines/mutation.mojo` for views.
     #
     # Aliasing (`a += a[:, :]`) is rejected by the borrow checker, which will

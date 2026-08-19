@@ -55,8 +55,8 @@ def _m4() raises -> la.Matrix[DType.float64]:
 
 def test_reshape_c_order() raises:
     var r = reshape(_m(), 3, 2)
-    testing.assert_equal(r.nrows, 3)
-    testing.assert_equal(r.ncols, 2)
+    testing.assert_equal(r.nrows(), 3)
+    testing.assert_equal(r.ncols(), 2)
     # np.reshape([[1,2,3],[4,5,6]], (3, 2)) -> [[1,2],[3,4],[5,6]]
     var expected: List[Float64] = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0]
     for k in range(6):
@@ -112,8 +112,8 @@ def test_reshape_bad_order_raises() raises:
 def test_reshape_view_shares_the_buffer() raises:
     var m = _m()
     var v = reshape_view(m, 3, 2)
-    testing.assert_equal(v.nrows, 3)
-    testing.assert_equal(v.ncols, 2)
+    testing.assert_equal(v.nrows(), 3)
+    testing.assert_equal(v.ncols(), 2)
     testing.assert_equal(v[1, 0], 3.0)
     m[0, 0] = 99.0
     testing.assert_equal(v[0, 0], 99.0)
@@ -154,8 +154,8 @@ def test_reshape_view_size_mismatch_raises() raises:
 
 def test_flatten_c_order() raises:
     var r = flatten(_m())
-    testing.assert_equal(r.nrows, 1)
-    testing.assert_equal(r.ncols, 6)
+    testing.assert_equal(r.nrows(), 1)
+    testing.assert_equal(r.ncols(), 6)
     for k in range(6):
         testing.assert_equal(r[0, k], Float64(k + 1))
 
@@ -170,7 +170,7 @@ def test_flatten_f_order() raises:
 def test_flatten_of_a_strided_view() raises:
     var m = _m4()
     var r = flatten(m[1:3, 1:3])  # [[5, 6], [9, 10]]
-    testing.assert_equal(r.ncols, 4)
+    testing.assert_equal(r.ncols(), 4)
     testing.assert_equal(r[0, 0], 5.0)
     testing.assert_equal(r[0, 3], 10.0)
 
@@ -182,8 +182,8 @@ def test_flatten_of_a_strided_view() raises:
 
 def test_resize_grows_and_zero_pads() raises:
     var r = resize(_m(), 3, 3)
-    testing.assert_equal(r.nrows, 3)
-    testing.assert_equal(r.ncols, 3)
+    testing.assert_equal(r.nrows(), 3)
+    testing.assert_equal(r.ncols(), 3)
     for k in range(6):
         testing.assert_equal(r[k // 3, k % 3], Float64(k + 1))
     for j in range(3):
@@ -202,10 +202,10 @@ def test_resize_leaves_the_source_alone() raises:
     """The buffer of an existing matrix is fixed; `resize` returns a new one."""
     var m = _m()
     var r = resize(m, 4, 4)
-    testing.assert_equal(m.nrows, 2)
-    testing.assert_equal(m.ncols, 3)
+    testing.assert_equal(m.nrows(), 2)
+    testing.assert_equal(m.ncols(), 3)
     testing.assert_equal(m[0, 0], 1.0)
-    testing.assert_equal(r.nrows, 4)
+    testing.assert_equal(r.nrows(), 4)
 
 
 def test_resize_negative_shape_raises() raises:
@@ -222,8 +222,8 @@ def test_contiguous_f_changes_strides_not_elements() raises:
     var m = _m()
     var f = contiguous(m, "F")
     testing.assert_true(f.is_f_contiguous())
-    testing.assert_equal(f.row_stride, 1)
-    testing.assert_equal(f.col_stride, 2)
+    testing.assert_equal(f.row_stride(), 1)
+    testing.assert_equal(f.col_stride(), 2)
     for i in range(2):
         for j in range(3):
             testing.assert_equal(f[i, j], m[i, j])
@@ -233,8 +233,8 @@ def test_contiguous_densifies_a_strided_view() raises:
     var m = _m4()
     var d = contiguous(m[0:4:2, 0:4:2])
     testing.assert_true(d.is_c_contiguous())
-    testing.assert_equal(d.nrows, 2)
-    testing.assert_equal(d.ncols, 2)
+    testing.assert_equal(d.nrows(), 2)
+    testing.assert_equal(d.ncols(), 2)
     testing.assert_equal(d[0, 0], 0.0)
     testing.assert_equal(d[0, 1], 2.0)
     testing.assert_equal(d[1, 0], 8.0)
@@ -278,9 +278,9 @@ def test_reorder_layout_of_a_strided_view_raises() raises:
 def test_broadcast_row() raises:
     var r = la.matrix[DType.float64]([[1.0, 2.0, 3.0]])
     var b = broadcast_to(r, 3, 3)
-    testing.assert_equal(b.nrows, 3)
-    testing.assert_equal(b.ncols, 3)
-    testing.assert_equal(b.row_stride, 0)
+    testing.assert_equal(b.nrows(), 3)
+    testing.assert_equal(b.ncols(), 3)
+    testing.assert_equal(b.row_stride(), 0)
     for i in range(3):
         for j in range(3):
             testing.assert_equal(b[i, j], Float64(j + 1))
@@ -289,7 +289,7 @@ def test_broadcast_row() raises:
 def test_broadcast_column() raises:
     var c = la.matrix[DType.float64]([[1.0], [2.0], [3.0]])
     var b = broadcast_to(c, 3, 4)
-    testing.assert_equal(b.col_stride, 0)
+    testing.assert_equal(b.col_stride(), 0)
     for i in range(3):
         for j in range(4):
             testing.assert_equal(b[i, j], Float64(i + 1))
@@ -298,7 +298,7 @@ def test_broadcast_column() raises:
 def test_broadcast_scalar_matrix() raises:
     var s = la.matrix[DType.float64]([[7.0]])
     var b = broadcast_to(s, 2, 5)
-    testing.assert_equal(b.get_size(), 10)
+    testing.assert_equal(b.size(), 10)
     testing.assert_equal(b[1, 4], 7.0)
 
 
@@ -348,8 +348,8 @@ def test_astype_method_on_matrix_and_view() raises:
     var a = m.astype[DType.float32]()
     testing.assert_equal(a[1, 2], Float32(6.0))
     var b = m[0:1, 0:2].astype[DType.float32]()
-    testing.assert_equal(b.nrows, 1)
-    testing.assert_equal(b.ncols, 2)
+    testing.assert_equal(b.nrows(), 1)
+    testing.assert_equal(b.ncols(), 2)
     testing.assert_equal(b[0, 1], Float32(2.0))
 
 

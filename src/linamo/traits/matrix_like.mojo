@@ -1,7 +1,25 @@
+"""A common interface for the shape and stride accessors of a matrix type.
+
+No type in the library conforms to this trait and nothing is generic over it.
+`Matrix`, `MatrixView` and `StaticMatrix` declare the methods below as ordinary
+methods instead.
+
+Operand genericity does not go through here: a routine that accepts either a
+`Matrix` or a `MatrixView` gets that from the `@implicit` constructor on
+`MatrixView`, which a trait method cannot express, because the converted type's
+`origin` parameter depends on the borrow of the argument. See the note in
+`linamo.routines.math`.
+
+What a trait could carry is the read-only algorithms that both types spell out
+separately today, `__str__` and `write_to` foremost. Mojo 1.0 supports
+associated aliases, so `comptime dtype: DType` alongside
+`def at(self, r: Int, c: Int) -> Scalar[Self.dtype]` is expressible, and that
+is the shape such a trait would take.
+"""
+
+
 trait MatrixLike(Copyable):
-    """A trait for types that behave like matrices, providing a common interface
-    for matrix operations.
-    """
+    """A common interface for matrix-like types. Currently unused."""
 
     def get_nrows(self) -> Int:
         """Returns the number of rows in the matrix-like object."""

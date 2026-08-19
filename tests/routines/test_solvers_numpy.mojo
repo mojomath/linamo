@@ -7,7 +7,7 @@ Tests det, solve, inv, lstsq against numpy.linalg as ground truth.
 import std.testing as testing
 from linamo.routines.linalg import det, solve, inv, lstsq, transpose
 from linamo.routines.math import matmul
-from linamo.routines.numpy_interop import matrix_from_numpy, to_numpy
+from linamo.routines.numpy_interop import from_numpy, to_numpy
 from linamo.utils.test_utils import assert_matrices_close
 from std.python import Python, PythonObject
 
@@ -30,7 +30,7 @@ def _make_invertible(np: PythonObject, n: Int) raises -> PythonObject:
 def _test_det(np: PythonObject, n: Int) raises:
     """Helper: compare det(A) vs np.linalg.det(A)."""
     var a_np = _make_invertible(np, n)
-    var a = matrix_from_numpy(a_np)
+    var a = from_numpy(a_np)
     var got = Float64(det(a))
     var expected = Float64(py=np.linalg.det(a_np))
     # Use relative tolerance for large determinants
@@ -72,7 +72,7 @@ def test_det_permutation_sign() raises:
     # Run several random matrices and compare signs
     for _ in range(10):
         var a_np = np.random.rand(4, 4) + np.eye(4) * 2.0
-        var a = matrix_from_numpy(a_np)
+        var a = from_numpy(a_np)
         var got = Float64(det(a))
         var expected = Float64(py=np.linalg.det(a_np))
         # Signs must match
@@ -99,11 +99,11 @@ def _test_solve(np: PythonObject, n: Int, k: Int) raises:
     """Helper: compare solve(A, b) vs np.linalg.solve(A, b)."""
     var a_np = _make_invertible(np, n)
     var b_np = np.random.rand(n, k)
-    var a = matrix_from_numpy(a_np)
-    var b = matrix_from_numpy(b_np)
+    var a = from_numpy(a_np)
+    var b = from_numpy(b_np)
     var x = solve(a, b)
     var x_np = np.linalg.solve(a_np, b_np)
-    var x_expected = matrix_from_numpy(x_np)
+    var x_expected = from_numpy(x_np)
     assert_matrices_close(
         x,
         x_expected,
@@ -141,8 +141,8 @@ def test_solve_reconstruction_random() raises:
     var np = Python.import_module("numpy")
     var a_np = _make_invertible(np, 6)
     var b_np = np.random.rand(6, 2)
-    var a = matrix_from_numpy(a_np)
-    var b = matrix_from_numpy(b_np)
+    var a = from_numpy(a_np)
+    var b = from_numpy(b_np)
     var x = solve(a, b)
     var Ax = matmul(a, x)
     assert_matrices_close(
@@ -161,10 +161,10 @@ def test_solve_reconstruction_random() raises:
 def _test_inv(np: PythonObject, n: Int) raises:
     """Helper: compare inv(A) vs np.linalg.inv(A)."""
     var a_np = _make_invertible(np, n)
-    var a = matrix_from_numpy(a_np)
+    var a = from_numpy(a_np)
     var a_inv = inv(a)
     var a_inv_np = np.linalg.inv(a_np)
-    var a_inv_expected = matrix_from_numpy(a_inv_np)
+    var a_inv_expected = from_numpy(a_inv_np)
     assert_matrices_close(
         a_inv,
         a_inv_expected,
@@ -187,11 +187,11 @@ def test_inv_roundtrip_random() raises:
     var np = Python.import_module("numpy")
     for _ in range(3):
         var a_np = _make_invertible(np, 6)
-        var a = matrix_from_numpy(a_np)
+        var a = from_numpy(a_np)
         var a_inv = inv(a)
         var product = matmul(a, a_inv)
         var I_np = np.eye(6)
-        var I = matrix_from_numpy(I_np)
+        var I = from_numpy(I_np)
         assert_matrices_close(
             product,
             I,
@@ -209,11 +209,11 @@ def _test_lstsq(np: PythonObject, m: Int, n: Int, k: Int) raises:
     """Helper: compare lstsq(A, b) vs np.linalg.lstsq(A, b)."""
     var a_np = np.random.rand(m, n)
     var b_np = np.random.rand(m, k)
-    var a = matrix_from_numpy(a_np)
-    var b = matrix_from_numpy(b_np)
+    var a = from_numpy(a_np)
+    var b = from_numpy(b_np)
     var x = lstsq(a, b)
     var result_np = np.linalg.lstsq(a_np, b_np, rcond=PythonObject(None))
-    var x_expected = matrix_from_numpy(result_np[0])
+    var x_expected = from_numpy(result_np[0])
     assert_matrices_close(
         x,
         x_expected,
@@ -250,10 +250,10 @@ def test_lstsq_exact_fit_random() raises:
     var a_np = _make_invertible(np, 5)
     var x_true_np = np.random.rand(5, 1)
     var b_np = np.matmul(a_np, x_true_np)
-    var a = matrix_from_numpy(a_np)
-    var b = matrix_from_numpy(b_np)
+    var a = from_numpy(a_np)
+    var b = from_numpy(b_np)
     var x_lstsq = lstsq(a, b)
-    var x_true = matrix_from_numpy(x_true_np)
+    var x_true = from_numpy(x_true_np)
     assert_matrices_close(
         x_lstsq,
         x_true,
@@ -267,8 +267,8 @@ def test_lstsq_normal_equations_random() raises:
     var np = Python.import_module("numpy")
     var a_np = np.random.rand(12, 4)
     var b_np = np.random.rand(12, 1)
-    var a = matrix_from_numpy(a_np)
-    var b = matrix_from_numpy(b_np)
+    var a = from_numpy(a_np)
+    var b = from_numpy(b_np)
     var x = lstsq(a, b)
     var At = transpose(a)
     var AtA = matmul(At, a)

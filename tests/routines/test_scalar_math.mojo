@@ -77,8 +77,8 @@ def test_scalar_ops_preserve_shape() raises:
     """Test that scalar ops preserve matrix shape."""
     var mat = la.matrix[DType.float64]([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]])
     var result = scalar_add(mat, 1.0)
-    testing.assert_equal(result.nrows, 2)
-    testing.assert_equal(result.ncols, 3)
+    testing.assert_equal(result.nrows(), 2)
+    testing.assert_equal(result.ncols(), 3)
 
 
 def main() raises:

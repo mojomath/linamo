@@ -21,13 +21,12 @@ from linamo.utils.indexing import get_offset
 # of the two types each operand happens to be, and the conversion is an O(1)
 # metadata copy.
 #
-# The route not taken was `def add[M: MatrixLike](a: M, b: M)`. That fails for
-# a reason deeper than the missing parameterised traits: converting `M` to a
-# view has to yield a type whose `origin` parameter depends on the *borrow of
+# A trait bound cannot do this job. `def add[M: MatrixLike](a: M, b: M)` fails
+# for a reason deeper than the missing parameterised traits: converting `M` to
+# a view has to yield a type whose `origin` parameter depends on the *borrow of
 # the argument*, and no trait method can name that. An implicit constructor
-# can, because `out self` may be written in terms of the argument. `MatrixLike`
-# remains what it always was --- a common interface for the shape and stride
-# accessors --- and is not the vehicle for operand-type genericity.
+# can, because `out self` may be written in terms of the argument. Operand-type
+# genericity therefore goes through conversion, not through a trait.
 
 # ===---------------------------------------------------------------------- ===#
 # StaticMatrix element-wise operations
@@ -50,7 +49,7 @@ def add[
     Returns:
         A new matrix containing the element-wise sum of a and b.
     """
-    return StaticMatrix[dtype, nrows, ncols](a.data + b.data)
+    return StaticMatrix[dtype, nrows, ncols](a._data + b._data)
 
 
 def sub[
@@ -67,7 +66,7 @@ def sub[
     Returns:
         A new matrix containing the element-wise difference of a and b.
     """
-    return StaticMatrix[dtype, nrows, ncols](a.data - b.data)
+    return StaticMatrix[dtype, nrows, ncols](a._data - b._data)
 
 
 def mul[
@@ -84,7 +83,7 @@ def mul[
     Returns:
         A new matrix containing the element-wise product of a and b.
     """
-    return StaticMatrix[dtype, nrows, ncols](a.data * b.data)
+    return StaticMatrix[dtype, nrows, ncols](a._data * b._data)
 
 
 def div[
@@ -101,7 +100,7 @@ def div[
     Returns:
         A new matrix containing the element-wise quotient of a and b.
     """
-    return StaticMatrix[dtype, nrows, ncols](a.data / b.data)
+    return StaticMatrix[dtype, nrows, ncols](a._data / b._data)
 
 
 def matmul[
@@ -125,7 +124,7 @@ def matmul[
             var sum: Scalar[dtype] = 0
             for k in range(inner_dim):
                 sum += a[i, k] * b[k, j]
-            result.data[i * result.BUFFER_COL_LEN + j] = sum
+            result._data[i * result.BUFFER_COL_LEN + j] = sum
     return result^
 
 
@@ -173,7 +172,7 @@ def _matmul_view_simd[
     """
     comptime simd_w = simd_width_of[dtype]()
 
-    if a.ncols != b.nrows:
+    if a.ncols() != b.nrows():
         raise ValueError(
             function="matmul()",
             message=(
@@ -182,22 +181,22 @@ def _matmul_view_simd[
             ),
         )
 
-    var M = a.nrows
-    var N = b.ncols
-    var K = a.ncols
+    var M = a.nrows()
+    var N = b.ncols()
+    var K = a.ncols()
 
     # Result is always C-contiguous (row-major).
     var result = Matrix[dtype](M, N, N, 1)
 
     # Shared pointer setup – used by all SIMD paths.
-    var a_ptr = a.data.unsafe_ptr()
-    var b_ptr = b.data.unsafe_ptr()
-    var a_off = a.offset
-    var b_off = b.offset
-    var a_rs = a.row_stride
-    var a_cs = a.col_stride
-    var b_rs = b.row_stride
-    var b_cs = b.col_stride
+    var a_ptr = a._data.unsafe_ptr()
+    var b_ptr = b._data.unsafe_ptr()
+    var a_off = a.offset()
+    var b_off = b.offset()
+    var a_rs = a.row_stride()
+    var a_cs = a.col_stride()
+    var b_rs = b.row_stride()
+    var b_cs = b.col_stride()
 
     # ---------------------------------------------------------------------- #
     # Path 1: B row-contiguous (col_stride == 1)
@@ -228,9 +227,9 @@ def _matmul_view_simd[
                     imm k,
                 }:
                     var r_idx = i * N + j
-                    result.data._data.unsafe_store[width=w](
+                    result._data._data.unsafe_store[width=w](
                         r_idx,
-                        result.data._data.unsafe_load[width=w](r_idx)
+                        result._data._data.unsafe_load[width=w](r_idx)
                         + a_ptr.unsafe_load[width=1](
                             a_off + i * a_rs + k * a_cs
                         )
@@ -272,7 +271,7 @@ def _matmul_view_simd[
                     ).reduce_add()
 
                 vectorize[simd_w](K, dot_k)
-                result.data._data.unsafe_store[width=1](i * N + j, dot_sum)
+                result._data._data.unsafe_store[width=1](i * N + j, dot_sum)
 
         parallelize[process_row_cxf](M, M)
 
@@ -316,7 +315,7 @@ def _matmul_view_simd[
 
             # Scatter temp column into result's column j.
             for i in range(M):
-                result.data._data.unsafe_store[width=1](
+                result._data._data.unsafe_store[width=1](
                     i * N + j, temp_ptr.unsafe_load[width=1](i)
                 )
 
@@ -333,10 +332,10 @@ def _matmul_view_simd[
                 var sum: Scalar[dtype] = 0
                 for k in range(K):
                     sum += (
-                        a.data[a_off + i * a_rs + k * a_cs]
-                        * b.data[b_off + k * b_rs + j * b_cs]
+                        a._data[a_off + i * a_rs + k * a_cs]
+                        * b._data[b_off + k * b_rs + j * b_cs]
                     )
-                result.data._data.unsafe_store[width=1](i * N + j, sum)
+                result._data._data.unsafe_store[width=1](i * N + j, sum)
 
         parallelize[process_row_general](M, M)
 
@@ -421,13 +420,13 @@ def _elementwise_view[
 
     The result is always a freshly allocated, C-contiguous Matrix.
     """
-    if a.nrows != b.nrows or a.ncols != b.ncols:
+    if a.nrows() != b.nrows() or a.ncols() != b.ncols():
         raise ValueError(
             function="_elementwise_view()",
             message="Input matrices must have the same shape.",
         )
-    var M = a.nrows
-    var N = a.ncols
+    var M = a.nrows()
+    var N = a.ncols()
     var total = M * N
     var result = Matrix[dtype](M, N, N, 1)
 
@@ -435,10 +434,10 @@ def _elementwise_view[
         # Fast SIMD path: both operands are dense row-major, so we can do a
         # single linear pass with vectorized loads/stores.
         comptime simd_w = simd_width_of[dtype]()
-        var a_ptr = a.data.unsafe_ptr()
-        var b_ptr = b.data.unsafe_ptr()
-        var a_off = a.offset
-        var b_off = b.offset
+        var a_ptr = a._data.unsafe_ptr()
+        var b_ptr = b._data.unsafe_ptr()
+        var a_off = a.offset()
+        var b_off = b.offset()
 
         def vec_op[
             w: Int
@@ -449,14 +448,14 @@ def _elementwise_view[
 
             comptime for lane in range(w):
                 res[lane] = func(a_chunk[lane], b_chunk[lane])
-            result.data._data.unsafe_store[width=w](idx, res)
+            result._data._data.unsafe_store[width=w](idx, res)
 
         vectorize[simd_w](total, vec_op)
     else:
         # General stride-aware fallback.
         for i in range(M):
             for j in range(N):
-                result.data[i * N + j] = func(a[i, j], b[i, j])
+                result._data[i * N + j] = func(a[i, j], b[i, j])
 
     return result^
 
@@ -478,15 +477,15 @@ def _scalar_elementwise_view[
 
     The result is always a freshly allocated, C-contiguous Matrix.
     """
-    var M = mat.nrows
-    var N = mat.ncols
+    var M = mat.nrows()
+    var N = mat.ncols()
     var total = M * N
     var result = Matrix[dtype](M, N, N, 1)
 
     if mat.is_c_contiguous():
         comptime simd_w = simd_width_of[dtype]()
-        var m_ptr = mat.data.unsafe_ptr()
-        var m_off = mat.offset
+        var m_ptr = mat._data.unsafe_ptr()
+        var m_off = mat.offset()
 
         def vec_scalar[
             w: Int
@@ -497,13 +496,13 @@ def _scalar_elementwise_view[
 
             comptime for lane in range(w):
                 res[lane] = func(m_chunk[lane], s_chunk[lane])
-            result.data._data.unsafe_store[width=w](idx, res)
+            result._data._data.unsafe_store[width=w](idx, res)
 
         vectorize[simd_w](total, vec_scalar)
     else:
         for i in range(M):
             for j in range(N):
-                result.data[i * N + j] = func(mat[i, j], scalar)
+                result._data[i * N + j] = func(mat[i, j], scalar)
 
     return result^
 
@@ -616,7 +615,7 @@ def scalar_div[
 #
 # The target is a `Matrix` rather than a `MatrixView`. A view is generic over
 # `origin`, and Mojo checks a body against every instantiation including the
-# read-only one, so nothing writing through `self.data` can be defined on it —
+# read-only one, so nothing writing through `self._data` can be defined on it —
 # the same constraint that pushed bulk writes into `routines/mutation.mojo`.
 
 
@@ -630,19 +629,19 @@ def _elementwise_inplace[
     When both operands are C-contiguous, a SIMD-vectorised fast path is taken.
     Otherwise a stride-aware double loop writes through `a`'s own strides.
     """
-    if a.nrows != b.nrows or a.ncols != b.ncols:
+    if a.nrows() != b.nrows() or a.ncols() != b.ncols():
         raise ValueError(
             function="_elementwise_inplace()",
             message="Input matrices must have the same shape.",
         )
-    var M = a.nrows
-    var N = a.ncols
+    var M = a.nrows()
+    var N = a.ncols()
 
     if a.is_c_contiguous() and b.is_c_contiguous():
         comptime simd_w = simd_width_of[dtype]()
-        var a_ptr = a.data._data
-        var b_ptr = b.data.unsafe_ptr()
-        var b_off = b.offset
+        var a_ptr = a._data._data
+        var b_ptr = b._data.unsafe_ptr()
+        var b_off = b.offset()
 
         def vec_op[
             w: Int
@@ -659,8 +658,8 @@ def _elementwise_inplace[
     else:
         for i in range(M):
             for j in range(N):
-                var idx = get_offset(i, j, a.row_stride, a.col_stride)
-                a.data[idx] = func(a.data[idx], b[i, j])
+                var idx = get_offset(i, j, a.row_stride(), a.col_stride())
+                a._data[idx] = func(a._data[idx], b[i, j])
 
 
 def _scalar_elementwise_inplace[
@@ -668,12 +667,12 @@ def _scalar_elementwise_inplace[
     func: def(Scalar[dtype], Scalar[dtype]) thin -> Scalar[dtype],
 ](mut mat: Matrix[dtype], scalar: Scalar[dtype]):
     """Core in-place scalar element-wise operation, writing into `mat`."""
-    var M = mat.nrows
-    var N = mat.ncols
+    var M = mat.nrows()
+    var N = mat.ncols()
 
     if mat.is_c_contiguous():
         comptime simd_w = simd_width_of[dtype]()
-        var m_ptr = mat.data._data
+        var m_ptr = mat._data._data
 
         def vec_scalar[
             w: Int
@@ -690,8 +689,8 @@ def _scalar_elementwise_inplace[
     else:
         for i in range(M):
             for j in range(N):
-                var idx = get_offset(i, j, mat.row_stride, mat.col_stride)
-                mat.data[idx] = func(mat.data[idx], scalar)
+                var idx = get_offset(i, j, mat.row_stride(), mat.col_stride())
+                mat._data[idx] = func(mat._data[idx], scalar)
 
 
 # ===---------------------------------------------------------------------- ===#
@@ -912,7 +911,7 @@ def min[
     Raises:
         ValueError: If the operand is empty.
     """
-    if m.get_size() == 0:
+    if m.size() == 0:
         raise ValueError(
             function="min(m)", message="Cannot reduce an empty matrix."
         )
@@ -939,7 +938,7 @@ def min[
     Raises:
         ValueError: If `axis` is neither 0 nor 1, or the operand is empty.
     """
-    if m.get_size() == 0:
+    if m.size() == 0:
         raise ValueError(
             function="min(m, axis)", message="Cannot reduce an empty matrix."
         )
@@ -968,7 +967,7 @@ def max[
     Raises:
         ValueError: If the operand is empty.
     """
-    if m.get_size() == 0:
+    if m.size() == 0:
         raise ValueError(
             function="max(m)", message="Cannot reduce an empty matrix."
         )
@@ -995,7 +994,7 @@ def max[
     Raises:
         ValueError: If `axis` is neither 0 nor 1, or the operand is empty.
     """
-    if m.get_size() == 0:
+    if m.size() == 0:
         raise ValueError(
             function="max(m, axis)", message="Cannot reduce an empty matrix."
         )
@@ -1021,13 +1020,13 @@ def cumprod[
     Returns:
         A new C-contiguous matrix with the same shape as the input.
     """
-    var result = Matrix[dtype](m.nrows, m.ncols, m.ncols, 1)
+    var result = Matrix[dtype](m.nrows(), m.ncols(), m.ncols(), 1)
     var acc = Scalar[dtype](1)
     var k = 0
-    for i in range(m.nrows):
-        for j in range(m.ncols):
+    for i in range(m.nrows()):
+        for j in range(m.ncols()):
             acc *= m[i, j]
-            result.data[k] = acc
+            result._data[k] = acc
             k += 1
     return result^
 
@@ -1057,17 +1056,17 @@ def cumprod[
             function="cumprod(m, axis)", message="Axis must be 0 or 1."
         )
 
-    var result = Matrix[dtype](m.nrows, m.ncols, m.ncols, 1)
+    var result = Matrix[dtype](m.nrows(), m.ncols(), m.ncols(), 1)
     if axis == 0:
-        for j in range(m.ncols):
+        for j in range(m.ncols()):
             var acc = Scalar[dtype](1)
-            for i in range(m.nrows):
+            for i in range(m.nrows()):
                 acc *= m[i, j]
-                result.data[i * m.ncols + j] = acc
+                result._data[i * m.ncols() + j] = acc
     else:
-        for i in range(m.nrows):
+        for i in range(m.nrows()):
             var acc = Scalar[dtype](1)
-            for j in range(m.ncols):
+            for j in range(m.ncols()):
                 acc *= m[i, j]
-                result.data[i * m.ncols + j] = acc
+                result._data[i * m.ncols() + j] = acc
     return result^

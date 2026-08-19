@@ -104,13 +104,13 @@ def cumsum[
     Returns:
         A new C-contiguous matrix of running sums.
     """
-    var result = Matrix[dtype](m.nrows, m.ncols, m.ncols, 1)
+    var result = Matrix[dtype](m.nrows(), m.ncols(), m.ncols(), 1)
     var acc = Scalar[dtype](0)
     var k = 0
-    for i in range(m.nrows):
-        for j in range(m.ncols):
+    for i in range(m.nrows()):
+        for j in range(m.ncols()):
             acc += m[i, j]
-            result.data[k] = acc
+            result._data[k] = acc
             k += 1
     return result^
 
@@ -141,17 +141,17 @@ def cumsum[
             message="Axis must be 0 or 1.",
         )
 
-    var result = Matrix[dtype](m.nrows, m.ncols, m.ncols, 1)
+    var result = Matrix[dtype](m.nrows(), m.ncols(), m.ncols(), 1)
     if axis == 0:
-        for j in range(m.ncols):
+        for j in range(m.ncols()):
             var acc = Scalar[dtype](0)
-            for i in range(m.nrows):
+            for i in range(m.nrows()):
                 acc += m[i, j]
-                result.data[i * m.ncols + j] = acc
+                result._data[i * m.ncols() + j] = acc
     else:
-        for i in range(m.nrows):
+        for i in range(m.nrows()):
             var acc = Scalar[dtype](0)
-            for j in range(m.ncols):
+            for j in range(m.ncols()):
                 acc += m[i, j]
-                result.data[i * m.ncols + j] = acc
+                result._data[i * m.ncols() + j] = acc
     return result^

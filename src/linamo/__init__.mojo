@@ -62,8 +62,8 @@ from linamo.routines.creation import (
     empty,
     empty_like,
     eye,
-    fromlist,
-    fromstring,
+    from_list,
+    from_string,
     full,
     full_like,
     identity,
@@ -103,7 +103,7 @@ from linamo.routines.random import rand, seed
 from linamo.routines.searching import argmax, argmin
 from linamo.routines.sorting import argsort, sort, sort_inplace
 from linamo.routines.statistics import cumsum, sum
-from linamo.routines.numpy_interop import matrix_from_numpy, to_numpy
+from linamo.routines.numpy_interop import from_numpy, to_numpy
 from linamo.utils.test_utils import (
     assert_matrices_equal,
     assert_matrices_close,

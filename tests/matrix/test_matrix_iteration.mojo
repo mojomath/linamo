@@ -21,8 +21,8 @@ def test_len_is_row_count() raises:
     )
     testing.assert_equal(len(mat), 3)
     testing.assert_equal(len(mat.view()), 3)
-    # get_size() remains the element count.
-    testing.assert_equal(mat.get_size(), 12)
+    # size() remains the element count.
+    testing.assert_equal(mat.size(), 12)
 
 
 def test_row_iteration_yields_views() raises:
@@ -33,8 +33,8 @@ def test_row_iteration_yields_views() raises:
     var seen = List[Float64]()
     var count = 0
     for row in mat:
-        testing.assert_equal(row.nrows, 1)
-        testing.assert_equal(row.ncols, 3)
+        testing.assert_equal(row.nrows(), 1)
+        testing.assert_equal(row.ncols(), 3)
         seen.append(row[0, 0])
         count += 1
     testing.assert_equal(count, 3)
@@ -60,8 +60,8 @@ def test_column_iteration() raises:
     var mat = la.matrix[DType.float64]([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]])
     var seen = List[Float64]()
     for col in mat.cols():
-        testing.assert_equal(col.nrows, 2)
-        testing.assert_equal(col.ncols, 1)
+        testing.assert_equal(col.nrows(), 2)
+        testing.assert_equal(col.ncols(), 1)
         seen.append(col[1, 0])
     testing.assert_equal(len(seen), 3)
     testing.assert_equal(seen[0], 4.0)
@@ -263,8 +263,8 @@ def test_to_matrix_materialises_strided_view() raises:
     )
     var strided = mat[0:2, 0:4:2]
     var dense = strided.to_matrix()
-    testing.assert_equal(dense.nrows, 2)
-    testing.assert_equal(dense.ncols, 2)
+    testing.assert_equal(dense.nrows(), 2)
+    testing.assert_equal(dense.ncols(), 2)
     testing.assert_true(dense.is_c_contiguous())
     testing.assert_equal(dense[0, 0], 1.0)
     testing.assert_equal(dense[0, 1], 3.0)

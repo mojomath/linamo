@@ -7,7 +7,6 @@ import linamo.routines.math
 import linamo.routines.logic
 import linamo.routines.manipulation
 
-from linamo.traits.matrix_like import MatrixLike
 from linamo.types.errors import IndexError
 from linamo.types.matrix import Matrix
 from linamo.types.matrix_iter import MatrixAxisIter
@@ -16,7 +15,7 @@ from std.memory import Pointer
 
 
 struct MatrixView[mut: Bool, //, dtype: DType, origin: Origin[mut=mut]](
-    ImplicitlyCopyable, MatrixLike, Movable, Sized, Writable
+    ImplicitlyCopyable, Movable, Sized, Writable
 ):
     """A 2D matrix view type that references another Matrix.
 
@@ -29,72 +28,79 @@ struct MatrixView[mut: Bool, //, dtype: DType, origin: Origin[mut=mut]](
     comptime ElementType = Scalar[Self.dtype]
     """The type of the elements in the matrix view, derived from the dtype."""
 
-    var data: Span[Self.ElementType, Self.origin]
+    var _data: Span[Self.ElementType, Self.origin]
     """A span representing the data of the matrix view."""
-    var nrows: Int
+    var _nrows: Int
     """The number of rows in the matrix view."""
-    var ncols: Int
+    var _ncols: Int
     """The number of columns in the matrix view."""
-    var row_stride: Int
+    var _row_stride: Int
     """The row stride of the matrix view."""
-    var col_stride: Int
+    var _col_stride: Int
     """The column stride of the matrix view."""
-    var offset: Int
+    var _offset: Int
     """The offset in the base matrix data where the view starts."""
 
     # ===--------------------------------------------------------------------===#
     # Retrieve attributes
     # ===--------------------------------------------------------------------===#
 
-    def get_data(self) -> Span[Self.ElementType, Self.origin]:
+    @always_inline
+    def data(self) -> Span[Self.ElementType, Self.origin]:
         """Returns the underlying data of the matrix."""
-        return self.data
+        return self._data
 
-    def get_nrows(self) -> Int:
+    @always_inline
+    def nrows(self) -> Int:
         """Returns the number of rows in the matrix."""
-        return self.nrows
+        return self._nrows
 
-    def get_ncols(self) -> Int:
+    @always_inline
+    def ncols(self) -> Int:
         """Returns the number of columns in the matrix."""
-        return self.ncols
+        return self._ncols
 
-    def get_row_stride(self) -> Int:
+    @always_inline
+    def row_stride(self) -> Int:
         """Returns the row stride of the matrix."""
-        return self.row_stride
+        return self._row_stride
 
-    def get_col_stride(self) -> Int:
+    @always_inline
+    def col_stride(self) -> Int:
         """Returns the column stride of the matrix."""
-        return self.col_stride
+        return self._col_stride
 
-    def get_offset(self) -> Int:
+    @always_inline
+    def offset(self) -> Int:
         """Returns the offset in the underlying data buffer for the matrix."""
-        return self.offset
+        return self._offset
 
-    def get_size(self) -> Int:
+    @always_inline
+    def size(self) -> Int:
         """Returns the total number of elements in the matrix."""
-        return self.nrows * self.ncols
+        return self._nrows * self._ncols
 
     def is_c_contiguous(self) -> Bool:
         """Returns True if the view is C-contiguous (row-major, dense)."""
-        return self.col_stride == 1 and self.row_stride == self.ncols
+        return self._col_stride == 1 and self._row_stride == self._ncols
 
     def is_f_contiguous(self) -> Bool:
         """Returns True if the view is F-contiguous (column-major, dense)."""
-        return self.row_stride == 1 and self.col_stride == self.nrows
+        return self._row_stride == 1 and self._col_stride == self._nrows
 
     def is_row_contiguous(self) -> Bool:
         """Returns True if elements within each row are contiguous (col_stride == 1).
 
         Allows padding between rows (row_stride >= ncols).
         """
-        return self.col_stride == 1
+        return self._col_stride == 1
 
     def is_col_contiguous(self) -> Bool:
         """Returns True if elements within each column are contiguous (row_stride == 1).
 
         Allows padding between columns (col_stride >= nrows).
         """
-        return self.row_stride == 1
+        return self._row_stride == 1
 
     # ===--------------------------------------------------------------------===#
     # Life Cycle Management
@@ -102,7 +108,7 @@ struct MatrixView[mut: Bool, //, dtype: DType, origin: Origin[mut=mut]](
 
     def __init__(
         out self,
-        data: Span[Self.ElementType, Self.origin],
+        buffer: Span[Self.ElementType, Self.origin],
         *,
         nrows: Int,
         ncols: Int,
@@ -120,12 +126,12 @@ struct MatrixView[mut: Bool, //, dtype: DType, origin: Origin[mut=mut]](
             col_stride: The column stride for accessing elements.
             offset: The starting offset in the matrix data.
         """
-        self.data = data
-        self.nrows = nrows
-        self.ncols = ncols
-        self.row_stride = row_stride
-        self.col_stride = col_stride
-        self.offset = offset
+        self._data = buffer
+        self._nrows = nrows
+        self._ncols = ncols
+        self._row_stride = row_stride
+        self._col_stride = col_stride
+        self._offset = offset
 
     # [Mojo Miji]
     # This is what lets one signature stand in for four. A parameter declared
@@ -136,7 +142,7 @@ struct MatrixView[mut: Bool, //, dtype: DType, origin: Origin[mut=mut]](
     #
     # Two details make it work. The argument is `ref m`: only `ref` binds the
     # origin to the caller's storage. Under `imm`, `read` or the default
-    # convention, `origin_of(m.data)` names the callee's own parameter slot, so
+    # convention, `origin_of(m._data)` names the callee's own parameter slot, so
     # the conversion is one no caller can satisfy and every call site fails to
     # compile. And the result is wrapped in `ImmOrigin(...)`, so a `var` matrix
     # yields a *read-only* view; without that, `add(a, a)` would be two mutable
@@ -144,7 +150,7 @@ struct MatrixView[mut: Bool, //, dtype: DType, origin: Origin[mut=mut]](
     @implicit
     def __init__[
         d: DType
-    ](out self: MatrixView[d, ImmOrigin(origin_of(m.data))], ref m: Matrix[d]):
+    ](out self: MatrixView[d, ImmOrigin(origin_of(m._data))], ref m: Matrix[d]):
         """Converts a `Matrix` into a read-only view of the whole matrix.
 
         Parameters:
@@ -153,16 +159,16 @@ struct MatrixView[mut: Bool, //, dtype: DType, origin: Origin[mut=mut]](
         Args:
             m: The matrix to view.
         """
-        self.data = Span(m.data).as_imm()
-        self.nrows = m.nrows
-        self.ncols = m.ncols
-        self.row_stride = m.row_stride
-        self.col_stride = m.col_stride
-        self.offset = 0
+        self._data = Span(m._data).as_imm()
+        self._nrows = m.nrows()
+        self._ncols = m.ncols()
+        self._row_stride = m.row_stride()
+        self._col_stride = m.col_stride()
+        self._offset = 0
 
     def __init__(
         out self,
-        data: Span[Self.ElementType, Self.origin],
+        buffer: Span[Self.ElementType, Self.origin],
         *,
         slice_x: Slice,
         slice_y: Slice,
@@ -173,10 +179,10 @@ struct MatrixView[mut: Bool, //, dtype: DType, origin: Origin[mut=mut]](
         initial_offset: Int,
     ):
         """Initializes a MatrixView instance using slicing parameters."""
-        self.data = data
+        self._data = buffer
         var start_x, end_x, step_x = slice_x.indices(initial_nrows)
         var start_y, end_y, step_y = slice_y.indices(initial_ncols)
-        self.offset = (
+        self._offset = (
             initial_offset
             + start_x * initial_row_stride
             + start_y * initial_col_stride
@@ -187,10 +193,10 @@ struct MatrixView[mut: Bool, //, dtype: DType, origin: Origin[mut=mut]](
         # loop written as `range(start, end, step)`. Python calls these empty,
         # so clamp. Genuine negative steps are untouched: `4:0:-1` is
         # `ceildiv(-4, -1) == 4`.
-        self.nrows = max(0, builtin_math.ceildiv(end_x - start_x, step_x))
-        self.ncols = max(0, builtin_math.ceildiv(end_y - start_y, step_y))
-        self.row_stride = initial_row_stride * step_x
-        self.col_stride = initial_col_stride * step_y
+        self._nrows = max(0, builtin_math.ceildiv(end_x - start_x, step_x))
+        self._ncols = max(0, builtin_math.ceildiv(end_y - start_y, step_y))
+        self._row_stride = initial_row_stride * step_x
+        self._col_stride = initial_col_stride * step_y
 
     # ===--------------------------------------------------------------------===#
     # Element Access and Mutation
@@ -201,8 +207,10 @@ struct MatrixView[mut: Bool, //, dtype: DType, origin: Origin[mut=mut]](
     ) -> ref[Self.origin] Self.ElementType:
         """Accesses an element of the matrix view using row and column indices.
         """
-        var index = self.offset + row * self.row_stride + col * self.col_stride
-        return self.data[index]
+        var index = (
+            self._offset + row * self._row_stride + col * self._col_stride
+        )
+        return self._data[index]
 
     # [Mojo Miji]
     # `ImmOrigin(Self.origin)` demotes the origin to a read-only one, so a view
@@ -216,14 +224,14 @@ struct MatrixView[mut: Bool, //, dtype: DType, origin: Origin[mut=mut]](
     ) raises -> MatrixView[Self.dtype, ImmOrigin(Self.origin)]:
         """Gets a read-only view of the specified rows and columns."""
         return MatrixView[Self.dtype, ImmOrigin(Self.origin)](
-            data=self.data.as_imm(),
+            buffer=self._data.as_imm(),
             slice_x=rows,
             slice_y=cols,
-            initial_nrows=self.nrows,
-            initial_ncols=self.ncols,
-            initial_row_stride=self.row_stride,
-            initial_col_stride=self.col_stride,
-            initial_offset=self.offset,
+            initial_nrows=self._nrows,
+            initial_ncols=self._ncols,
+            initial_row_stride=self._row_stride,
+            initial_col_stride=self._col_stride,
+            initial_offset=self._offset,
         )
 
     # [Mojo Miji]
@@ -241,12 +249,12 @@ struct MatrixView[mut: Bool, //, dtype: DType, origin: Origin[mut=mut]](
             matrix.
         """
         return MatrixView[Self.dtype, ImmOrigin(Self.origin)](
-            data=self.data.as_imm(),
-            nrows=self.nrows,
-            ncols=self.ncols,
-            row_stride=self.row_stride,
-            col_stride=self.col_stride,
-            offset=self.offset,
+            buffer=self._data.as_imm(),
+            nrows=self._nrows,
+            ncols=self._ncols,
+            row_stride=self._row_stride,
+            col_stride=self._col_stride,
+            offset=self._offset,
         )
 
     def get_unsafe(self, row: Int, col: Int) -> Scalar[Self.dtype]:
@@ -264,13 +272,13 @@ struct MatrixView[mut: Bool, //, dtype: DType, origin: Origin[mut=mut]](
             The element at the specified indices.
         """
         debug_assert(
-            indices_within_bounds(row, col, self.nrows, self.ncols),
+            indices_within_bounds(row, col, self._nrows, self._ncols),
             "Debug assertion failed: Indices out of bounds in `unsafe_load`",
         )
         var offset = get_offset(
-            row, col, self.row_stride, self.col_stride, self.offset
+            row, col, self._row_stride, self._col_stride, self._offset
         )
-        return self.data[offset]
+        return self._data[offset]
 
     # ===--------------------------------------------------------------------===#
     # Length and iteration
@@ -281,9 +289,9 @@ struct MatrixView[mut: Bool, //, dtype: DType, origin: Origin[mut=mut]](
 
         This is the row count rather than the element count so that `len()`
         agrees with what `__iter__` yields, the way it does for any Python
-        sequence. Use `get_size()` for `nrows * ncols`.
+        sequence. Use `size()` for `nrows * ncols`.
         """
-        return self.nrows
+        return self._nrows
 
     def rows[
         forward: Bool = True
@@ -348,23 +356,28 @@ struct MatrixView[mut: Bool, //, dtype: DType, origin: Origin[mut=mut]](
         Returns:
             The `width` elements as a SIMD vector.
         """
-        if row < 0 or row >= self.nrows or col < 0 or col + width > self.ncols:
+        if (
+            row < 0
+            or row >= self._nrows
+            or col < 0
+            or col + width > self._ncols
+        ):
             raise IndexError(
                 function="MatrixView.load[width](self, row: Int, col: Int)",
                 message="SIMD load runs past the end of the view.",
             )
         var base = get_offset(
-            row, col, self.row_stride, self.col_stride, self.offset
+            row, col, self._row_stride, self._col_stride, self._offset
         )
-        if self.col_stride == 1:
+        if self._col_stride == 1:
             return (
-                self.data.unsafe_ptr()
+                self._data.unsafe_ptr()
                 .unsafe_offset(base)
                 .unsafe_load[width=width]()
             )
         var result = SIMD[Self.dtype, width]()
         for i in range(width):
-            result[i] = self.data[base + i * self.col_stride]
+            result[i] = self._data[base + i * self._col_stride]
         return result
 
     # ===--------------------------------------------------------------------===#
@@ -382,14 +395,14 @@ struct MatrixView[mut: Bool, //, dtype: DType, origin: Origin[mut=mut]](
             A new `Matrix` holding a dense copy of the viewed elements.
         """
         var result = Matrix[Self.dtype](
-            nrows=self.nrows,
-            ncols=self.ncols,
-            row_stride=self.ncols,
+            nrows=self._nrows,
+            ncols=self._ncols,
+            row_stride=self._ncols,
             col_stride=1,
         )
-        for i in range(self.nrows):
-            for j in range(self.ncols):
-                result.data[i * self.ncols + j] = self[i, j]
+        for i in range(self._nrows):
+            for j in range(self._ncols):
+                result._data[i * self._ncols + j] = self[i, j]
         return result^
 
     def astype[target: DType](self) raises -> Matrix[target]:
@@ -412,19 +425,19 @@ struct MatrixView[mut: Bool, //, dtype: DType, origin: Origin[mut=mut]](
     def __str__(self) -> String:
         """Returns a string representation of the matrix."""
         var result = String("")
-        for i in range(self.nrows):
-            for j in range(self.ncols):
+        for i in range(self._nrows):
+            for j in range(self._ncols):
                 result += (
                     String(
-                        self.data[
-                            self.offset
-                            + i * self.row_stride
-                            + j * self.col_stride
+                        self._data[
+                            self._offset
+                            + i * self._row_stride
+                            + j * self._col_stride
                         ]
                     )
                     + "\t"
                 )
-            if i < self.nrows - 1:
+            if i < self._nrows - 1:
                 result += "\n"
         return result
 
@@ -433,30 +446,32 @@ struct MatrixView[mut: Bool, //, dtype: DType, origin: Origin[mut=mut]](
         writer.write("MatrixView, ")
         writer.write(self.dtype)
         writer.write(", ")
-        writer.write(self.nrows)
+        writer.write(self._nrows)
         writer.write("x")
-        writer.write(self.ncols)
+        writer.write(self._ncols)
         writer.write(", strides: ")
-        writer.write(self.row_stride)
+        writer.write(self._row_stride)
         writer.write("-")
-        writer.write(self.col_stride)
+        writer.write(self._col_stride)
         writer.write(", offset: ")
-        writer.write(self.offset)
+        writer.write(self._offset)
         writer.write(":\n")
-        for i in range(self.nrows):
+        for i in range(self._nrows):
             if i == 0:
                 writer.write("[[\t")
             else:
                 writer.write(" [\t")
-            for j in range(self.ncols):
+            for j in range(self._ncols):
                 writer.write(
-                    self.data[
-                        self.offset + i * self.row_stride + j * self.col_stride
+                    self._data[
+                        self._offset
+                        + i * self._row_stride
+                        + j * self._col_stride
                     ]
                 )
                 writer.write("\t")
             writer.write("]")
-            if i < self.nrows - 1:
+            if i < self._nrows - 1:
                 writer.write("\n")
             else:
                 writer.write("]\n")
@@ -575,7 +590,7 @@ struct MatrixView[mut: Bool, //, dtype: DType, origin: Origin[mut=mut]](
     # ===--------------------------------------------------------------------===#
     # There are no in-place counterparts (`+=`, `-=`, ...) on a view: the type
     # is generic over `origin` and Mojo checks a method body against the
-    # read-only instantiation as well, so nothing writing through `self.data`
+    # read-only instantiation as well, so nothing writing through `self._data`
     # can be defined here. See `routines/mutation.mojo`.
 
     def __radd__(self, other: Scalar[Self.dtype]) -> Matrix[Self.dtype]:

@@ -154,8 +154,8 @@ def test_set_whole_matrix_covers_f_contiguous() raises:
     )
     testing.assert_true(m.is_f_contiguous())
     m.set(0.0)
-    for i in range(m.nrows):
-        for j in range(m.ncols):
+    for i in range(m.nrows()):
+        for j in range(m.ncols()):
             testing.assert_equal(m[i, j], 0.0)
 
 
@@ -176,8 +176,8 @@ def test_view_mut_method_matches_free_function() raises:
         [[1.0, 2.0, 3.0], [4.0, 5.0, 6.0], [7.0, 8.0, 9.0]]
     )
     var by_method = m.view_mut(Slice(1, 3), Slice(0, 3, 2))
-    testing.assert_equal(by_method.nrows, 2)
-    testing.assert_equal(by_method.ncols, 2)
+    testing.assert_equal(by_method.nrows(), 2)
+    testing.assert_equal(by_method.ncols(), 2)
     testing.assert_equal(by_method[0, 0], 4.0)
     testing.assert_equal(by_method[0, 1], 6.0)
     testing.assert_equal(by_method[1, 1], 9.0)
@@ -205,8 +205,8 @@ def test_backwards_row_slice_is_empty() raises:
     """`m[3:1, :]` selects no rows, as in Python, rather than -2 of them."""
     var m = la.zeros[DType.float64](5, 6)
     var v = m[3:1, 0:6]
-    testing.assert_equal(v.nrows, 0)
-    testing.assert_equal(v.ncols, 6)
+    testing.assert_equal(v.nrows(), 0)
+    testing.assert_equal(v.ncols(), 6)
     testing.assert_equal(len(v), 0)
 
 
@@ -214,15 +214,15 @@ def test_backwards_col_slice_is_empty() raises:
     """The same holds in the column dimension."""
     var m = la.zeros[DType.float64](5, 6)
     var v = m[0:5, 4:1]
-    testing.assert_equal(v.nrows, 5)
-    testing.assert_equal(v.ncols, 0)
+    testing.assert_equal(v.nrows(), 5)
+    testing.assert_equal(v.ncols(), 0)
 
 
 def test_negative_step_going_the_wrong_way_is_empty() raises:
     """`1:4:-1` walks away from its stop, so it selects nothing."""
     var m = la.zeros[DType.float64](5, 6)
     var v = m[1:4:-1, 0:6]
-    testing.assert_equal(v.nrows, 0)
+    testing.assert_equal(v.nrows(), 0)
 
 
 def test_genuine_negative_step_still_counts_correctly() raises:
@@ -231,7 +231,7 @@ def test_genuine_negative_step_still_counts_correctly() raises:
         [[1.0, 2.0], [3.0, 4.0], [5.0, 6.0], [7.0, 8.0], [9.0, 10.0]]
     )
     var v = m[4:0:-1, 0:2]
-    testing.assert_equal(v.nrows, 4)
+    testing.assert_equal(v.nrows(), 4)
     testing.assert_equal(v[0, 0], 9.0)
     testing.assert_equal(v[3, 0], 3.0)
 
@@ -250,7 +250,7 @@ def test_empty_slice_of_a_view_is_empty() raises:
     var m = la.zeros[DType.float64](5, 6)
     var outer = m[0:5, 0:6]
     var inner = outer[3:1, 0:6]
-    testing.assert_equal(inner.nrows, 0)
+    testing.assert_equal(inner.nrows(), 0)
 
 
 def main() raises:

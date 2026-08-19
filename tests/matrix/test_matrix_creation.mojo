@@ -15,10 +15,10 @@ def test_matrix_from_nested_list_row_major() raises:
         ],
         order="C",
     )
-    testing.assert_equal(mat.nrows, 2)
-    testing.assert_equal(mat.ncols, 3)
-    testing.assert_equal(mat.row_stride, 3)
-    testing.assert_equal(mat.col_stride, 1)
+    testing.assert_equal(mat.nrows(), 2)
+    testing.assert_equal(mat.ncols(), 3)
+    testing.assert_equal(mat.row_stride(), 3)
+    testing.assert_equal(mat.col_stride(), 1)
     testing.assert_equal(mat[0, 0], 1.0)
     testing.assert_equal(mat[0, 2], 3.0)
     testing.assert_equal(mat[1, 0], 4.0)
@@ -34,10 +34,10 @@ def test_matrix_from_nested_list_col_major() raises:
         ],
         order="F",
     )
-    testing.assert_equal(mat.nrows, 2)
-    testing.assert_equal(mat.ncols, 3)
-    testing.assert_equal(mat.row_stride, 1)
-    testing.assert_equal(mat.col_stride, 2)
+    testing.assert_equal(mat.nrows(), 2)
+    testing.assert_equal(mat.ncols(), 3)
+    testing.assert_equal(mat.row_stride(), 1)
+    testing.assert_equal(mat.col_stride(), 2)
     testing.assert_equal(mat[0, 0], 1.0)
     testing.assert_equal(mat[0, 2], 3.0)
     testing.assert_equal(mat[1, 0], 4.0)
@@ -52,8 +52,8 @@ def test_matrix_from_flat_list_row_major() raises:
         ncols=3,
         order="C",
     )
-    testing.assert_equal(mat.nrows, 2)
-    testing.assert_equal(mat.ncols, 3)
+    testing.assert_equal(mat.nrows(), 2)
+    testing.assert_equal(mat.ncols(), 3)
     testing.assert_equal(mat[0, 0], 1)
     testing.assert_equal(mat[0, 1], 2)
     testing.assert_equal(mat[0, 2], 3)
@@ -71,8 +71,8 @@ def test_matrix_from_flat_list_col_major() raises:
         ncols=3,
         order="F",
     )
-    testing.assert_equal(mat.nrows, 2)
-    testing.assert_equal(mat.ncols, 3)
+    testing.assert_equal(mat.nrows(), 2)
+    testing.assert_equal(mat.ncols(), 3)
     # In column-major order, flat_list is stored column-by-column
     # So element (0,0)=1, (1,0)=2, (0,1)=3, (1,1)=4, (0,2)=5, (1,2)=6
     testing.assert_equal(mat[0, 0], 1.0)
@@ -157,17 +157,17 @@ def test_matrix_integer_types() raises:
 def test_matrix_single_element() raises:
     """Test creating a 1x1 matrix."""
     var mat = la.matrix[DType.float64]([[42.0]])
-    testing.assert_equal(mat.nrows, 1)
-    testing.assert_equal(mat.ncols, 1)
+    testing.assert_equal(mat.nrows(), 1)
+    testing.assert_equal(mat.ncols(), 1)
     testing.assert_equal(mat[0, 0], 42.0)
 
 
-def test_matrix_get_size() raises:
-    """Test the get_size method."""
+def test_matrix_size() raises:
+    """Test the size method."""
     var mat = la.matrix[DType.float64](
         [[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]],
     )
-    testing.assert_equal(mat.get_size(), 6)
+    testing.assert_equal(mat.size(), 6)
 
 
 def main() raises:

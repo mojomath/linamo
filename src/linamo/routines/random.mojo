@@ -82,7 +82,7 @@ def rand[
         for k in range(size):
             data[k] = Scalar[dtype](random_si64(lo, hi))
     return Matrix[dtype](
-        data=data^,
+        buffer=data^,
         nrows=nrows,
         ncols=ncols,
         row_stride=ncols,

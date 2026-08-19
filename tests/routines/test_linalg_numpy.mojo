@@ -9,7 +9,7 @@ import std.testing as testing
 from linamo.routines.creation import eye
 from linamo.routines.linalg import transpose, trace, lu, cholesky, qr
 from linamo.routines.math import matmul
-from linamo.routines.numpy_interop import matrix_from_numpy, to_numpy
+from linamo.routines.numpy_interop import from_numpy, to_numpy
 from linamo.types.matrix import Matrix
 from linamo.utils.test_utils import assert_matrices_close
 from std.python import Python, PythonObject
@@ -29,8 +29,8 @@ def _make_spd(np: PythonObject, n: Int) raises -> PythonObject:
 def _test_transpose(np: PythonObject, r: Int, c: Int) raises:
     """Helper: test transpose for one shape."""
     var a_np = np.random.rand(r, c)
-    var a = matrix_from_numpy(a_np)
-    var expected = matrix_from_numpy(a_np.T)
+    var a = from_numpy(a_np)
+    var expected = from_numpy(a_np.T)
     assert_matrices_close(
         transpose(a),
         expected,
@@ -42,7 +42,7 @@ def _test_transpose(np: PythonObject, r: Int, c: Int) raises:
 def _test_trace(np: PythonObject, n: Int) raises:
     """Helper: test trace for one size."""
     var a_np = np.random.rand(n, n)
-    var a = matrix_from_numpy(a_np)
+    var a = from_numpy(a_np)
     var expected = Float64(py=np.trace(a_np))
     var got = Float64(trace(a))
     var diff = got - expected
@@ -66,17 +66,17 @@ def _permute_rows_mm(
     piv: List[Int],
 ) raises -> Matrix[DType.float64]:
     """Reorder rows of mat according to piv."""
-    var n = mat.nrows
-    var data = List[Float64](unsafe_uninit_length=n * mat.ncols)
+    var n = mat.nrows()
+    var data = List[Float64](unsafe_uninit_length=n * mat.ncols())
     for i in range(n):
         var src = piv[i]
-        for j in range(mat.ncols):
-            data[i * mat.ncols + j] = mat[src, j]
+        for j in range(mat.ncols()):
+            data[i * mat.ncols() + j] = mat[src, j]
     return Matrix[DType.float64](
-        data=data^,
+        buffer=data^,
         nrows=n,
-        ncols=mat.ncols,
-        row_stride=mat.ncols,
+        ncols=mat.ncols(),
+        row_stride=mat.ncols(),
         col_stride=1,
     )
 
@@ -84,7 +84,7 @@ def _permute_rows_mm(
 def _test_cholesky(np: PythonObject, n: Int) raises:
     """Helper: test Cholesky A == L @ L^T for one size."""
     var a_np = _make_spd(np, n)
-    var a = matrix_from_numpy(a_np)
+    var a = from_numpy(a_np)
     var L = cholesky(a)
     var Lt = transpose(L)
     var LLt = matmul(L, Lt)
@@ -99,7 +99,7 @@ def _test_cholesky(np: PythonObject, n: Int) raises:
 def _test_qr_square(np: PythonObject, n: Int) raises:
     """Helper: test QR A == Q @ R for one square size."""
     var a_np = np.random.rand(n, n)
-    var a = matrix_from_numpy(a_np)
+    var a = from_numpy(a_np)
     var result = qr(a)
     ref Q = result[0]
     ref R = result[1]
@@ -115,7 +115,7 @@ def _test_qr_square(np: PythonObject, n: Int) raises:
 def _test_qr_tall(np: PythonObject, m: Int, n: Int) raises:
     """Helper: test QR A == Q @ R for one tall shape."""
     var a_np = np.random.rand(m, n)
-    var a = matrix_from_numpy(a_np)
+    var a = from_numpy(a_np)
     var result = qr(a)
     ref Q = result[0]
     ref R = result[1]
@@ -131,7 +131,7 @@ def _test_qr_tall(np: PythonObject, m: Int, n: Int) raises:
 def _test_qr_orthogonality(np: PythonObject, n: Int) raises:
     """Helper: test Q^T @ Q == I for one square size."""
     var a_np = np.random.rand(n, n)
-    var a = matrix_from_numpy(a_np)
+    var a = from_numpy(a_np)
     var result = qr(a)
     ref Q = result[0]
     var Qt = transpose(Q)
@@ -186,7 +186,7 @@ def test_lu_random_small() raises:
     var np = Python.import_module("numpy")
     for _ in range(5):
         var a_np = np.random.rand(4, 4) + np.eye(4) * 0.1
-        var a = matrix_from_numpy(a_np)
+        var a = from_numpy(a_np)
         var result = lu(a)
         ref L = result[0]
         ref U = result[1]
@@ -200,7 +200,7 @@ def test_lu_random_medium() raises:
     """LU: PA == LU for random 10x10 matrix."""
     var np = Python.import_module("numpy")
     var a_np = np.random.rand(10, 10) + np.eye(10) * 0.1
-    var a = matrix_from_numpy(a_np)
+    var a = from_numpy(a_np)
     var result = lu(a)
     ref L = result[0]
     ref U = result[1]
@@ -228,10 +228,10 @@ def test_cholesky_vs_numpy() raises:
     """Cholesky L matches np.linalg.cholesky(A) for a 5x5 SPD matrix."""
     var np = Python.import_module("numpy")
     var a_np = _make_spd(np, 5)
-    var a = matrix_from_numpy(a_np)
+    var a = from_numpy(a_np)
     var L = cholesky(a)
     var L_np = np.linalg.cholesky(a_np)
-    var L_expected = matrix_from_numpy(L_np)
+    var L_expected = from_numpy(L_np)
     assert_matrices_close(
         L,
         L_expected,

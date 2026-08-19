@@ -47,8 +47,8 @@ def test_transpose_view_rectangular() raises:
     var v = a[0:2, 0:3]  # [[1, 2, 3], [4, 5, 6]]
     var t = transpose(v)
     # Should be 3x2
-    testing.assert_equal(t.nrows, 3)
-    testing.assert_equal(t.ncols, 2)
+    testing.assert_equal(t.nrows(), 3)
+    testing.assert_equal(t.ncols(), 2)
     testing.assert_equal(t[0, 0], 1.0)
     testing.assert_equal(t[2, 1], 6.0)
 

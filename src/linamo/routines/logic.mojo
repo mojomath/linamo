@@ -44,22 +44,22 @@ def _compare_view[
 
     The result is always a freshly allocated, C-contiguous `Matrix[bool]`.
     """
-    if a.nrows != b.nrows or a.ncols != b.ncols:
+    if a.nrows() != b.nrows() or a.ncols() != b.ncols():
         raise ValueError(
             function="_compare_view()",
             message="Input matrices must have the same shape.",
         )
-    var M = a.nrows
-    var N = a.ncols
+    var M = a.nrows()
+    var N = a.ncols()
     var total = M * N
     var result = Matrix[DType.bool](M, N, N, 1)
 
     if a.is_c_contiguous() and b.is_c_contiguous():
         comptime simd_w = simd_width_of[dtype]()
-        var a_ptr = a.data.unsafe_ptr()
-        var b_ptr = b.data.unsafe_ptr()
-        var a_off = a.offset
-        var b_off = b.offset
+        var a_ptr = a._data.unsafe_ptr()
+        var b_ptr = b._data.unsafe_ptr()
+        var a_off = a.offset()
+        var b_off = b.offset()
 
         def vec_cmp[
             w: Int
@@ -70,13 +70,13 @@ def _compare_view[
 
             comptime for lane in range(w):
                 res[lane] = func(a_chunk[lane], b_chunk[lane])
-            result.data._data.unsafe_store[width=w](idx, res)
+            result._data._data.unsafe_store[width=w](idx, res)
 
         vectorize[simd_w](total, vec_cmp)
     else:
         for i in range(M):
             for j in range(N):
-                result.data[i * N + j] = func(a[i, j], b[i, j])
+                result._data[i * N + j] = func(a[i, j], b[i, j])
 
     return result^
 
@@ -95,15 +95,15 @@ def _scalar_compare_view[
 
     The result is always a freshly allocated, C-contiguous `Matrix[bool]`.
     """
-    var M = mat.nrows
-    var N = mat.ncols
+    var M = mat.nrows()
+    var N = mat.ncols()
     var total = M * N
     var result = Matrix[DType.bool](M, N, N, 1)
 
     if mat.is_c_contiguous():
         comptime simd_w = simd_width_of[dtype]()
-        var m_ptr = mat.data.unsafe_ptr()
-        var m_off = mat.offset
+        var m_ptr = mat._data.unsafe_ptr()
+        var m_off = mat.offset()
 
         def vec_cmp[
             w: Int
@@ -113,13 +113,13 @@ def _scalar_compare_view[
 
             comptime for lane in range(w):
                 res[lane] = func(m_chunk[lane], scalar)
-            result.data._data.unsafe_store[width=w](idx, res)
+            result._data._data.unsafe_store[width=w](idx, res)
 
         vectorize[simd_w](total, vec_cmp)
     else:
         for i in range(M):
             for j in range(N):
-                result.data[i * N + j] = func(mat[i, j], scalar)
+                result._data[i * N + j] = func(mat[i, j], scalar)
 
     return result^
 
@@ -293,8 +293,8 @@ def all[
     Returns:
         True if no element equals zero.
     """
-    for i in range(m.nrows):
-        for j in range(m.ncols):
+    for i in range(m.nrows()):
+        for j in range(m.ncols()):
             if not m[i, j]:
                 return False
     return True
@@ -321,14 +321,14 @@ def all[
         ValueError: If `axis` is neither 0 nor 1.
     """
     if axis == 0:
-        var result = Matrix[DType.bool](1, m.ncols, m.ncols, 1)
-        for j in range(m.ncols):
-            result.data[j] = all(m[:, j : j + 1])
+        var result = Matrix[DType.bool](1, m.ncols(), m.ncols(), 1)
+        for j in range(m.ncols()):
+            result._data[j] = all(m[:, j : j + 1])
         return result^
     elif axis == 1:
-        var result = Matrix[DType.bool](m.nrows, 1, 1, 1)
-        for i in range(m.nrows):
-            result.data[i] = all(m[i : i + 1, :])
+        var result = Matrix[DType.bool](m.nrows(), 1, 1, 1)
+        for i in range(m.nrows()):
+            result._data[i] = all(m[i : i + 1, :])
         return result^
     raise ValueError(function="all(m, axis)", message="Axis must be 0 or 1.")
 
@@ -350,8 +350,8 @@ def any[
     Returns:
         True if any element differs from zero.
     """
-    for i in range(m.nrows):
-        for j in range(m.ncols):
+    for i in range(m.nrows()):
+        for j in range(m.ncols()):
             if m[i, j]:
                 return True
     return False
@@ -378,13 +378,13 @@ def any[
         ValueError: If `axis` is neither 0 nor 1.
     """
     if axis == 0:
-        var result = Matrix[DType.bool](1, m.ncols, m.ncols, 1)
-        for j in range(m.ncols):
-            result.data[j] = any(m[:, j : j + 1])
+        var result = Matrix[DType.bool](1, m.ncols(), m.ncols(), 1)
+        for j in range(m.ncols()):
+            result._data[j] = any(m[:, j : j + 1])
         return result^
     elif axis == 1:
-        var result = Matrix[DType.bool](m.nrows, 1, 1, 1)
-        for i in range(m.nrows):
-            result.data[i] = any(m[i : i + 1, :])
+        var result = Matrix[DType.bool](m.nrows(), 1, 1, 1)
+        for i in range(m.nrows()):
+            result._data[i] = any(m[i : i + 1, :])
         return result^
     raise ValueError(function="any(m, axis)", message="Axis must be 0 or 1.")

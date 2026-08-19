@@ -30,7 +30,7 @@ This module provides bulk write operations on mutable matrix views.
 These are free functions rather than methods for a concrete reason. 
 `MatrixView` is generic over `origin: Origin[mut=mut]`, and Mojo 1.0
 type-checks a method body against *every* instantiation, including the
-read-only one - so any method that writes through `self.data` is rejected at
+read-only one - so any method that writes through `self._data` is rejected at
 definition time, and neither a `where Self.mut` clause nor a constrained `self`
 refines it. Pinning these functions to `Origin[mut=True]` moves the requirement
 into the signature instead: passing a read-only view is a compile error at the
@@ -84,20 +84,20 @@ def store[
     Raises:
         IndexError: If the run would leave the view.
     """
-    if row < 0 or row >= view.nrows or col < 0 or col + width > view.ncols:
+    if row < 0 or row >= view.nrows() or col < 0 or col + width > view.ncols():
         raise IndexError(
             function="store[width](view, row: Int, col: Int, value)",
             message="SIMD store runs past the end of the view.",
         )
     var base = get_offset(
-        row, col, view.row_stride, view.col_stride, view.offset
+        row, col, view.row_stride(), view.col_stride(), view.offset()
     )
-    if view.col_stride == 1:
+    if view.col_stride() == 1:
         for i in range(width):
-            view.data[base + i] = value[i]
+            view._data[base + i] = value[i]
     else:
         for i in range(width):
-            view.data[base + i * view.col_stride] = value[i]
+            view._data[base + i * view.col_stride()] = value[i]
 
 
 def fill[
@@ -116,8 +116,8 @@ def fill[
         view: The view to write into.
         value: The scalar written to every element.
     """
-    for i in range(view.nrows):
-        for j in range(view.ncols):
+    for i in range(view.nrows()):
+        for j in range(view.ncols()):
             view[i, j] = value
 
 
@@ -142,8 +142,8 @@ def fill[
         value: The scalar written to every selected element.
     """
     var target = view_mut(view, rows, cols)
-    for i in range(target.nrows):
-        for j in range(target.ncols):
+    for i in range(target.nrows()):
+        for j in range(target.ncols()):
             target[i, j] = value
 
 
@@ -169,13 +169,13 @@ def assign[
     Raises:
         ValueError: If the shapes do not match.
     """
-    if view.nrows != src.nrows or view.ncols != src.ncols:
+    if view.nrows() != src.nrows() or view.ncols() != src.ncols():
         raise ValueError(
             function="assign(view, src)",
             message="Shape mismatch in whole-view assignment.",
         )
-    for i in range(view.nrows):
-        for j in range(view.ncols):
+    for i in range(view.nrows()):
+        for j in range(view.ncols()):
             view[i, j] = src[i, j]
 
 
@@ -209,13 +209,13 @@ def assign[
         ValueError: If the shapes do not match.
     """
     var target = view_mut(view, rows, cols)
-    if target.nrows != src.nrows or target.ncols != src.ncols:
+    if target.nrows() != src.nrows() or target.ncols() != src.ncols():
         raise ValueError(
             function="assign(view, rows, cols, src)",
             message="Shape mismatch in region assignment.",
         )
-    for i in range(target.nrows):
-        for j in range(target.ncols):
+    for i in range(target.nrows()):
+        for j in range(target.ncols()):
             target[i, j] = src[i, j]
 
 
@@ -227,7 +227,7 @@ def assign[
 def view_mut[
     dtype: DType
 ](ref m: Matrix[dtype], x: Slice, y: Slice) raises -> MatrixView[
-    dtype, origin_of(m.data)
+    dtype, origin_of(m._data)
 ]:
     """Gets a writable view of a region of a matrix.
 
@@ -249,13 +249,13 @@ def view_mut[
         A view of the region, writable exactly when `m` is.
     """
     return MatrixView(
-        data=Span(m.data),
+        buffer=Span(m._data),
         slice_x=x,
         slice_y=y,
-        initial_nrows=m.nrows,
-        initial_ncols=m.ncols,
-        initial_row_stride=m.row_stride,
-        initial_col_stride=m.col_stride,
+        initial_nrows=m.nrows(),
+        initial_ncols=m.ncols(),
+        initial_row_stride=m.row_stride(),
+        initial_col_stride=m.col_stride(),
         initial_offset=0,
     )
 
@@ -280,20 +280,22 @@ def view_mut[
         A writable view of the region.
     """
     return MatrixView[dtype, origin](
-        data=view.data,
+        buffer=view._data,
         slice_x=x,
         slice_y=y,
-        initial_nrows=view.nrows,
-        initial_ncols=view.ncols,
-        initial_row_stride=view.row_stride,
-        initial_col_stride=view.col_stride,
-        initial_offset=view.offset,
+        initial_nrows=view.nrows(),
+        initial_ncols=view.ncols(),
+        initial_row_stride=view.row_stride(),
+        initial_col_stride=view.col_stride(),
+        initial_offset=view.offset(),
     )
 
 
 def rows_mut[
     dtype: DType, //, forward: Bool = True
-](ref m: Matrix[dtype]) -> MatrixAxisIter[dtype, origin_of(m.data), 0, forward]:
+](ref m: Matrix[dtype]) -> MatrixAxisIter[
+    dtype, origin_of(m._data), 0, forward
+]:
     """Walks the rows of a matrix, yielding each as a writable view.
 
     `m.rows()` is read-only because iteration is an implicit path. This is the
@@ -310,11 +312,11 @@ def rows_mut[
     """
     return MatrixAxisIter[axis=0, forward=forward](
         MatrixView(
-            data=Span(m.data),
-            nrows=m.nrows,
-            ncols=m.ncols,
-            row_stride=m.row_stride,
-            col_stride=m.col_stride,
+            buffer=Span(m._data),
+            nrows=m.nrows(),
+            ncols=m.ncols(),
+            row_stride=m.row_stride(),
+            col_stride=m.col_stride(),
             offset=0,
         )
     )
@@ -322,7 +324,9 @@ def rows_mut[
 
 def cols_mut[
     dtype: DType, //, forward: Bool = True
-](ref m: Matrix[dtype]) -> MatrixAxisIter[dtype, origin_of(m.data), 1, forward]:
+](ref m: Matrix[dtype]) -> MatrixAxisIter[
+    dtype, origin_of(m._data), 1, forward
+]:
     """Walks the columns of a matrix, yielding each as a writable view.
 
     Parameters:
@@ -336,11 +340,11 @@ def cols_mut[
     """
     return MatrixAxisIter[axis=1, forward=forward](
         MatrixView(
-            data=Span(m.data),
-            nrows=m.nrows,
-            ncols=m.ncols,
-            row_stride=m.row_stride,
-            col_stride=m.col_stride,
+            buffer=Span(m._data),
+            nrows=m.nrows(),
+            ncols=m.ncols(),
+            row_stride=m.row_stride(),
+            col_stride=m.col_stride(),
             offset=0,
         )
     )

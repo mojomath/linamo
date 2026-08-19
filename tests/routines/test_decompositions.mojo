@@ -20,10 +20,10 @@ def assert_matrix_close(
     tol: Float64 = 1e-10,
 ) raises:
     """Assert that two matrices are element-wise close within tolerance."""
-    testing.assert_equal(a.nrows, b.nrows)
-    testing.assert_equal(a.ncols, b.ncols)
-    for i in range(a.nrows):
-        for j in range(a.ncols):
+    testing.assert_equal(a.nrows(), b.nrows())
+    testing.assert_equal(a.ncols(), b.ncols())
+    for i in range(a.nrows()):
+        for j in range(a.ncols()):
             var diff = a[i, j] - b[i, j]
             if diff < 0:
                 diff = -diff
@@ -51,17 +51,17 @@ def permute_rows(
     mat: Matrix[DType.float64], piv: List[Int]
 ) raises -> Matrix[DType.float64]:
     """Return a new matrix with rows reordered according to piv."""
-    var n = mat.nrows
-    var data = List[Float64](unsafe_uninit_length=n * mat.ncols)
+    var n = mat.nrows()
+    var data = List[Float64](unsafe_uninit_length=n * mat.ncols())
     for i in range(n):
         var src = piv[i]
-        for j in range(mat.ncols):
-            data[i * mat.ncols + j] = mat[src, j]
+        for j in range(mat.ncols()):
+            data[i * mat.ncols() + j] = mat[src, j]
     return Matrix[DType.float64](
-        data=data^,
+        buffer=data^,
         nrows=n,
-        ncols=mat.ncols,
-        row_stride=mat.ncols,
+        ncols=mat.ncols(),
+        row_stride=mat.ncols(),
         col_stride=1,
     )
 
@@ -120,11 +120,11 @@ def test_lu_lower_triangular() raises:
     var result = lu(a)
     ref L = result[0]
 
-    for i in range(L.nrows):
+    for i in range(L.nrows()):
         # Diagonal must be 1.
         testing.assert_equal(L[i, i], 1.0)
         # Above diagonal must be 0.
-        for j in range(i + 1, L.ncols):
+        for j in range(i + 1, L.ncols()):
             testing.assert_equal(L[i, j], 0.0)
 
 
@@ -136,7 +136,7 @@ def test_lu_upper_triangular() raises:
     var result = lu(a)
     ref U = result[1]
 
-    for i in range(U.nrows):
+    for i in range(U.nrows()):
         for j in range(i):
             testing.assert_equal(U[i, j], 0.0)
 
@@ -178,8 +178,8 @@ def test_cholesky_basic() raises:
     var L = cholesky(a)
 
     # Verify L is lower-triangular.
-    for i in range(L.nrows):
-        for j in range(i + 1, L.ncols):
+    for i in range(L.nrows()):
+        for j in range(i + 1, L.ncols()):
             testing.assert_equal(L[i, j], 0.0)
 
     # Verify A == L @ L^T.
@@ -271,7 +271,7 @@ def test_qr_orthogonal_q() raises:
     # Q^T @ Q should be identity (m x m).
     var Qt = transpose(Q)
     var QtQ = matmul(Qt, Q)
-    var I = la.eye[DType.float64](Q.nrows)
+    var I = la.eye[DType.float64](Q.nrows())
     assert_matrix_close(QtQ, I, tol=1e-9)
 
 
@@ -283,8 +283,8 @@ def test_qr_upper_triangular_r() raises:
     var result = qr(a)
     ref R = result[1]
 
-    for i in range(R.nrows):
-        for j in range(min(i, R.ncols)):
+    for i in range(R.nrows()):
+        for j in range(min(i, R.ncols())):
             var val = R[i, j]
             if val < 0:
                 val = -val
@@ -320,10 +320,10 @@ def test_qr_rectangular() raises:
     ref Q = result[0]
     ref R = result[1]
 
-    testing.assert_equal(Q.nrows, 3)
-    testing.assert_equal(Q.ncols, 3)
-    testing.assert_equal(R.nrows, 3)
-    testing.assert_equal(R.ncols, 2)
+    testing.assert_equal(Q.nrows(), 3)
+    testing.assert_equal(Q.ncols(), 3)
+    testing.assert_equal(R.nrows(), 3)
+    testing.assert_equal(R.ncols(), 2)
 
     var QR = matmul(Q, R)
     assert_matrix_close(a, QR, tol=1e-9)

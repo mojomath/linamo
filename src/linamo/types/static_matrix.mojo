@@ -2,8 +2,8 @@
 This module defines the `StaticMatrix` type which is a statically sized 2D matrix.
 """
 
-from linamo.traits.matrix_like import MatrixLike
 from linamo.types.errors import IndexError, ValueError
+from linamo.types.matrix import Matrix
 from linamo.types.matrix_view import MatrixView
 import linamo.routines.math
 from linamo.utils.indexing import (
@@ -25,9 +25,7 @@ def next_power_of_two(x: Int) -> Int:
     return v + 1
 
 
-struct StaticMatrix[dtype: DType, nrows: Int, ncols: Int](
-    Copyable, MatrixLike, Writable
-):
+struct StaticMatrix[dtype: DType, nrows: Int, ncols: Int](Copyable, Writable):
 
     """A statically sized 2D matrix type.
 
@@ -46,33 +44,29 @@ struct StaticMatrix[dtype: DType, nrows: Int, ncols: Int](
     comptime ElementType = Scalar[Self.dtype]
     """The type of the elements in the matrix, derived from the dtype."""
 
-    var data: SIMD[Self.dtype, Self.BUFFER_SIZE]
+    var _data: SIMD[Self.dtype, Self.BUFFER_SIZE]
     """A SIMD array representing the data of the matrix."""
 
     # ===--------------------------------------------------------------------===#
     # Retrieve attributes
     # ===--------------------------------------------------------------------===#
-    def get_nrows(self) -> Int:
-        """Returns the number of rows in the matrix."""
-        return self.nrows
+    # `nrows` and `ncols` are struct parameters and the two strides are
+    # `comptime` aliases, so `m.nrows` already reads as a compile-time constant
+    # and nothing can assign to it. Only `_data` needs an accessor, which is
+    # why this type carries fewer of them than `Matrix` and `MatrixView`.
 
-    def get_ncols(self) -> Int:
-        """Returns the number of columns in the matrix."""
-        return self.ncols
+    @always_inline
+    def data(self) -> SIMD[Self.dtype, Self.BUFFER_SIZE]:
+        """Returns the padded SIMD buffer backing the matrix."""
+        return self._data
 
-    def get_row_stride(self) -> Int:
-        """Returns the row stride of the matrix."""
-        return self.row_stride
-
-    def get_col_stride(self) -> Int:
-        """Returns the column stride of the matrix."""
-        return self.col_stride
-
-    def get_offset(self) -> Int:
+    @always_inline
+    def offset(self) -> Int:
         """Returns the offset in the underlying data buffer for the matrix."""
         return 0
 
-    def get_size(self) -> Int:
+    @always_inline
+    def size(self) -> Int:
         """Returns the total number of elements in the matrix."""
         return self.nrows * self.ncols
 
@@ -116,15 +110,15 @@ struct StaticMatrix[dtype: DType, nrows: Int, ncols: Int](
         # [Mojo Miji]
         # SIMD() initializes the buffer with zeros at compile time, so we don't
         # need to explicitly fill it with zeros here.
-        self.data = SIMD[Self.dtype, Self.BUFFER_SIZE]()
+        self._data = SIMD[Self.dtype, Self.BUFFER_SIZE]()
 
     def __init__(out self, simd: SIMD[Self.dtype, Self.BUFFER_SIZE]):
         """Initializes the matrix with SIMD that match the size of buffer."""
-        self.data = simd
+        self._data = simd
 
     def __init__(out self, *, copy: Self):
         """Initializes the matrix by copying another matrix."""
-        self.data = copy.data
+        self._data = copy._data
 
     # ===--------------------------------------------------------------------===#
     # Element Access and Mutation
@@ -133,7 +127,44 @@ struct StaticMatrix[dtype: DType, nrows: Int, ncols: Int](
     def __getitem__(self, row: Int, col: Int) -> Self.ElementType:
         """Accesses an element of the matrix view using row and column indices.
         """
-        return self.data[row * self.row_stride + col * self.col_stride]
+        return self._data[row * self.row_stride + col * self.col_stride]
+
+    # ===--------------------------------------------------------------------===#
+    # Conversion
+    # ===--------------------------------------------------------------------===#
+
+    def to_matrix(self) -> Matrix[Self.dtype]:
+        """Copies the matrix into a new owning, C-contiguous `Matrix`.
+
+        This is the only bridge between `StaticMatrix` and the rest of the
+        library, which works in `Matrix` and `MatrixView` throughout. The
+        buffer is padded to a power of two in each dimension, so the copy
+        walks the strides rather than taking the buffer wholesale; the result
+        is dense.
+
+        Returns:
+            A new `Matrix` holding a dense copy of the elements.
+        """
+        # [Mojo Miji]
+        # An `@implicit` constructor would not serve here. Mojo applies a
+        # single implicit conversion and never chains two, so one landing on
+        # `Matrix` would still not reach the `MatrixView` signatures the
+        # operators and routines are written against. One reaching them
+        # directly would cost the compile-time shape check that is the point
+        # of this type: `nrows` and `ncols` are parameters, so `a + b` on a
+        # 2x2 and a 3x3 is a compile error, and a converting operand would
+        # instead carry the mismatch into a dynamic kernel and raise at run
+        # time. Naming the hop keeps the error where the compiler can see it.
+        var result = Matrix[Self.dtype](
+            nrows=Self.nrows,
+            ncols=Self.ncols,
+            row_stride=Self.ncols,
+            col_stride=1,
+        )
+        for i in range(Self.nrows):
+            for j in range(Self.ncols):
+                result._data[i * Self.ncols + j] = self[i, j]
+        return result^
 
     # ===--------------------------------------------------------------------===#
     # String Representation and Writing
@@ -145,7 +176,9 @@ struct StaticMatrix[dtype: DType, nrows: Int, ncols: Int](
         for i in range(self.nrows):
             for j in range(self.ncols):
                 result += (
-                    String(self.data[i * self.row_stride + j * self.col_stride])
+                    String(
+                        self._data[i * self.row_stride + j * self.col_stride]
+                    )
                     + "\t"
                 )
             if i < self.nrows - 1:
@@ -169,7 +202,7 @@ struct StaticMatrix[dtype: DType, nrows: Int, ncols: Int](
             for j in range(self.ncols):
                 writer.write(
                     round(
-                        self.data[i * self.row_stride + j * self.col_stride], 4
+                        self._data[i * self.row_stride + j * self.col_stride], 4
                     )
                 )
                 writer.write("\t")

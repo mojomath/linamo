@@ -144,8 +144,8 @@ def test_inplace_on_strided_matrix() raises:
     testing.assert_true(
         a.is_f_contiguous(), "in-place op must not change the layout"
     )
-    testing.assert_equal(a.row_stride, 1)
-    testing.assert_equal(a.col_stride, 2)
+    testing.assert_equal(a.row_stride(), 1)
+    testing.assert_equal(a.col_stride(), 2)
 
 
 def test_inplace_matrix_operand_on_strided_target() raises:
@@ -165,7 +165,7 @@ def test_inplace_matrix_operand_on_strided_target() raises:
     testing.assert_equal(a[0, 1], 22.0)
     testing.assert_equal(a[1, 0], 33.0)
     testing.assert_equal(a[1, 1], 44.0)
-    testing.assert_equal(a.col_stride, 2)
+    testing.assert_equal(a.col_stride(), 2)
 
 
 # ===----------------------------------------------------------------------===#
@@ -316,8 +316,8 @@ def test_equal_returns_mask_not_bool() raises:
     testing.assert_equal(m[1, 0], True)
     testing.assert_equal(m[1, 1], False)
     # The mask has the same shape as the operands.
-    testing.assert_equal(m.nrows, 2)
-    testing.assert_equal(m.ncols, 2)
+    testing.assert_equal(m.nrows(), 2)
+    testing.assert_equal(m.ncols(), 2)
 
 
 def test_not_equal() raises:
@@ -427,8 +427,8 @@ def test_view_comparison() raises:
     )
     # Strided view: every other column.
     var v = big[0:3:2, 0:3:2]
-    testing.assert_equal(v.nrows, 2)
-    testing.assert_equal(v.ncols, 2)
+    testing.assert_equal(v.nrows(), 2)
+    testing.assert_equal(v.ncols(), 2)
     var m = v > 3.0
     testing.assert_equal(m[0, 0], False)  # 1.0
     testing.assert_equal(m[0, 1], False)  # 3.0

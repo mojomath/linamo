@@ -129,7 +129,7 @@ def slicing_forms() raises:
 
     # An empty selection is legal and gives a view with a zero dimension.
     var empty = m[2:2, :]
-    print("m[2:2, :] is empty:", empty.nrows, "x", empty.ncols)
+    print("m[2:2, :] is empty:", empty.nrows(), "x", empty.ncols())
 
 
 # ===----------------------------------------------------------------------=== #
@@ -154,11 +154,11 @@ def view_on_view() raises:
     # single stride computation at access time.
     print(
         "v2 strides: row =",
-        v2.get_row_stride(),
+        v2.row_stride(),
         " col =",
-        v2.get_col_stride(),
+        v2.col_stride(),
         " offset =",
-        v2.get_offset(),
+        v2.offset(),
     )
     print("v2[0, 0] is m[3, 3]:", v2[0, 0], "==", m[3, 3])
 
@@ -183,7 +183,7 @@ def getitem() raises:
     print("v[0, 0] =", v[0, 0], " (which is m[1, 2] =", m[1, 2], ")")
     print("v[1, 2] =", v[1, 2], " (which is m[3, 6] =", m[3, 6], ")")
 
-    print("Shape:", v.get_nrows(), "x", v.get_ncols(), " size:", v.get_size())
+    print("Shape:", v.nrows(), "x", v.ncols(), " size:", v.size())
     print("len(v) - the row count, matching iteration:", len(v))
 
     # `get_unsafe` skips the bounds check; only `-D ASSERT=all` will catch a
@@ -214,10 +214,10 @@ def layout_of_a_view() raises:
     var whole = m.view()
     print(
         "m.view():          strides",
-        whole.get_row_stride(),
-        whole.get_col_stride(),
+        whole.row_stride(),
+        whole.col_stride(),
         " offset",
-        whole.get_offset(),
+        whole.offset(),
         " c_contiguous",
         whole.is_c_contiguous(),
     )
@@ -225,10 +225,10 @@ def layout_of_a_view() raises:
     var block = m[2:5, 1:4]
     print(
         "m[2:5, 1:4]:       strides",
-        block.get_row_stride(),
-        block.get_col_stride(),
+        block.row_stride(),
+        block.col_stride(),
         " offset",
-        block.get_offset(),
+        block.offset(),
         " c_contiguous",
         block.is_c_contiguous(),
     )
@@ -236,10 +236,10 @@ def layout_of_a_view() raises:
     var one_row = m[2:3, :]
     print(
         "m[2:3, :]:         strides",
-        one_row.get_row_stride(),
-        one_row.get_col_stride(),
+        one_row.row_stride(),
+        one_row.col_stride(),
         " offset",
-        one_row.get_offset(),
+        one_row.offset(),
         " row_contiguous",
         one_row.is_row_contiguous(),
     )
@@ -247,10 +247,10 @@ def layout_of_a_view() raises:
     var strided = m[::2, ::2]
     print(
         "m[::2, ::2]:       strides",
-        strided.get_row_stride(),
-        strided.get_col_stride(),
+        strided.row_stride(),
+        strided.col_stride(),
         " offset",
-        strided.get_offset(),
+        strided.offset(),
         " c_contiguous",
         strided.is_c_contiguous(),
     )
@@ -326,8 +326,8 @@ def writing_through_a_view() raises:
 
     # Strided windows are writable in exactly the same way.
     var checker = view_mut(m, Slice(0, 5, 2), Slice(0, 6, 2))
-    for i in range(checker.nrows):
-        for j in range(checker.ncols):
+    for i in range(checker.nrows()):
+        for j in range(checker.ncols()):
             checker[i, j] = 5
     print("After filling view_mut(m, 0:5:2, 0:6:2) with 5:\n", m)
 
@@ -400,17 +400,17 @@ def mutable_iteration() raises:
     # scaling a row by a pivot.
     for row in rows_mut(m):
         var total = Scalar[la.float64](0)
-        for j in range(row.ncols):
+        for j in range(row.ncols()):
             total += row[0, j]
         if total != 0:
-            for j in range(row.ncols):
+            for j in range(row.ncols()):
                 row[0, j] /= total
     print("After dividing each row by its own sum:\n", m)
 
     # Columns too.
     var n = _grid[la.int64](3, 4)
     for col in cols_mut(n):
-        for i in range(col.nrows):
+        for i in range(col.nrows()):
             col[i, 0] *= 2
     print("After doubling every column of a 3x4 grid:\n", n)
 
@@ -465,7 +465,7 @@ def iteration() raises:
     print("Row sums:")
     for row in v:
         var total = Scalar[la.int64](0)
-        for j in range(row.ncols):
+        for j in range(row.ncols()):
             total += row[0, j]
         print("  ", total)
 
@@ -544,9 +544,7 @@ def materialisation() raises:
     # the strided window and lays it out densely in fresh storage.
     var owned = v.to_matrix()
     print("v.to_matrix() - dense, row-major, independent:\n", owned)
-    print(
-        "Strides of the copy:", owned.get_row_stride(), owned.get_col_stride()
-    )
+    print("Strides of the copy:", owned.row_stride(), owned.col_stride())
 
     # Independent, so a write to the copy leaves the original alone.
     owned[0, 0] = -1

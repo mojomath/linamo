@@ -26,10 +26,10 @@ def test_matrix_copy_preserves_layout() raises:
         order="F",
     )
     var b = a.copy()
-    testing.assert_equal(b.row_stride, a.row_stride)
-    testing.assert_equal(b.col_stride, a.col_stride)
-    testing.assert_equal(b.nrows, a.nrows)
-    testing.assert_equal(b.ncols, a.ncols)
+    testing.assert_equal(b.row_stride(), a.row_stride())
+    testing.assert_equal(b.col_stride(), a.col_stride())
+    testing.assert_equal(b.nrows(), a.nrows())
+    testing.assert_equal(b.ncols(), a.ncols())
 
 
 def main() raises:

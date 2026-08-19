@@ -14,8 +14,8 @@ def test_smatrix_from_nested_list() raises:
             [4.0, 5.0, 6.0],
         ]
     )
-    testing.assert_equal(mat.get_nrows(), 2)
-    testing.assert_equal(mat.get_ncols(), 3)
+    testing.assert_equal(mat.nrows, 2)
+    testing.assert_equal(mat.ncols, 3)
     testing.assert_equal(mat[0, 0], 1.0)
     testing.assert_equal(mat[0, 2], 3.0)
     testing.assert_equal(mat[1, 0], 4.0)
@@ -89,8 +89,8 @@ def test_smatrix_flat_list_size_mismatch_raises() raises:
     )
 
 
-def test_smatrix_get_size() raises:
-    """Test the get_size method for static matrices."""
+def test_smatrix_size() raises:
+    """Test the size method for static matrices."""
     var mat = la.smatrix[4, 5, DType.float64](
         [
             [1.0, 2.0, 3.0, 4.0, 5.0],
@@ -99,7 +99,7 @@ def test_smatrix_get_size() raises:
             [16.0, 17.0, 18.0, 19.0, 20.0],
         ]
     )
-    testing.assert_equal(mat.get_size(), 20)
+    testing.assert_equal(mat.size(), 20)
 
 
 def test_smatrix_integer_type() raises:
@@ -123,6 +123,98 @@ def test_smatrix_copy() raises:
     var b = a.copy()
     testing.assert_equal(b[0, 0], 1.0)
     testing.assert_equal(b[1, 1], 4.0)
+
+
+# ===----------------------------------------------------------------------===#
+# to_matrix
+# ===----------------------------------------------------------------------===#
+# `to_matrix()` is the only bridge between `StaticMatrix` and the rest of the
+# library, so these cover the two things that make it more than a field copy:
+# the power-of-two row padding must not survive into the result, and the copy
+# must be independent of its source.
+
+
+def test_to_matrix_basic() raises:
+    """Test converting a static matrix into a dynamic one."""
+    var s = la.smatrix[2, 3, DType.float64]([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]])
+    var m = s.to_matrix()
+    testing.assert_equal(m.nrows(), 2)
+    testing.assert_equal(m.ncols(), 3)
+    for i in range(2):
+        for j in range(3):
+            testing.assert_equal(m[i, j], s[i, j])
+
+
+def test_to_matrix_strips_padding() raises:
+    """Test that the result is dense, not padded like the source."""
+    # A 3x3 StaticMatrix pads its rows to 4, so its row stride is 4.
+    var s = la.smatrix[3, 3, DType.float64](
+        [[1.0, 2.0, 3.0], [4.0, 5.0, 6.0], [7.0, 8.0, 9.0]]
+    )
+    testing.assert_equal(s.row_stride, 4)
+    var m = s.to_matrix()
+    testing.assert_equal(m.row_stride(), 3)
+    testing.assert_equal(m.col_stride(), 1)
+    testing.assert_true(m.is_c_contiguous())
+    testing.assert_equal(len(m.data()), 9)
+
+
+def test_to_matrix_is_a_copy() raises:
+    """Test that the result does not alias the static matrix."""
+    var s = la.smatrix[2, 2, DType.float64]([[1.0, 2.0], [3.0, 4.0]])
+    var m = s.to_matrix()
+    m[0, 0] = 99.0
+    testing.assert_equal(s[0, 0], 1.0)
+    testing.assert_equal(m[0, 0], 99.0)
+
+
+def test_to_matrix_int_dtype() raises:
+    """Test that the conversion carries a non-default dtype."""
+    var s = la.smatrix[2, 2, DType.int64]([[1, 2], [3, 4]])
+    var m = s.to_matrix()
+    testing.assert_equal(m[1, 1], Int64(4))
+    testing.assert_equal(m.nrows(), 2)
+
+
+def test_to_matrix_single_element() raises:
+    """Test converting a 1x1 static matrix."""
+    var s = la.smatrix[1, 1, DType.float64]([[7.0]])
+    var m = s.to_matrix()
+    testing.assert_equal(m.nrows(), 1)
+    testing.assert_equal(m.ncols(), 1)
+    testing.assert_equal(m[0, 0], 7.0)
+
+
+def test_to_matrix_non_square_padding() raises:
+    """Test a shape whose row padding differs from its column padding."""
+    # 3x5 pads to a 4x8 buffer, so the source row stride is 8.
+    var s = la.smatrix[3, 5, DType.float64](
+        [
+            [1.0, 2.0, 3.0, 4.0, 5.0],
+            [6.0, 7.0, 8.0, 9.0, 10.0],
+            [11.0, 12.0, 13.0, 14.0, 15.0],
+        ]
+    )
+    testing.assert_equal(s.row_stride, 8)
+    var m = s.to_matrix()
+    testing.assert_equal(m.row_stride(), 5)
+    testing.assert_equal(len(m.data()), 15)
+    for i in range(3):
+        for j in range(5):
+            testing.assert_equal(m[i, j], s[i, j])
+
+
+def test_to_matrix_reaches_operators_and_routines() raises:
+    """Test that the converted matrix reaches the rest of the library."""
+    var s = la.smatrix[2, 2, DType.float64]([[1.0, 2.0], [3.0, 4.0]])
+    var d = la.matrix[DType.float64]([[10.0, 10.0], [10.0, 10.0]])
+    var total = d + s.to_matrix()
+    testing.assert_equal(total[0, 0], 11.0)
+    testing.assert_equal(total[1, 1], 14.0)
+    testing.assert_equal(la.sum(s.to_matrix()), 10.0)
+    var t = la.transpose(s.to_matrix())
+    testing.assert_equal(t[0, 1], 3.0)
+    testing.assert_equal(t[1, 0], 2.0)
 
 
 def main() raises:

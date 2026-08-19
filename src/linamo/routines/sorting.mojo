@@ -54,24 +54,24 @@ def sort[
         ValueError: If `axis` is neither 0 nor 1.
     """
     _check_axis(axis, "sort(m, axis)")
-    var result = Matrix[dtype](m.nrows, m.ncols, m.ncols, 1)
+    var result = Matrix[dtype](m.nrows(), m.ncols(), m.ncols(), 1)
 
     if axis == 0:
-        for j in range(m.ncols):
-            var lane = List[Scalar[dtype]](capacity=m.nrows)
-            for i in range(m.nrows):
+        for j in range(m.ncols()):
+            var lane = List[Scalar[dtype]](capacity=m.nrows())
+            for i in range(m.nrows()):
                 lane.append(m[i, j])
             _sort_list(lane)
-            for i in range(m.nrows):
-                result.data[i * m.ncols + j] = lane[i]
+            for i in range(m.nrows()):
+                result._data[i * m.ncols() + j] = lane[i]
     else:
-        for i in range(m.nrows):
-            var lane = List[Scalar[dtype]](capacity=m.ncols)
-            for j in range(m.ncols):
+        for i in range(m.nrows()):
+            var lane = List[Scalar[dtype]](capacity=m.ncols())
+            for j in range(m.ncols()):
                 lane.append(m[i, j])
             _sort_list(lane)
-            for j in range(m.ncols):
-                result.data[i * m.ncols + j] = lane[j]
+            for j in range(m.ncols()):
+                result._data[i * m.ncols() + j] = lane[j]
 
     return result^
 
@@ -97,20 +97,20 @@ def sort_inplace[dtype: DType](mut m: Matrix[dtype], axis: Int) raises:
     _check_axis(axis, "sort_inplace(m, axis)")
 
     if axis == 0:
-        for j in range(m.ncols):
-            var lane = List[Scalar[dtype]](capacity=m.nrows)
-            for i in range(m.nrows):
+        for j in range(m.ncols()):
+            var lane = List[Scalar[dtype]](capacity=m.nrows())
+            for i in range(m.nrows()):
                 lane.append(m[i, j])
             _sort_list(lane)
-            for i in range(m.nrows):
+            for i in range(m.nrows()):
                 m[i, j] = lane[i]
     else:
-        for i in range(m.nrows):
-            var lane = List[Scalar[dtype]](capacity=m.ncols)
-            for j in range(m.ncols):
+        for i in range(m.nrows()):
+            var lane = List[Scalar[dtype]](capacity=m.ncols())
+            for j in range(m.ncols()):
                 lane.append(m[i, j])
             _sort_list(lane)
-            for j in range(m.ncols):
+            for j in range(m.ncols()):
                 m[i, j] = lane[j]
 
 
@@ -138,18 +138,18 @@ def argsort[
         ValueError: If `axis` is neither 0 nor 1.
     """
     _check_axis(axis, "argsort(m, axis)")
-    var result = Matrix[DType.int64](m.nrows, m.ncols, m.ncols, 1)
+    var result = Matrix[DType.int64](m.nrows(), m.ncols(), m.ncols(), 1)
 
     if axis == 0:
-        for j in range(m.ncols):
+        for j in range(m.ncols()):
             var order = _stable_order(m, j, 0)
-            for i in range(m.nrows):
-                result.data[i * m.ncols + j] = Int64(order[i])
+            for i in range(m.nrows()):
+                result._data[i * m.ncols() + j] = Int64(order[i])
     else:
-        for i in range(m.nrows):
+        for i in range(m.nrows()):
             var order = _stable_order(m, i, 1)
-            for j in range(m.ncols):
-                result.data[i * m.ncols + j] = Int64(order[j])
+            for j in range(m.ncols()):
+                result._data[i * m.ncols() + j] = Int64(order[j])
 
     return result^
 
@@ -166,7 +166,7 @@ def _stable_order[
     so this is quadratic in one dimension only - revisit in Phase 10 if a
     profile ever says it matters.
     """
-    var n = m.nrows if axis == 0 else m.ncols
+    var n = m.nrows() if axis == 0 else m.ncols()
     var order = List[Int](capacity=n)
 
     for k in range(n):

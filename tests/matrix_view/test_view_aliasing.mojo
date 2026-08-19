@@ -118,11 +118,11 @@ def test_as_imm_preserves_shape_and_strides() raises:
     )
     var v = view_mut(a, Slice(0, 3, 2), Slice(0, 3, 2))
     var i = v.as_imm()
-    testing.assert_equal(i.get_nrows(), v.get_nrows())
-    testing.assert_equal(i.get_ncols(), v.get_ncols())
-    testing.assert_equal(i.get_row_stride(), v.get_row_stride())
-    testing.assert_equal(i.get_col_stride(), v.get_col_stride())
-    testing.assert_equal(i.get_offset(), v.get_offset())
+    testing.assert_equal(i.nrows(), v.nrows())
+    testing.assert_equal(i.ncols(), v.ncols())
+    testing.assert_equal(i.row_stride(), v.row_stride())
+    testing.assert_equal(i.col_stride(), v.col_stride())
+    testing.assert_equal(i.offset(), v.offset())
     testing.assert_equal(i[1, 1], 9.0)
 
 
@@ -217,8 +217,8 @@ def test_view_equals_full_slice() raises:
     var a = la.matrix[DType.float64]([[1.0, 2.0], [3.0, 4.0]])
     var full = a[0:2, 0:2]
     var v = a.view()
-    testing.assert_equal(v.get_nrows(), full.get_nrows())
-    testing.assert_equal(v.get_ncols(), full.get_ncols())
+    testing.assert_equal(v.nrows(), full.nrows())
+    testing.assert_equal(v.ncols(), full.ncols())
     testing.assert_equal(v[1, 1], full[1, 1])
 
 

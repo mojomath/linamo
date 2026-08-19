@@ -103,12 +103,12 @@ def test_matrix_attributes() raises:
             [4.0, 5.0, 6.0],
         ]
     )
-    testing.assert_equal(mat.get_nrows(), 2)
-    testing.assert_equal(mat.get_ncols(), 3)
-    testing.assert_equal(mat.get_row_stride(), 3)
-    testing.assert_equal(mat.get_col_stride(), 1)
-    testing.assert_equal(mat.get_offset(), 0)
-    testing.assert_equal(mat.get_size(), 6)
+    testing.assert_equal(mat.nrows(), 2)
+    testing.assert_equal(mat.ncols(), 3)
+    testing.assert_equal(mat.row_stride(), 3)
+    testing.assert_equal(mat.col_stride(), 1)
+    testing.assert_equal(mat.offset(), 0)
+    testing.assert_equal(mat.size(), 6)
 
 
 def main() raises:

@@ -15,8 +15,8 @@ from linamo.routines.creation import zeros, ones, full, eye, identity, diag
 def test_zeros_basic() raises:
     """Test creating a matrix of zeros."""
     var mat = zeros[DType.float64](3, 4)
-    testing.assert_equal(mat.nrows, 3)
-    testing.assert_equal(mat.ncols, 4)
+    testing.assert_equal(mat.nrows(), 3)
+    testing.assert_equal(mat.ncols(), 4)
     for i in range(3):
         for j in range(4):
             testing.assert_equal(mat[i, j], 0.0)
@@ -43,8 +43,8 @@ def test_zeros_int_dtype() raises:
 def test_ones_basic() raises:
     """Test creating a matrix of ones."""
     var mat = ones[DType.float64](2, 3)
-    testing.assert_equal(mat.nrows, 2)
-    testing.assert_equal(mat.ncols, 3)
+    testing.assert_equal(mat.nrows(), 2)
+    testing.assert_equal(mat.ncols(), 3)
     for i in range(2):
         for j in range(3):
             testing.assert_equal(mat[i, j], 1.0)
@@ -85,8 +85,8 @@ def test_full_negative() raises:
 def test_eye_basic() raises:
     """Test creating an identity matrix with eye."""
     var mat = eye[DType.float64](3)
-    testing.assert_equal(mat.nrows, 3)
-    testing.assert_equal(mat.ncols, 3)
+    testing.assert_equal(mat.nrows(), 3)
+    testing.assert_equal(mat.ncols(), 3)
     testing.assert_equal(mat[0, 0], 1.0)
     testing.assert_equal(mat[1, 1], 1.0)
     testing.assert_equal(mat[2, 2], 1.0)
@@ -126,8 +126,8 @@ def test_diag_construct() raises:
     """Test constructing a diagonal matrix from a list."""
     var vals: List[Float64] = [1.0, 2.0, 3.0]
     var mat = diag(vals^)
-    testing.assert_equal(mat.nrows, 3)
-    testing.assert_equal(mat.ncols, 3)
+    testing.assert_equal(mat.nrows(), 3)
+    testing.assert_equal(mat.ncols(), 3)
     testing.assert_equal(mat[0, 0], 1.0)
     testing.assert_equal(mat[1, 1], 2.0)
     testing.assert_equal(mat[2, 2], 3.0)

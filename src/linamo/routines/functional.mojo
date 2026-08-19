@@ -72,18 +72,18 @@ def fold[
     var acc = init
 
     if v.is_row_contiguous():
-        for i in range(v.nrows):
-            var base = v.offset + i * v.row_stride
-            for j in range(v.ncols):
-                acc = func(acc, v.data[base + j])
+        for i in range(v.nrows()):
+            var base = v.offset() + i * v.row_stride()
+            for j in range(v.ncols()):
+                acc = func(acc, v._data[base + j])
     elif v.is_col_contiguous():
-        for j in range(v.ncols):
-            var base = v.offset + j * v.col_stride
-            for i in range(v.nrows):
-                acc = func(acc, v.data[base + i])
+        for j in range(v.ncols()):
+            var base = v.offset() + j * v.col_stride()
+            for i in range(v.nrows()):
+                acc = func(acc, v._data[base + i])
     else:
-        for i in range(v.nrows):
-            for j in range(v.ncols):
+        for i in range(v.nrows()):
+            for j in range(v.ncols()):
                 acc = func(acc, v[i, j])
 
     return acc
@@ -127,16 +127,16 @@ def apply_along_axis[
     comptime lane_axis = 1 - axis
 
     comptime if axis == 0:
-        var result = Matrix[dtype](1, m.ncols, m.ncols, 1)
+        var result = Matrix[dtype](1, m.ncols(), m.ncols(), 1)
         var k = 0
         for lane in MatrixAxisIter[axis=lane_axis](m):
-            result.data[k] = func(lane)
+            result._data[k] = func(lane)
             k += 1
         return result^
     else:
-        var result = Matrix[dtype](m.nrows, 1, 1, 1)
+        var result = Matrix[dtype](m.nrows(), 1, 1, 1)
         var k = 0
         for lane in MatrixAxisIter[axis=lane_axis](m):
-            result.data[k] = func(lane)
+            result._data[k] = func(lane)
             k += 1
         return result^

@@ -10,8 +10,8 @@ from linamo.routines.random import rand, seed
 def test_rand_shape_and_layout() raises:
     """Test that rand produces the requested shape, C-contiguous."""
     var mat = rand[DType.float64](3, 4)
-    testing.assert_equal(mat.nrows, 3)
-    testing.assert_equal(mat.ncols, 4)
+    testing.assert_equal(mat.nrows(), 3)
+    testing.assert_equal(mat.ncols(), 4)
     testing.assert_true(mat.is_c_contiguous())
 
 
@@ -99,7 +99,7 @@ def test_rand_exported_from_package() raises:
     """Test that rand and seed are reachable through the package alias."""
     la.seed(11)
     var mat = la.rand[DType.float64](2, 2)
-    testing.assert_equal(mat.nrows, 2)
+    testing.assert_equal(mat.nrows(), 2)
 
 
 def main() raises:

@@ -22,14 +22,14 @@ def transpose[
     The result is always stored in row-major (C) order regardless of the
     input layout.
     """
-    var nrows = view.ncols  # transposed
-    var ncols = view.nrows  # transposed
+    var nrows = view.ncols()  # transposed
+    var ncols = view.nrows()  # transposed
     var data = List[Scalar[dtype]](unsafe_uninit_length=nrows * ncols)
-    for i in range(view.nrows):
-        for j in range(view.ncols):
+    for i in range(view.nrows()):
+        for j in range(view.ncols()):
             data[j * ncols + i] = view[i, j]
     return Matrix[dtype](
-        data=data^,
+        buffer=data^,
         nrows=nrows,
         ncols=ncols,
         row_stride=ncols,
@@ -41,13 +41,13 @@ def trace[
     dtype: DType, origin: Origin
 ](view: MatrixView[dtype, origin]) raises -> Scalar[dtype]:
     """Computes the trace (sum of diagonal elements) of a square matrix view."""
-    if view.nrows != view.ncols:
+    if view.nrows() != view.ncols():
         raise ValueError(
             function="trace()",
             message="Matrix must be square to compute trace.",
         )
     var result: Scalar[dtype] = 0
-    for i in range(view.nrows):
+    for i in range(view.nrows()):
         result += view[i, i]
     return result
 
@@ -65,12 +65,12 @@ def lu[
     an upper-triangular matrix U, and a permutation vector P such that
     the rows of A permuted by P equal L @ U.
     """
-    if view.nrows != view.ncols:
+    if view.nrows() != view.ncols():
         raise ValueError(
             function="lu()",
             message="Matrix must be square for LU decomposition.",
         )
-    var n = view.nrows
+    var n = view.nrows()
 
     # Work on a row-major copy for uniform indexing.
     var u_data = List[Scalar[dtype]](unsafe_uninit_length=n * n)
@@ -133,10 +133,10 @@ def lu[
             u_data[i * n + j] = 0
 
     var L = Matrix[dtype](
-        data=l_data^, nrows=n, ncols=n, row_stride=n, col_stride=1
+        buffer=l_data^, nrows=n, ncols=n, row_stride=n, col_stride=1
     )
     var U = Matrix[dtype](
-        data=u_data^, nrows=n, ncols=n, row_stride=n, col_stride=1
+        buffer=u_data^, nrows=n, ncols=n, row_stride=n, col_stride=1
     )
     return (L^, U^, piv^)
 
@@ -149,12 +149,12 @@ def cholesky[
     The input must be a symmetric positive-definite matrix view. The result is
     a lower-triangular matrix L such that A = L @ L^T.
     """
-    if view.nrows != view.ncols:
+    if view.nrows() != view.ncols():
         raise ValueError(
             function="cholesky()",
             message="Matrix must be square for Cholesky decomposition.",
         )
-    var n = view.nrows
+    var n = view.nrows()
     var l_data = List[Scalar[dtype]](length=n * n, fill=0)
 
     for i in range(n):
@@ -178,7 +178,7 @@ def cholesky[
                 l_data[i * n + j] = (view[i, j] - s) / l_data[j * n + j]
 
     return Matrix[dtype](
-        data=l_data^, nrows=n, ncols=n, row_stride=n, col_stride=1
+        buffer=l_data^, nrows=n, ncols=n, row_stride=n, col_stride=1
     )
 
 
@@ -191,8 +191,8 @@ def qr[
 
     Works for any m x n matrix view with m >= n.
     """
-    var m = view.nrows
-    var n = view.ncols
+    var m = view.nrows()
+    var n = view.ncols()
     if m < n:
         raise ValueError(
             function="qr()",
@@ -262,10 +262,10 @@ def qr[
                 )
 
     var Q = Matrix[dtype](
-        data=q_data^, nrows=m, ncols=m, row_stride=m, col_stride=1
+        buffer=q_data^, nrows=m, ncols=m, row_stride=m, col_stride=1
     )
     var R = Matrix[dtype](
-        data=r_data^, nrows=m, ncols=n, row_stride=n, col_stride=1
+        buffer=r_data^, nrows=m, ncols=n, row_stride=n, col_stride=1
     )
     return (Q^, R^)
 
@@ -274,19 +274,19 @@ def det[
     dtype: DType, origin: Origin
 ](view: MatrixView[dtype, origin]) raises -> Scalar[dtype]:
     """Computes the determinant of a square matrix view via LU decomposition."""
-    if view.nrows != view.ncols:
+    if view.nrows() != view.ncols():
         raise ValueError(
             function="det()",
             message="Matrix must be square to compute determinant.",
         )
-    var n = view.nrows
+    var n = view.nrows()
     var lu_result = lu(view)
     ref U = lu_result[1]
     ref piv = lu_result[2]
 
     var d: Scalar[dtype] = 1
     for i in range(n):
-        d *= U.data[i * n + i]
+        d *= U._data[i * n + i]
 
     var piv_copy = List[Int](unsafe_uninit_length=n)
     for i in range(n):
@@ -317,13 +317,13 @@ def solve[
     Both A and b can be matrix views. The right-hand side b can be a
     column vector (n x 1) or a matrix (n x k) for multiple right-hand sides.
     """
-    if A.nrows != A.ncols:
+    if A.nrows() != A.ncols():
         raise ValueError(
             function="solve()",
             message="Coefficient matrix A must be square.",
         )
-    var n = A.nrows
-    if b.nrows != n:
+    var n = A.nrows()
+    if b.nrows() != n:
         raise ValueError(
             function="solve()",
             message="Dimensions of A and b do not match: A is "
@@ -331,11 +331,11 @@ def solve[
             + "x"
             + String(n)
             + " but b has "
-            + String(b.nrows)
+            + String(b.nrows())
             + " rows.",
         )
 
-    var k = b.ncols  # number of right-hand sides
+    var k = b.ncols()  # number of right-hand sides
 
     # LU decompose: PA = LU
     var lu_result = lu(A)
@@ -360,18 +360,18 @@ def solve[
         for i in range(n):
             var s: Scalar[dtype] = pb_data[i * k + col]
             for j2 in range(i):
-                s -= L.data[i * n + j2] * y[j2]
+                s -= L._data[i * n + j2] * y[j2]
             y[i] = s
 
         # Back substitution: Ux = y
         for i in range(n - 1, -1, -1):
             var s: Scalar[dtype] = y[i]
             for j2 in range(i + 1, n):
-                s -= U.data[i * n + j2] * x_data[j2 * k + col]
-            x_data[i * k + col] = s / U.data[i * n + i]
+                s -= U._data[i * n + j2] * x_data[j2 * k + col]
+            x_data[i * k + col] = s / U._data[i * n + i]
 
     return Matrix[dtype](
-        data=x_data^,
+        buffer=x_data^,
         nrows=n,
         ncols=k,
         row_stride=k,
@@ -386,19 +386,19 @@ def inv[
 
     Solves A @ X = I for X.
     """
-    if view.nrows != view.ncols:
+    if view.nrows() != view.ncols():
         raise ValueError(
             function="inv()",
             message="Matrix must be square to compute inverse.",
         )
-    var n = view.nrows
+    var n = view.nrows()
 
     # Build identity matrix as RHS
     var eye_data = List[Scalar[dtype]](length=n * n, fill=0)
     for i in range(n):
         eye_data[i * n + i] = 1
     var I = Matrix[dtype](
-        data=eye_data^,
+        buffer=eye_data^,
         nrows=n,
         ncols=n,
         row_stride=n,
@@ -419,24 +419,24 @@ def lstsq[
     Works for overdetermined systems (m >= n). For multiple right-hand
     sides, b should have shape (m x k).
     """
-    var m = A.nrows
-    var n = A.ncols
+    var m = A.nrows()
+    var n = A.ncols()
     if m < n:
         raise ValueError(
             function="lstsq()",
             message="Least squares requires nrows >= ncols (overdetermined).",
         )
-    if b.nrows != m:
+    if b.nrows() != m:
         raise ValueError(
             function="lstsq()",
             message="Dimensions of A and b do not match: A has "
             + String(m)
             + " rows but b has "
-            + String(b.nrows)
+            + String(b.nrows())
             + " rows.",
         )
 
-    var k = b.ncols  # number of right-hand sides
+    var k = b.ncols()  # number of right-hand sides
 
     # QR decomposition: A = Q R  (Q: m×m, R: m×n)
     var qr_result = qr(A)
@@ -451,7 +451,7 @@ def lstsq[
             var s: Scalar[dtype] = 0
             for p in range(m):
                 # Q^T[i, p] = Q[p, i]  (Q is stored row-major, m×m)
-                s += Q.data[p * m + i] * b[p, j]
+                s += Q._data[p * m + i] * b[p, j]
             qtb_data[i * k + j] = s
 
     # Back substitution: R1 x = (Q^T b)[:n]
@@ -460,11 +460,11 @@ def lstsq[
         for i in range(n - 1, -1, -1):
             var s: Scalar[dtype] = qtb_data[i * k + col]
             for j2 in range(i + 1, n):
-                s -= R.data[i * n + j2] * x_data[j2 * k + col]
-            x_data[i * k + col] = s / R.data[i * n + i]
+                s -= R._data[i * n + j2] * x_data[j2 * k + col]
+            x_data[i * k + col] = s / R._data[i * n + i]
 
     return Matrix[dtype](
-        data=x_data^,
+        buffer=x_data^,
         nrows=n,
         ncols=k,
         row_stride=k,

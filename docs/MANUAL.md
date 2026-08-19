@@ -47,6 +47,7 @@ manual is the prose half: the shape of the API, not an enumeration of it.
   - [NumPy interoperability](#numpy-interoperability)
   - [Errors](#errors)
   - [StaticMatrix](#staticmatrix)
+    - [Crossing over to `Matrix`](#crossing-over-to-matrix)
   - [Appendix A: how it works inside](#appendix-a-how-it-works-inside)
     - [`Matrix` and `MatrixView` inter-operate](#matrix-and-matrixview-inter-operate)
     - [Why matmul has several implementations](#why-matmul-has-several-implementations)
@@ -346,8 +347,8 @@ var c = v.as_imm() + v.as_imm()
 | `full_like(m, fill_value)` / `empty_like(m)`               | one value, or uninitialised, shaped like `m`  |
 | `arange[dtype](stop)` / `arange[dtype](start, stop, step)` | a `1 x n` row of evenly spaced values         |
 | `linspace[dtype](start, stop, num, endpoint)`              | a `1 x num` row from `start` to `stop`        |
-| `fromlist[dtype](flat_list, nrows, ncols, order)`          | a matrix from one flat list, positionally     |
-| `fromstring[dtype](text)`                                  | a matrix parsed from a literal                |
+| `from_list[dtype](flat_list, nrows, ncols, order)`         | a matrix from one flat list, positionally     |
+| `from_string[dtype](text)`                                 | a matrix parsed from a literal                |
 | `rand[dtype](nrows, ncols, low, high)`                     | uniform random values                         |
 | `seed(value)`                                              | pins `rand` for reproducibility               |
 
@@ -424,14 +425,14 @@ var K = la.rand[DType.int64](2, 2, 1, 6)     # integers, both bounds included
 
 ### Parsing a matrix from text
 
-`fromstring` reads a literal in which elements are separated by whitespace or
+`from_string` reads a literal in which elements are separated by whitespace or
 commas and rows by nested brackets:
 
 ```mojo
-var A = la.fromstring[DType.float64]("[[1, 2, 3], [4, 5.5, 6]]")  # 2x3
-var B = la.fromstring[DType.float64]("[[1 2 3]\n [4 5 6]]")       # 2x3
-var C = la.fromstring[DType.float64]("1 2 3")                     # 1x3, one row
-var D = la.fromstring[DType.int32]("[1, 2, 3, 4]", 2, 2)          # shape given
+var A = la.from_string[DType.float64]("[[1, 2, 3], [4, 5.5, 6]]")  # 2x3
+var B = la.from_string[DType.float64]("[[1 2 3]\n [4 5 6]]")       # 2x3
+var C = la.from_string[DType.float64]("1 2 3")                     # 1x3, one row
+var D = la.from_string[DType.int32]("[1, 2, 3, 4]", 2, 2)          # shape given
 ```
 
 A literal with no nesting is a single row. The second overload takes an
@@ -441,7 +442,7 @@ asked for. Unbalanced brackets, nesting more than two deep, rows of unequal
 length, and a cell that is not a number all raise `ValueError`; the last of
 these names the offending token.
 
-`fromlist` is the same thing for a list you already have — the positional
+`from_list` is the same thing for a list you already have — the positional
 spelling of the keyword-only `matrix(flat_list=..., nrows=..., ncols=...)`.
 
 ---
@@ -567,7 +568,7 @@ column-major matrix keeps its layout.
 `MatrixView` has no in-place operators, for the same reason it has no `store`
 method: the type is generic over its origin, and Mojo checks a method body
 against the read-only instantiation too, so nothing that writes through
-`self.data` can be defined on it. Mutate a view through the free functions in
+`self._data` can be defined on it. Mutate a view through the free functions in
 `routines/mutation.mojo`.
 
 Aliasing is a compile error rather than a silent wrong answer:
@@ -642,7 +643,7 @@ because `a:b` is only legal inside `[]`. `Slice(a, b, step)` works too.
 ## Iteration
 
 `len()` returns the number of rows, so it agrees with what iteration yields.
-Use `get_size()` for the element count.
+Use `size()` for the element count.
 
 Iterating a matrix or a view walks its rows, yielding each as a `1 x ncols`
 view onto the parent buffer. Nothing is copied.
@@ -752,21 +753,22 @@ def _count_positive[
     dtype: DType, origin: Origin[mut=False]
 ](v: la.MatrixView[dtype, origin]) -> Scalar[dtype]:
     var n = Scalar[dtype](0)
-    for i in range(v.nrows):
-        for j in range(v.ncols):
+    for i in range(v.nrows()):
+        for j in range(v.ncols()):
             if v[i, j] > 0:
                 n += 1
     return n
 
 var counts = apply_along_axis[
-    axis=1, func=_count_positive[DType.float64, origin_of(A.data)]
+    axis=1, func=_count_positive[DType.float64, type_of(A.view()).origin]
 ](A.view())
 ```
 
 `axis` is a compile-time parameter, so the traversal is specialised rather than
 branched at run time, and the kernel is a compile-time parameter too, so it
-inlines. The kernel's origin has to name the buffer it will be handed, which is
-what `origin_of(A.data)` is doing there.
+inlines. The kernel's origin has to name the buffer it will be handed, and
+`type_of(A.view()).origin` is how a caller spells it: the origin that a view of
+`A` carries, without naming `A`'s buffer directly.
 
 ---
 
@@ -780,16 +782,30 @@ the elements sit in memory and nothing about what `A[i, j]` means.
 
 Shape and layout are readable at any time:
 
-| Query                      | Answer                                    |
-| -------------------------- | ----------------------------------------- |
-| `nrows`, `ncols`           | the shape                                 |
-| `get_size()`               | `nrows * ncols`                           |
-| `len(m)`                   | `nrows`, to agree with iteration          |
-| `row_stride`, `col_stride` | the distance in memory between neighbours |
-| `is_c_contiguous()`        | dense and row-major                       |
-| `is_f_contiguous()`        | dense and column-major                    |
-| `is_row_contiguous()`      | neighbours along a row are adjacent       |
-| `is_col_contiguous()`      | neighbours down a column are adjacent     |
+| Query                          | Answer                                    |
+| ------------------------------ | ----------------------------------------- |
+| `nrows()`, `ncols()`           | the shape                                 |
+| `size()`                       | `nrows() * ncols()`                       |
+| `len(m)`                       | `nrows()`, to agree with iteration        |
+| `row_stride()`, `col_stride()` | the distance in memory between neighbours |
+| `offset()`                     | where the view starts in the buffer       |
+| `is_c_contiguous()`            | dense and row-major                       |
+| `is_f_contiguous()`            | dense and column-major                    |
+| `is_row_contiguous()`          | neighbours along a row are adjacent       |
+| `is_col_contiguous()`          | neighbours down a column are adjacent     |
+
+These are methods, not fields. The underlying `_nrows`, `_ncols`, the two
+strides and `_data` are private, because they are one invariant bundle rather
+than five independent numbers: assigning to any one alone leaves a matrix that
+indexes outside its own buffer. Mojo 1.0 has no access control and no
+properties, so the leading underscore is the marker and the parentheses are the
+cost of having one. Every accessor is `@always_inline`; the layer does not
+survive into the generated code.
+
+`StaticMatrix` is the exception and spells them without parentheses ---
+`m.nrows`, `m.row_stride` --- because there they are struct parameters and
+`comptime` aliases, already compile-time constants that nothing can assign
+to.
 
 The last two are the weaker tests, and they are the ones the kernels use: a
 lane taken out of a larger matrix has unit stride along its own extent while
@@ -902,8 +918,8 @@ Writing works the same way but lives in different places, for a reason worth
 knowing about. `Matrix.store[width]` is an ordinary method, because a `Matrix`
 owns a concretely mutable buffer. A `MatrixView`, though, is generic over its
 origin, and Mojo type-checks a method body against every instantiation --
-including the read-only one - so no method that writes through `self.data` can
-even be defined. Bulk writes on views are therefore free functions in
+including the read-only one - so no method that writes through `self._data`
+can even be defined. Bulk writes on views are therefore free functions in
 `routines/mutation.mojo`, pinned to a mutable origin:
 
 - `store[width](view, row, col, value)` - write a SIMD run.
@@ -923,7 +939,7 @@ caller's origin is already concrete.
 
 `Matrix` needs none of that, so it carries a single `set` method instead,
 overloaded on its arguments. `set` delegates to the functions above rather than
-looping over `self.data` itself, so each write has exactly one implementation
+looping over `self._data` itself, so each write has exactly one implementation
 in the library.
 
 Note that region assignment is spelled as a named method rather than
@@ -936,15 +952,15 @@ origin - making assignment from any other matrix inexpressible.
 ## NumPy interoperability
 
 ```mojo
-from linamo.routines.numpy_interop import matrix_from_numpy, to_numpy
+from linamo import from_numpy, to_numpy
 from std.python import Python
 
 def main() raises:
     var np = Python.import_module("numpy")
     var arr = np.array([[1.0, 2.0], [3.0, 4.0]])
 
-    var A = matrix_from_numpy[DType.float64](arr)   # numpy -> Linamo
-    var back = to_numpy(A)                          # Linamo -> numpy
+    var A = from_numpy[DType.float64](arr)   # numpy -> Linamo
+    var back = to_numpy(A)                   # Linamo -> numpy
 ```
 
 Both directions **copy**. The input array must be 2-D and non-empty, and the
@@ -1002,7 +1018,7 @@ allocated, and the shape is known to the optimiser.
 
 ```mojo
 var S = la.smatrix[2, 3, DType.float64]([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]])
-print(S.get_size())        # 6
+print(S.size())            # 6
 print(S[1, 2])             # 6.0
 print(S.is_c_contiguous()) # False — see below
 ```
@@ -1019,6 +1035,31 @@ layout queries, element reads, printing, and `+` and `@`. It does not have the
 rest of the operator set, element writes, slicing, views, or any of the
 routines. Use `Matrix` for anything beyond small fixed-size storage and those
 two operations.
+
+### Crossing over to `Matrix`
+
+A `StaticMatrix` shares no operator with `Matrix` or `MatrixView`, so `M + S`
+does not compile. `S.to_matrix()` copies it into a freshly allocated `Matrix`,
+and from there the whole library applies:
+
+```mojo
+var S = la.smatrix[2, 2, DType.float64]([[1.0, 2.0], [3.0, 4.0]])
+var M = la.matrix[DType.float64]([[10.0, 10.0], [10.0, 10.0]])
+
+print(M + S.to_matrix())      # 11 12 / 13 14
+print(la.sum(S.to_matrix()))  # 10.0
+```
+
+The name matches [`MatrixView.to_matrix()`](#views), which does the same job
+for the other non-owning type: walk a source whose layout is not dense and
+produce owned C-contiguous storage. The power-of-two padding does not survive
+the copy.
+
+The conversion is deliberately explicit rather than an `@implicit` constructor.
+Making it implicit would let a wrong-shaped `StaticMatrix` reach the dynamic
+kernels, and `S2x2 + S3x3` --- which the compiler rejects today, because the
+shapes are in the type --- would become a runtime `ValueError`. Naming the hop
+is what keeps that check.
 
 ---
 
@@ -1066,13 +1107,13 @@ Two details make that constructor safe, and both are load-bearing:
 ```mojo
 @implicit
 def __init__[d: DType](
-    out self: MatrixView[d, ImmOrigin(origin_of(m.data))], ref m: Matrix[d]
+    out self: MatrixView[d, ImmOrigin(origin_of(m._data))], ref m: Matrix[d]
 ):
 ```
 
 The argument is `ref m`, and only `ref` binds the origin to the *caller's*
 storage. Under `imm`, `read` or the default convention the argument gets its
-own origin --- `origin_of(m.data)` then names the callee's parameter slot ---
+own origin --- `origin_of(m._data)` then names the callee's parameter slot ---
 so the target type is one no caller can name, and every call site fails to
 convert. And the result is wrapped in `ImmOrigin(...)`, so a `var` matrix
 converts to a **read-only** view. Without that, `add(a, a)` would be two

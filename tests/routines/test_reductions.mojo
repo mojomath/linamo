@@ -42,8 +42,8 @@ def test_sum_full() raises:
 
 def test_sum_axis0() raises:
     var s = sum(_m(), 0)
-    testing.assert_equal(s.nrows, 1)
-    testing.assert_equal(s.ncols, 3)
+    testing.assert_equal(s.nrows(), 1)
+    testing.assert_equal(s.ncols(), 3)
     testing.assert_equal(s[0, 0], 5.0)
     testing.assert_equal(s[0, 1], 7.0)
     testing.assert_equal(s[0, 2], 9.0)
@@ -51,8 +51,8 @@ def test_sum_axis0() raises:
 
 def test_sum_axis1() raises:
     var s = sum(_m(), 1)
-    testing.assert_equal(s.nrows, 2)
-    testing.assert_equal(s.ncols, 1)
+    testing.assert_equal(s.nrows(), 2)
+    testing.assert_equal(s.ncols(), 1)
     testing.assert_equal(s[0, 0], 6.0)
     testing.assert_equal(s[1, 0], 15.0)
 
@@ -81,8 +81,8 @@ def test_sum_of_a_transposed_matrix() raises:
     var t = la.transpose(_m())
     testing.assert_equal(sum(t), 21.0)
     var s = sum(t, 0)
-    testing.assert_equal(s.nrows, 1)
-    testing.assert_equal(s.ncols, 2)
+    testing.assert_equal(s.nrows(), 1)
+    testing.assert_equal(s.ncols(), 2)
     testing.assert_equal(s[0, 0], 6.0)
     testing.assert_equal(s[0, 1], 15.0)
 
@@ -135,10 +135,10 @@ def test_min_max_full() raises:
 
 def test_min_max_axis() raises:
     var lo = min(_m(), 0)
-    testing.assert_equal(lo.nrows, 1)
+    testing.assert_equal(lo.nrows(), 1)
     testing.assert_equal(lo[0, 0], 1.0)
     var hi = max(_m(), 1)
-    testing.assert_equal(hi.nrows, 2)
+    testing.assert_equal(hi.nrows(), 2)
     testing.assert_equal(hi[0, 0], 3.0)
     testing.assert_equal(hi[1, 0], 6.0)
 
@@ -174,8 +174,8 @@ def test_argmin_argmax_full() raises:
 def test_argmin_axis0() raises:
     var a = la.matrix[DType.float64]([[3.0, 1.0, 2.0], [0.0, 5.0, 4.0]])
     var r = argmin(a, 0)
-    testing.assert_equal(r.nrows, 1)
-    testing.assert_equal(r.ncols, 3)
+    testing.assert_equal(r.nrows(), 1)
+    testing.assert_equal(r.ncols(), 3)
     testing.assert_equal(r[0, 0], 1)
     testing.assert_equal(r[0, 1], 0)
     testing.assert_equal(r[0, 2], 0)
@@ -184,8 +184,8 @@ def test_argmin_axis0() raises:
 def test_argmax_axis1() raises:
     var a = la.matrix[DType.float64]([[3.0, 1.0, 2.0], [0.0, 5.0, 4.0]])
     var r = argmax(a, 1)
-    testing.assert_equal(r.nrows, 2)
-    testing.assert_equal(r.ncols, 1)
+    testing.assert_equal(r.nrows(), 2)
+    testing.assert_equal(r.ncols(), 1)
     testing.assert_equal(r[0, 0], 0)
     testing.assert_equal(r[1, 0], 1)
 
@@ -269,11 +269,11 @@ def test_sort_inplace_rewrites_the_matrix() raises:
 def test_sort_inplace_keeps_the_layout() raises:
     """A column-major matrix must not be silently re-laid-out."""
     var a = la.matrix[DType.float64]([[3.0, 1.0], [0.0, 5.0]], order="F")
-    var row_stride = a.row_stride
-    var col_stride = a.col_stride
+    var row_stride = a.row_stride()
+    var col_stride = a.col_stride()
     sort_inplace(a, 1)
-    testing.assert_equal(a.row_stride, row_stride)
-    testing.assert_equal(a.col_stride, col_stride)
+    testing.assert_equal(a.row_stride(), row_stride)
+    testing.assert_equal(a.col_stride(), col_stride)
     testing.assert_equal(a[0, 0], 1.0)
     testing.assert_equal(a[0, 1], 3.0)
 
@@ -282,8 +282,8 @@ def test_argsort_matches_sort() raises:
     var a = la.matrix[DType.float64]([[3.0, 1.0, 2.0], [0.0, 5.0, 4.0]])
     var order = argsort(a, 1)
     var sorted = sort(a, 1)
-    for i in range(a.nrows):
-        for j in range(a.ncols):
+    for i in range(a.nrows()):
+        for j in range(a.ncols()):
             testing.assert_equal(sorted[i, j], a[i, Int(order[i, j])])
 
 
@@ -312,8 +312,8 @@ def _count_positive[
 ](v: la.MatrixView[dtype, origin]) -> Scalar[dtype]:
     """A lane kernel that is not a fold, to show the applier is general."""
     var n = Scalar[dtype](0)
-    for i in range(v.nrows):
-        for j in range(v.ncols):
+    for i in range(v.nrows()):
+        for j in range(v.ncols()):
             if v[i, j] > 0:
                 n += 1
     return n
@@ -322,10 +322,10 @@ def _count_positive[
 def test_apply_along_axis_with_a_custom_kernel() raises:
     var a = la.matrix[DType.float64]([[1.0, -1.0, 2.0], [-3.0, -4.0, 5.0]])
     var r = apply_along_axis[
-        axis=1, func=_count_positive[DType.float64, origin_of(a.data)]
+        axis=1, func=_count_positive[DType.float64, type_of(a.view()).origin]
     ](a.view())
-    testing.assert_equal(r.nrows, 2)
-    testing.assert_equal(r.ncols, 1)
+    testing.assert_equal(r.nrows(), 2)
+    testing.assert_equal(r.ncols(), 1)
     testing.assert_equal(r[0, 0], 2.0)
     testing.assert_equal(r[1, 0], 1.0)
 

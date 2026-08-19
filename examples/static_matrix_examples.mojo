@@ -81,25 +81,25 @@ def padding() raises:
         flat_list=[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15],
     )
 
-    print("Logical shape:", m.get_nrows(), "x", m.get_ncols())
+    print("Logical shape:", m.nrows, "x", m.ncols)
     print(
         "Buffer shape: ",
         la.StaticMatrix[la.int64, 3, 5].BUFFER_ROW_LEN,
         "x",
         la.StaticMatrix[la.int64, 3, 5].BUFFER_COL_LEN,
     )
-    print("Strides: row =", m.get_row_stride(), " col =", m.get_col_stride())
+    print("Strides: row =", m.row_stride, " col =", m.col_stride)
 
     # The raw register, padding and all: three zeros after each row of five,
     # then a whole unused fourth row. That is the price of a stride that is a
     # shift rather than a multiply.
-    print("The underlying SIMD buffer:\n", m.data)
+    print("The underlying SIMD buffer:\n", m.data())
 
     # A shape that is already a power of two wastes nothing.
     var square = la.smatrix[4, 4, la.int64](
         flat_list=[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16],
     )
-    print("A 4x4 needs no padding:\n", square.data)
+    print("A 4x4 needs no padding:\n", square.data())
 
     print("is_c_contiguous:", m.is_c_contiguous())
     print("is_row_contiguous:", m.is_row_contiguous())
@@ -127,7 +127,7 @@ def element_access() raises:
     print("m[1, 2] =", m[1, 2])
     print("m[2, 3] =", m[2, 3])
 
-    print("Element count:", m.get_size())
+    print("Element count:", m.size())
 
 
 # ===----------------------------------------------------------------------=== #

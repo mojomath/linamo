@@ -33,16 +33,16 @@ def assert_matrices_equal[
         any elements differ.
     """
     assert_true(
-        a.nrows == b.nrows and a.ncols == b.ncols,
+        a.nrows() == b.nrows() and a.ncols() == b.ncols(),
         msg=msg
         + " shape mismatch: ("
-        + String(a.nrows)
+        + String(a.nrows())
         + "x"
-        + String(a.ncols)
+        + String(a.ncols())
         + ") vs ("
-        + String(b.nrows)
+        + String(b.nrows())
         + "x"
-        + String(b.ncols)
+        + String(b.ncols())
         + ")",
     )
 
@@ -52,9 +52,9 @@ def assert_matrices_equal[
         msg=msg + " both matrices must be C-contiguous for exact comparison",
     )
 
-    var n = a.nrows * a.ncols
-    var pa = a.data._data
-    var pb = b.data._data
+    var n = a.nrows() * a.ncols()
+    var pa = a._data._data
+    var pb = b._data._data
     for i in range(n):
         assert_true(
             pa[unsafe_offset=i] == pb[unsafe_offset=i],
@@ -96,22 +96,22 @@ def assert_matrices_close[
         Error: If shapes don't match or any elements exceed tolerance.
     """
     assert_true(
-        a.nrows == b.nrows and a.ncols == b.ncols,
+        a.nrows() == b.nrows() and a.ncols() == b.ncols(),
         msg=msg
         + " shape mismatch: ("
-        + String(a.nrows)
+        + String(a.nrows())
         + "x"
-        + String(a.ncols)
+        + String(a.ncols())
         + ") vs ("
-        + String(b.nrows)
+        + String(b.nrows())
         + "x"
-        + String(b.ncols)
+        + String(b.ncols())
         + ")",
     )
-    for i in range(a.nrows):
-        for j in range(a.ncols):
-            var va = a.data[i * a.row_stride + j * a.col_stride]
-            var vb = b.data[i * b.row_stride + j * b.col_stride]
+    for i in range(a.nrows()):
+        for j in range(a.ncols()):
+            var va = a._data[i * a.row_stride() + j * a.col_stride()]
+            var vb = b._data[i * b.row_stride() + j * b.col_stride()]
             var diff = Float64(va - vb)
             if diff < 0:
                 diff = -diff

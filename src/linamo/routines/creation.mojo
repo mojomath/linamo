@@ -76,7 +76,7 @@ def matrix[
             col_index += 1
         row_index += 1
     return Matrix[dtype](
-        data=data^,
+        buffer=data^,
         nrows=nrows,
         ncols=ncols,
         row_stride=row_stride,
@@ -133,7 +133,7 @@ def matrix[
             message="Invalid order. Must be 'C' or 'F'.",
         )
     return Matrix[dtype](
-        data=flat_list^,
+        buffer=flat_list^,
         nrows=nrows,
         ncols=ncols,
         row_stride=row_stride,
@@ -170,7 +170,7 @@ def smatrix[
                 message="All rows must have the same length as ncols.",
             )
         for col_index in range(ncols):
-            result.data[
+            result._data[
                 row_index * result.row_stride + col_index * result.col_stride
             ] = list[row_index][col_index]
     return result^
@@ -200,7 +200,7 @@ def smatrix[
     var offset = 0
     for i in range(nrows):
         for j in range(ncols):
-            result.data[
+            result._data[
                 i * result.row_stride + j * result.col_stride
             ] = flat_list[offset]
             offset += 1
@@ -231,7 +231,7 @@ def zeros[
         A new matrix of shape (nrows, ncols) filled with zeros.
     """
     return Matrix[dtype](
-        data=List[Scalar[dtype]](length=nrows * ncols, fill=0),
+        buffer=List[Scalar[dtype]](length=nrows * ncols, fill=0),
         nrows=nrows,
         ncols=ncols,
         row_stride=ncols,
@@ -253,7 +253,7 @@ def ones[dtype: DType = DType.float64](nrows: Int, ncols: Int) -> Matrix[dtype]:
         A new matrix of shape (nrows, ncols) filled with ones.
     """
     return Matrix[dtype](
-        data=List[Scalar[dtype]](length=nrows * ncols, fill=1),
+        buffer=List[Scalar[dtype]](length=nrows * ncols, fill=1),
         nrows=nrows,
         ncols=ncols,
         row_stride=ncols,
@@ -278,7 +278,7 @@ def full[
         A new matrix of shape (nrows, ncols) filled with fill_value.
     """
     return Matrix[dtype](
-        data=List[Scalar[dtype]](length=nrows * ncols, fill=fill_value),
+        buffer=List[Scalar[dtype]](length=nrows * ncols, fill=fill_value),
         nrows=nrows,
         ncols=ncols,
         row_stride=ncols,
@@ -302,7 +302,7 @@ def eye[dtype: DType = DType.float64](n: Int) -> Matrix[dtype]:
     for i in range(n):
         data[i * n + i] = 1
     return Matrix[dtype](
-        data=data^,
+        buffer=data^,
         nrows=n,
         ncols=n,
         row_stride=n,
@@ -343,7 +343,7 @@ def diag[dtype: DType](var values: List[Scalar[dtype]]) -> Matrix[dtype]:
     for i in range(n):
         data[i * n + i] = values[i]
     return Matrix[dtype](
-        data=data^,
+        buffer=data^,
         nrows=n,
         ncols=n,
         row_stride=n,
@@ -366,15 +366,17 @@ def diag[dtype: DType](mat: Matrix[dtype]) raises -> List[Scalar[dtype]]:
     Raises:
         ValueError: If the matrix is not square.
     """
-    if mat.nrows != mat.ncols:
+    if mat.nrows() != mat.ncols():
         raise ValueError(
             function="diag()",
             message="Matrix must be square to extract diagonal.",
         )
-    var n = mat.nrows
+    var n = mat.nrows()
     var result = List[Scalar[dtype]](length=n, fill=0)
     for i in range(n):
-        result[i] = mat.data[get_offset(i, i, mat.row_stride, mat.col_stride)]
+        result[i] = mat._data[
+            get_offset(i, i, mat.row_stride(), mat.col_stride())
+        ]
     return result^
 
 
@@ -405,7 +407,7 @@ def empty[
         contents.
     """
     return Matrix[dtype](
-        data=List[Scalar[dtype]](unsafe_uninit_length=nrows * ncols),
+        buffer=List[Scalar[dtype]](unsafe_uninit_length=nrows * ncols),
         nrows=nrows,
         ncols=ncols,
         row_stride=ncols,
@@ -438,7 +440,7 @@ def zeros_like[
     Returns:
         A new C-contiguous matrix shaped like `a`, filled with zeros.
     """
-    return zeros[dtype](a.nrows, a.ncols)
+    return zeros[dtype](a.nrows(), a.ncols())
 
 
 def ones_like[
@@ -456,7 +458,7 @@ def ones_like[
     Returns:
         A new C-contiguous matrix shaped like `a`, filled with ones.
     """
-    return ones[dtype](a.nrows, a.ncols)
+    return ones[dtype](a.nrows(), a.ncols())
 
 
 def full_like[
@@ -475,7 +477,7 @@ def full_like[
     Returns:
         A new C-contiguous matrix shaped like `a`, filled with `fill_value`.
     """
-    return full[dtype](a.nrows, a.ncols, fill_value)
+    return full[dtype](a.nrows(), a.ncols(), fill_value)
 
 
 def empty_like[
@@ -493,7 +495,7 @@ def empty_like[
     Returns:
         A new C-contiguous matrix shaped like `a`, with unspecified contents.
     """
-    return empty[dtype](a.nrows, a.ncols)
+    return empty[dtype](a.nrows(), a.ncols())
 
 
 # ===---------------------------------------------------------------------- ===#
@@ -558,7 +560,7 @@ def arange[
     for k in range(count):
         data[k] = start + Scalar[dtype](k) * step
     return Matrix[dtype](
-        data=data^,
+        buffer=data^,
         nrows=1,
         ncols=count,
         row_stride=count,
@@ -642,7 +644,7 @@ def linspace[
         # which lands a rounding error short of `stop`. NumPy does the same.
         data[num - 1] = stop
     return Matrix[dtype](
-        data=data^,
+        buffer=data^,
         nrows=1,
         ncols=num,
         row_stride=num,
@@ -655,7 +657,7 @@ def linspace[
 # ===---------------------------------------------------------------------- ===#
 
 
-def fromlist[
+def from_list[
     dtype: DType = DType.float64
 ](
     var flat_list: List[Scalar[dtype]],
@@ -819,7 +821,7 @@ def _tokenize_rows[
     return rows^
 
 
-def fromstring[
+def from_string[
     dtype: DType = DType.float64
 ](text: String, order: String = "C") raises -> Matrix[dtype]:
     """Creates a matrix from a bracketed literal, deducing its shape.
@@ -843,11 +845,11 @@ def fromstring[
             number, if the rows have different lengths, or if `order` is
             neither "C" nor "F".
     """
-    comptime fn_name = "fromstring(text, order)"
+    comptime fn_name = "from_string(text, order)"
     return matrix[dtype](_tokenize_rows[dtype](text, fn_name), order)
 
 
-def fromstring[
+def from_string[
     dtype: DType = DType.float64
 ](text: String, nrows: Int, ncols: Int, order: String = "C") raises -> Matrix[
     dtype
@@ -876,7 +878,7 @@ def fromstring[
         ValueError: If a token is not a number, if the element count is not
             `nrows * ncols`, or if `order` is neither "C" nor "F".
     """
-    comptime fn_name = "fromstring(text, nrows, ncols, order)"
+    comptime fn_name = "from_string(text, nrows, ncols, order)"
     var rows = _tokenize_rows[dtype](text, fn_name)
     var flat = List[Scalar[dtype]]()
     for row in rows:

@@ -113,21 +113,21 @@ def memory_layout() raises:
     # The two matrices are equal element by element but differ in the buffer.
     print("Row-major m[i, j]:\n", c)
     print("Column-major m[i, j] - identical:\n", f)
-    print("Row-major buffer:   ", c.data)
-    print("Column-major buffer:", f.data)
+    print("Row-major buffer:   ", c.data())
+    print("Column-major buffer:", f.data())
 
     # Strides say how far to step in the buffer for one row / one column.
     print(
         "Row-major strides:    row =",
-        c.get_row_stride(),
+        c.row_stride(),
         " col =",
-        c.get_col_stride(),
+        c.col_stride(),
     )
     print(
         "Column-major strides: row =",
-        f.get_row_stride(),
+        f.row_stride(),
         " col =",
-        f.get_col_stride(),
+        f.col_stride(),
     )
 
     # Contiguity is what the SIMD paths dispatch on.
@@ -136,7 +136,7 @@ def memory_layout() raises:
     print("Column-major is_c_contiguous:", f.is_c_contiguous())
     print("Column-major is_f_contiguous:", f.is_f_contiguous())
 
-    print("Shape:", c.get_nrows(), "x", c.get_ncols(), " size:", c.get_size())
+    print("Shape:", c.nrows(), "x", c.ncols(), " size:", c.size())
     # `len()` is the row count, so that it agrees with what iteration yields.
     print("len(m) - the number of rows:", len(c))
 
