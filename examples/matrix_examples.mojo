@@ -42,7 +42,7 @@ def creation() raises:
     # From a nested list. The `order` argument decides how the elements are
     # laid out in memory, not how they are indexed: `m[i, j]` means the same
     # thing either way.
-    var m1 = la.matrix[la.float64](
+    var m1 = la.matrix[Float64](
         [
             [1.1, 1.2, 1.3, 1.4],
             [2.1, 2.2, 2.3, 2.4],
@@ -54,7 +54,7 @@ def creation() raises:
 
     # From a flat list plus a shape. This is the cheapest constructor: the
     # list is taken as-is and only the strides are computed.
-    var m2 = la.matrix[la.int64](
+    var m2 = la.matrix[Int64](
         flat_list=[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
         nrows=3,
         ncols=4,
@@ -62,7 +62,7 @@ def creation() raises:
     )
     print("From a flat list, 3x4 row-major:\n", m2)
 
-    var m3 = la.matrix[la.int64](
+    var m3 = la.matrix[Int64](
         flat_list=[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
         nrows=3,
         ncols=4,
@@ -71,15 +71,15 @@ def creation() raises:
     print("The same flat list read column-major:\n", m3)
 
     # The filled constructors.
-    print("zeros(2, 3):\n", la.zeros[la.float64](2, 3))
-    print("ones(2, 3):\n", la.ones[la.float64](2, 3))
-    print("full(2, 3, 7.5):\n", la.full[la.float64](2, 3, 7.5))
-    print("eye(4) - the identity, built by name:\n", la.eye[la.float64](4))
-    print("identity(3):\n", la.identity[la.float64](3))
+    print("zeros(2, 3):\n", la.zeros[Float64](2, 3))
+    print("ones(2, 3):\n", la.ones[Float64](2, 3))
+    print("full(2, 3, 7.5):\n", la.full[Float64](2, 3, 7.5))
+    print("eye(4) - the identity, built by name:\n", la.eye[Float64](4))
+    print("identity(3):\n", la.identity[Float64](3))
 
     # `diag` goes both ways: a list becomes a diagonal matrix, and a matrix
     # gives back its diagonal.
-    var d = la.diag[la.float64]([1.0, 2.0, 3.0])
+    var d = la.diag[Float64]([1.0, 2.0, 3.0])
     print("diag([1, 2, 3]):\n", d)
     var back = la.diag(d)
     print("diag(m) - the diagonal back out:", _join(back))
@@ -102,13 +102,13 @@ def memory_layout() raises:
     print("MEMORY LAYOUT")
     print("=" * 80)
 
-    var rows: List[List[la.float64]] = [
+    var rows: List[List[Float64]] = [
         [1.1, 1.2, 1.3],
         [2.1, 2.2, 2.3],
     ]
 
-    var c = la.matrix[la.float64](rows.copy(), order="C")
-    var f = la.matrix[la.float64](rows.copy(), order="F")
+    var c = la.matrix[Float64](rows.copy(), order="C")
+    var f = la.matrix[Float64](rows.copy(), order="F")
 
     # The two matrices are equal element by element but differ in the buffer.
     print("Row-major m[i, j]:\n", c)
@@ -152,7 +152,7 @@ def element_access() raises:
     print("ELEMENT ACCESS")
     print("=" * 80)
 
-    var m = la.matrix[la.int64](
+    var m = la.matrix[Int64](
         flat_list=[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
         nrows=3,
         ncols=4,
@@ -203,7 +203,7 @@ def region_writes() raises:
     print("REGION WRITES")
     print("=" * 80)
 
-    var m = la.zeros[la.int64](5, 5)
+    var m = la.zeros[Int64](5, 5)
     print("A 5x5 matrix of zeros:\n", m)
 
     # `m[a:b, c:d] = src` cannot be spelled in Mojo 1.0 without breaking
@@ -211,7 +211,7 @@ def region_writes() raises:
     m.set(Slice(1, 4), Slice(1, 4), 7)
     print("After m.set(1:4, 1:4, 7):\n", m)
 
-    var block = la.matrix[la.int64]([[1, 2], [3, 4]])
+    var block = la.matrix[Int64]([[1, 2], [3, 4]])
     m.set(Slice(0, 2), Slice(0, 2), block)
     print("After m.set(0:2, 0:2, [[1, 2], [3, 4]]):\n", m)
 
@@ -231,8 +231,8 @@ def arithmetic() raises:
     print("ARITHMETIC")
     print("=" * 80)
 
-    var a = la.matrix[la.float64]([[1.0, 2.0], [3.0, 4.0]])
-    var b = la.matrix[la.float64]([[10.0, 20.0], [30.0, 40.0]])
+    var a = la.matrix[Float64]([[1.0, 2.0], [3.0, 4.0]])
+    var b = la.matrix[Float64]([[10.0, 20.0], [30.0, 40.0]])
 
     print("a:\n", a)
     print("b:\n", b)
@@ -253,7 +253,7 @@ def arithmetic() raises:
     print("a ** 2:\n", a**2.0)
 
     # Integer-flavoured operators.
-    var i = la.matrix[la.int64]([[17, 23], [31, 47]])
+    var i = la.matrix[Int64]([[17, 23], [31, 47]])
     print("i // 5:\n", i // 5)
     print("i % 5:\n", i % 5)
 
@@ -268,7 +268,7 @@ def arithmetic() raises:
 
     # A shape mismatch is an error, not a silent broadcast.
     try:
-        _ = a + la.ones[la.float64](3, 3)
+        _ = a + la.ones[Float64](3, 3)
     except e:
         print("Adding a 2x2 and a 3x3 raises:")
         print(e)
@@ -289,8 +289,8 @@ def comparison() raises:
     print("COMPARISON")
     print("=" * 80)
 
-    var a = la.matrix[la.int64]([[1, 5, 3], [7, 2, 9]])
-    var b = la.matrix[la.int64]([[4, 4, 4], [4, 4, 4]])
+    var a = la.matrix[Int64]([[1, 5, 3], [7, 2, 9]])
+    var b = la.matrix[Int64]([[4, 4, 4], [4, 4, 4]])
 
     print("a:\n", a)
     print("b:\n", b)
@@ -317,7 +317,7 @@ def iteration() raises:
     print("ITERATION")
     print("=" * 80)
 
-    var m = la.matrix[la.int64](
+    var m = la.matrix[Int64](
         flat_list=[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
         nrows=3,
         ncols=4,
@@ -354,7 +354,7 @@ def shape_and_layout() raises:
     print("SHAPE AND LAYOUT")
     print("=" * 80)
 
-    var m = la.matrix[la.float64]([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]])
+    var m = la.matrix[Float64]([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]])
     print("A 2x3 matrix:\n", m)
 
     # `order` is the *index* order, as in NumPy: "C" walks row by row, "F"
@@ -379,11 +379,11 @@ def shape_and_layout() raises:
     m[0, 0] = 99.0
     print("after m[0, 0] = 99.0, the view sees it:\n", v)
 
-    var row = la.matrix[la.float64]([[1.0, 2.0, 3.0]])
+    var row = la.matrix[Float64]([[1.0, 2.0, 3.0]])
     # A stretched dimension gets a stride of 0, so every row is the same one.
     print("broadcast_to(row, 3, 3) - no copy:\n", la.broadcast_to(row, 3, 3))
 
-    print("m.astype[la.int32]():\n", m.astype[la.int32]())
+    print("m.astype[Int32]():\n", m.astype[Int32]())
 
 
 # ===----------------------------------------------------------------------=== #
@@ -397,7 +397,7 @@ def linear_algebra() raises:
     print("LINEAR ALGEBRA")
     print("=" * 80)
 
-    var a = la.matrix[la.float64](
+    var a = la.matrix[Float64](
         [
             [4.0, 3.0, 2.0],
             [3.0, 5.0, 1.0],
@@ -414,7 +414,7 @@ def linear_algebra() raises:
     print("a @ inv(a) - the identity, up to rounding:\n", a @ la.inv(a))
 
     # Ax = b.
-    var b = la.matrix[la.float64]([[1.0], [2.0], [3.0]])
+    var b = la.matrix[Float64]([[1.0], [2.0], [3.0]])
     var x = la.solve(a, b)
     print("solve(a, b) where b = [1, 2, 3]^T:\n", x)
     print("a @ x - should be b again:\n", a @ x)
@@ -432,10 +432,10 @@ def linear_algebra() raises:
     print("cholesky(a) - the lower factor L with a = L L^T:\n", la.cholesky(a))
 
     # Least squares on an overdetermined system.
-    var design = la.matrix[la.float64](
+    var design = la.matrix[Float64](
         [[1.0, 1.0], [1.0, 2.0], [1.0, 3.0], [1.0, 4.0]]
     )
-    var obs = la.matrix[la.float64]([[2.1], [3.9], [6.2], [7.8]])
+    var obs = la.matrix[Float64]([[2.1], [3.9], [6.2], [7.8]])
     print("lstsq(design, obs) - intercept and slope:\n", la.lstsq(design, obs))
 
 

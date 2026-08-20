@@ -20,6 +20,7 @@ kgen.trace.*
 
 # Precompiled dependencies fetched or built by tools/ensure_decimo.sh
 temp/
+.decimo-src/
 
 # Local files
 local

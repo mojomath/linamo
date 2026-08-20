@@ -23,7 +23,7 @@ body against the read-only instantiation too.
 Nothing here needs a dtype. Sorting asks its element type to compare and to
 copy, both of which the *standard library* `Comparable` and `Copyable` already
 say, so these routines are generic over the element type and work on a
-`Matrix[BigInt]` with no import from `linamo.decimo`.
+`Matrix[BigInt]` as readily as a `Matrix[Float64]`.
 """
 
 from std.builtin.sort import sort as _sort_list

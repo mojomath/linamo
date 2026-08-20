@@ -4,6 +4,8 @@ Defines linear algebra routines for matrices.
 
 from std.math import sqrt
 
+from decimo import Numeric
+
 from linamo.types.errors import ValueError
 from linamo.types.matrix import Matrix
 from linamo.types.matrix_view import MatrixView
@@ -66,6 +68,33 @@ def trace[
     for i in range(view.nrows()):
         result += view[i, i]
     return result
+
+
+def trace[T: Numeric, origin: Origin](view: MatrixView[T, origin]) raises -> T:
+    """Computes the trace (sum of diagonal elements) of a square matrix view.
+
+    Parameters:
+        T: The type of the matrix elements.
+        origin: The origin of the operand.
+
+    Args:
+        view: The matrix or view to reduce. Must be square.
+
+    Raises:
+        ValueError: If the matrix is not square.
+
+    Returns:
+        The sum of the diagonal elements.
+    """
+    if view.nrows() != view.ncols():
+        raise ValueError(
+            function="trace()",
+            message="Matrix must be square to compute trace.",
+        )
+    var acc = T.zero()
+    for i in range(view.nrows()):
+        acc = acc + view[i, i]
+    return acc^
 
 
 def lu[

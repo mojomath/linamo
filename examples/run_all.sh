@@ -3,10 +3,13 @@
 # a failure here means a user-visible break even when the test suite is green.
 set -e
 
-# `temp/` holds the precompiled decimo package (tools/ensure_decimo.sh); only
-# the decimo example needs it.
-INCLUDES=(-I src)
-[[ -d temp ]] && INCLUDES+=(-I temp)
+# `temp/` holds the precompiled decimo package (tools/ensure_decimo.sh).
+# Linamo does not compile without it.
+if [[ ! -d temp ]]; then
+    echo "decimo is missing. Run 'pixi run decimo' first." >&2
+    exit 1
+fi
+INCLUDES=(-I src -I temp)
 
 for f in examples/*.mojo; do
     echo "=========================================="

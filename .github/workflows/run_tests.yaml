@@ -44,11 +44,10 @@ jobs:
         run: |
           pixi install
 
-      # `linamo.decimo` needs the decimo package on the include path, and
-      # `tests/decimo` and `examples/decimo_examples.mojo` do not compile
-      # without it. With no conda build carrying `decimo.Numeric` yet, this
-      # falls through to the commit pinned in the script and precompiles it
-      # with this workspace's own `mojo`.
+      # Linamo does not compile without decimo on the include path: the
+      # matrix types name `decimo.Numeric`. With no conda build carrying the
+      # trait yet, this falls through to the commit pinned in the script and
+      # precompiles it with this workspace's own `mojo`.
       - name: Provision decimo
         run: |
           pixi run decimo

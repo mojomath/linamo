@@ -6,22 +6,23 @@ platforms = ["osx-arm64", "linux-64"]
 version = "0.1.0"
 
 [tasks]
-# Make `decimo` available to `src/linamo/decimo`, which is the only part of
-# the library that needs it. Set DECIMO_PATH to build from a local checkout;
-# see the header of the script for the other sources.
+# Make `decimo` available. Every task below depends on this: the matrix types
+# name `decimo.Numeric`, so no part of Linamo compiles without it. Set
+# DECIMO_PATH to build from a local checkout; see the header of the script for
+# the other sources.
 decimo = "bash ./tools/ensure_decimo.sh"
 
-# Build the package into the test directory. `-I temp` resolves `decimo` for
-# `linamo.decimo`; Mojo has no conditional imports, so the whole tree compiles
-# together and decimo has to be there.
-pack = "pixi run mojo precompile -I temp -o tests/linamo.mojoc src/linamo"
+# Build the package into the test directory.
+pack = { cmd = "pixi run mojo precompile -I temp -o tests/linamo.mojoc src/linamo", depends-on = [
+    "decimo",
+] }
 
 # Run the test files (uses -I src to import directly, no package build needed)
-test = "bash ./tests/test_all.sh"
+test = { cmd = "bash ./tests/test_all.sh", depends-on = ["decimo"] }
 
 # Run every example. They touch the public API only, so this is the smoke test
 # that catches a break a user would hit before the test suite would.
-examples = "bash ./examples/run_all.sh"
+examples = { cmd = "bash ./examples/run_all.sh", depends-on = ["decimo"] }
 
 # format the code
 format = "pixi run mojo format ./src && pixi run mojo format ./tests"

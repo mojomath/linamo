@@ -10,6 +10,8 @@ from std.sys import (
     simd_width_of,
 )
 
+from decimo import Numeric
+
 from linamo.types.errors import ValueError
 from linamo.types.static_matrix import StaticMatrix
 from linamo.types.matrix import Matrix
@@ -18,7 +20,7 @@ from linamo.routines.functional import apply_along_axis, fold
 from linamo.utils.indexing import get_offset
 
 # [Mojo Miji]
-# The routines below take `MatrixView` operands and nothing else --- one
+# The routines below take `MatrixView` operands and nothing else: one
 # signature per operation, not one per combination of `Matrix` and
 # `MatrixView`. A `Matrix` argument converts implicitly (see the `@implicit`
 # constructor in `types/matrix_view.mojo`), so `add(a, b)` compiles whichever
@@ -136,7 +138,6 @@ def matmul[
 # --------------------------------------------------------------------------- #
 # Core view-based matmul implementation
 # --------------------------------------------------------------------------- #
-# [Mojo Miji]
 # The canonical SIMD-optimised matmul operates on MatrixView.
 # Converting Matrix → MatrixView via `.view()` is free (metadata copy only;
 # the underlying data lives in a Span that borrows from the Matrix's List).
@@ -1188,3 +1189,178 @@ def cumprod[
                 acc *= m[i, j]
                 result._data[i * m.ncols() + j] = acc
     return result^
+
+
+# ===---------------------------------------------------------------------- ===#
+# Arbitrary-precision element-wise operations
+# ===---------------------------------------------------------------------- ===#
+# The same routine names again, for the element types that carry their
+# arithmetic in `decimo.Numeric` rather than in a vector instruction:
+# `BigInt`, `BigDecimal` and `Decimal128`. Each is one overload away from its
+# scalar twin, and the `where` clauses are disjoint, so `add(a, b)` is the same
+# call whichever kind of element the operands hold.
+#
+# There is no SIMD path and no `parallelize` here, and that is not an omission.
+# A `BigInt` addition allocates, so the loop is memory-bound rather than
+# issue-bound: the element-by-element walk below is what the operation costs.
+
+
+def _elementwise_numeric[
+    T: Numeric,
+    func: def(T, T) raises thin -> T,
+    origin_a: Origin,
+    origin_b: Origin,
+](a: MatrixView[T, origin_a], b: MatrixView[T, origin_b]) raises -> Matrix[T]:
+    """Core element-wise binary operation on two views of the same shape.
+
+    The result is always a freshly allocated, C-contiguous matrix.
+    """
+    if a.nrows() != b.nrows() or a.ncols() != b.ncols():
+        raise ValueError(
+            function="_elementwise_numeric()",
+            message="Input matrices must have the same shape.",
+        )
+    var buffer = List[T](capacity=a.nrows() * a.ncols())
+    for i in range(a.nrows()):
+        for j in range(a.ncols()):
+            buffer.append(func(a[i, j], b[i, j]))
+    return Matrix[T](buffer^, a.nrows(), a.ncols(), a.ncols(), 1)
+
+
+def _scalar_elementwise_numeric[
+    T: Numeric,
+    func: def(T, T) raises thin -> T,
+    origin: Origin,
+](mat: MatrixView[T, origin], scalar: T) raises -> Matrix[T]:
+    """Core scalar-matrix element-wise operation on one view."""
+    var buffer = List[T](capacity=mat.nrows() * mat.ncols())
+    for i in range(mat.nrows()):
+        for j in range(mat.ncols()):
+            buffer.append(func(mat[i, j], scalar))
+    return Matrix[T](buffer^, mat.nrows(), mat.ncols(), mat.ncols(), 1)
+
+
+def add[
+    T: Numeric, origin_a: Origin, origin_b: Origin
+](a: MatrixView[T, origin_a], b: MatrixView[T, origin_b]) raises -> Matrix[T]:
+    """Element-wise addition of two matrices or views."""
+    return _elementwise_numeric[func=T.__add__](a, b)
+
+
+def sub[
+    T: Numeric, origin_a: Origin, origin_b: Origin
+](a: MatrixView[T, origin_a], b: MatrixView[T, origin_b]) raises -> Matrix[T]:
+    """Element-wise subtraction of two matrices or views."""
+    return _elementwise_numeric[func=T.__sub__](a, b)
+
+
+def mul[
+    T: Numeric, origin_a: Origin, origin_b: Origin
+](a: MatrixView[T, origin_a], b: MatrixView[T, origin_b]) raises -> Matrix[T]:
+    """Element-wise multiplication of two matrices or views."""
+    return _elementwise_numeric[func=T.__mul__](a, b)
+
+
+def div[
+    T: Numeric, origin_a: Origin, origin_b: Origin
+](a: MatrixView[T, origin_a], b: MatrixView[T, origin_b]) raises -> Matrix[T]:
+    """Element-wise division of two matrices or views.
+
+    On an integral element type this truncates toward zero, as `Int` does.
+    """
+    return _elementwise_numeric[func=T.__truediv__](a, b)
+
+
+def scalar_add[
+    T: Numeric, origin: Origin
+](mat: MatrixView[T, origin], scalar: T) raises -> Matrix[T]:
+    """Adds a value to every element of a matrix or view."""
+    return _scalar_elementwise_numeric[func=T.__add__](mat, scalar)
+
+
+def scalar_sub[
+    T: Numeric, origin: Origin
+](mat: MatrixView[T, origin], scalar: T) raises -> Matrix[T]:
+    """Subtracts a value from every element of a matrix or view."""
+    return _scalar_elementwise_numeric[func=T.__sub__](mat, scalar)
+
+
+def scalar_mul[
+    T: Numeric, origin: Origin
+](mat: MatrixView[T, origin], scalar: T) raises -> Matrix[T]:
+    """Multiplies every element of a matrix or view by a value."""
+    return _scalar_elementwise_numeric[func=T.__mul__](mat, scalar)
+
+
+def scalar_div[
+    T: Numeric, origin: Origin
+](mat: MatrixView[T, origin], scalar: T) raises -> Matrix[T]:
+    """Divides every element of a matrix or view by a value."""
+    return _scalar_elementwise_numeric[func=T.__truediv__](mat, scalar)
+
+
+def neg[
+    T: Numeric, origin: Origin
+](a: MatrixView[T, origin]) raises -> Matrix[T]:
+    """Negates every element of a matrix or view."""
+    var buffer = List[T](capacity=a.nrows() * a.ncols())
+    for i in range(a.nrows()):
+        for j in range(a.ncols()):
+            buffer.append(-a[i, j])
+    return Matrix[T](buffer^, a.nrows(), a.ncols(), a.ncols(), 1)
+
+
+def _rsub_numeric[T: Numeric](a: T, b: T) raises -> T:
+    return b - a
+
+
+def _rdiv_numeric[T: Numeric](a: T, b: T) raises -> T:
+    return b / a
+
+
+def scalar_rsub[
+    T: Numeric, origin: Origin
+](mat: MatrixView[T, origin], scalar: T) raises -> Matrix[T]:
+    """Subtracts every element of a matrix or view from a value."""
+    return _scalar_elementwise_numeric[func=_rsub_numeric[T]](mat, scalar)
+
+
+def scalar_rdiv[
+    T: Numeric, origin: Origin
+](mat: MatrixView[T, origin], scalar: T) raises -> Matrix[T]:
+    """Divides a value by every element of a matrix or view."""
+    return _scalar_elementwise_numeric[func=_rdiv_numeric[T]](mat, scalar)
+
+
+def matmul[
+    T: Numeric, origin_a: Origin, origin_b: Origin
+](a: MatrixView[T, origin_a], b: MatrixView[T, origin_b]) raises -> Matrix[T]:
+    """Performs matrix multiplication.
+
+    A plain triple loop. The scalar kernel's four layout-specialised SIMD paths
+    exist to keep a vector unit fed; here every `+` and `*` allocates, so the
+    layout of the operands is not what the time is spent on, and one readable
+    loop is the honest implementation.
+
+    Raises:
+        ValueError: If the inner dimensions do not match.
+    """
+    if a.ncols() != b.nrows():
+        raise ValueError(
+            function="matmul()",
+            message=(
+                "Inner dimensions of a and b must match for matrix"
+                " multiplication."
+            ),
+        )
+    var M = a.nrows()
+    var N = b.ncols()
+    var K = a.ncols()
+    var buffer = List[T](capacity=M * N)
+    for i in range(M):
+        for j in range(N):
+            var acc = T.zero()
+            for k in range(K):
+                acc = acc + a[i, k] * b[k, j]
+            buffer.append(acc^)
+    return Matrix[T](buffer^, M, N, N, 1)

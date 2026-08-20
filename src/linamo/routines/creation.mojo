@@ -4,6 +4,8 @@ This module defines routines for creating matrices and matrix views in Linamo.
 
 from std.math import ceil
 
+from decimo import Numeric
+
 from linamo.types.errors import ValueError
 from linamo.types.matrix import Matrix
 from linamo.types.matrix_view import MatrixView
@@ -233,6 +235,12 @@ def smatrix[
 # - eye(), identity()
 # - diag()
 # ===---------------------------------------------------------------------- ===#
+# Every routine here that fills a matrix with 0 or 1 comes in two overloads.
+# The scalar one writes the literals straight into the buffer, which only a
+# `Scalar[dtype]` accepts. The other asks `Numeric` for `zero()` and `one()`,
+# and so serves `BigInt`, `BigDecimal` and `Decimal128`. The two are disjoint
+# --- no type satisfies both `where` clauses --- so `zeros[Float64](3, 3)` and
+# `zeros[Dec128](3, 3)` are the same call spelled with different elements.
 
 
 def zeros[
@@ -260,6 +268,28 @@ def zeros[
     )
 
 
+def zeros[T: Numeric](nrows: Int, ncols: Int) -> Matrix[T]:
+    """Creates a matrix filled with zeros.
+
+    Parameters:
+        T: The type of the matrix elements.
+
+    Args:
+        nrows: The number of rows in the matrix.
+        ncols: The number of columns in the matrix.
+
+    Returns:
+        A new matrix of shape (nrows, ncols) filled with zeros.
+    """
+    return Matrix[T](
+        buffer=List[T](length=nrows * ncols, fill=T.zero()),
+        nrows=nrows,
+        ncols=ncols,
+        row_stride=ncols,
+        col_stride=1,
+    )
+
+
 def ones[
     dtype: DType = DType.float64, //, T: Copyable & Deinitable = Scalar[dtype]
 ](nrows: Int, ncols: Int) -> Matrix[Scalar[dtype]] where T == Scalar[dtype]:
@@ -278,6 +308,28 @@ def ones[
     """
     return Matrix[Scalar[dtype]](
         buffer=List[Scalar[dtype]](length=nrows * ncols, fill=1),
+        nrows=nrows,
+        ncols=ncols,
+        row_stride=ncols,
+        col_stride=1,
+    )
+
+
+def ones[T: Numeric](nrows: Int, ncols: Int) -> Matrix[T]:
+    """Creates a matrix filled with ones.
+
+    Parameters:
+        T: The type of the matrix elements.
+
+    Args:
+        nrows: The number of rows in the matrix.
+        ncols: The number of columns in the matrix.
+
+    Returns:
+        A new matrix of shape (nrows, ncols) filled with ones.
+    """
+    return Matrix[T](
+        buffer=List[T](length=nrows * ncols, fill=T.one()),
         nrows=nrows,
         ncols=ncols,
         row_stride=ncols,
@@ -337,6 +389,30 @@ def eye[
     )
 
 
+def eye[T: Numeric](n: Int) -> Matrix[T]:
+    """Creates an n×n identity matrix.
+
+    Parameters:
+        T: The type of the matrix elements.
+
+    Args:
+        n: The number of rows and columns in the identity matrix.
+
+    Returns:
+        A new n×n identity matrix with ones on the diagonal and zeros elsewhere.
+    """
+    var data = List[T](length=n * n, fill=T.zero())
+    for i in range(n):
+        data[i * n + i] = T.one()
+    return Matrix[T](
+        buffer=data^,
+        nrows=n,
+        ncols=n,
+        row_stride=n,
+        col_stride=1,
+    )
+
+
 def identity[
     dtype: DType = DType.float64, //, T: Copyable & Deinitable = Scalar[dtype]
 ](n: Int) -> Matrix[Scalar[dtype]] where T == Scalar[dtype]:
@@ -355,11 +431,24 @@ def identity[
     return eye[Scalar[dtype]](n)
 
 
+def identity[T: Numeric](n: Int) -> Matrix[T]:
+    """Creates an n×n identity matrix. Alias for `eye()`.
+
+    Parameters:
+        T: The type of the matrix elements.
+
+    Args:
+        n: The number of rows and columns in the identity matrix.
+
+    Returns:
+        A new n×n identity matrix with ones on the diagonal and zeros elsewhere.
+    """
+    return eye[T](n)
+
+
 def diag[
     dtype: DType = DType.float64, //, T: Copyable & Deinitable = Scalar[dtype]
-](var values: List[T]) -> Matrix[T] where T == Scalar[dtype] where (
-    T == Scalar[dtype]
-):
+](var values: List[T]) -> Matrix[T] where T == Scalar[dtype]:
     """Creates a square diagonal matrix from a list of values.
 
     The off-diagonal elements are zeros, so this asks its element type for a
@@ -378,6 +467,32 @@ def diag[
     """
     var n = len(values)
     var data = List[T](length=n * n, fill=rebind[T](Scalar[dtype](0)))
+    for i in range(n):
+        data[i * n + i] = values[i].copy()
+    return Matrix[T](
+        buffer=data^,
+        nrows=n,
+        ncols=n,
+        row_stride=n,
+        col_stride=1,
+    )
+
+
+def diag[T: Numeric](var values: List[T]) -> Matrix[T]:
+    """Creates a square diagonal matrix from a list of values.
+
+    Parameters:
+        T: The type of the matrix elements.
+
+    Args:
+        values: A list of diagonal values.
+
+    Returns:
+        A new n×n matrix with the given values on the diagonal and zeros
+        elsewhere, where n is the length of `values`.
+    """
+    var n = len(values)
+    var data = List[T](length=n * n, fill=T.zero())
     for i in range(n):
         data[i * n + i] = values[i].copy()
     return Matrix[T](

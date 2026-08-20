@@ -2,11 +2,12 @@
 # ===----------------------------------------------------------------------=== #
 # Make the `decimo` arbitrary-precision package available to the Linamo build.
 #
-# `linamo.decimo` is the only part of the library that needs it: the core types
-# and every scalar routine compile without decimo on the include path. What
-# needs it is the arithmetic over `decimo.Numeric`, which cannot live anywhere
-# else, because Mojo conformance is nominal and has to be declared where the
-# struct is defined --- so the trait belongs to decimo and Linamo imports it.
+# Linamo does not compile without it. `Matrix` and `MatrixView` name
+# `decimo.Numeric` in the `where` clauses that give a `Matrix[BInt]` its
+# arithmetic, and Mojo has no conditional imports, so decimo is a hard
+# dependency of the whole library rather than of one corner of it. The trait
+# has to live in decimo because Mojo conformance is nominal and is declared
+# where the struct is.
 #
 # Three sources, tried in order:
 #
@@ -69,12 +70,19 @@ fi
 # --- 2. Is decimo already importable from the environment? ---------------- #
 # Compile a two-line probe *without* `-I temp`, so only a package provided by
 # the environment can satisfy the import.
+#
+# The probe is built in a scratch directory outside the repository, and that
+# is load-bearing: Mojo searches the directory holding the file it is
+# compiling. A probe written into `temp/` finds `temp/decimo.mojoc` sitting
+# next to it, reports success, and the fallback build this script just made
+# gets deleted as a stale shadow of a conda package that was never installed.
 env_has_decimo() {
-    local probe="temp/.decimo_probe.mojo"
-    printf 'from decimo import Numeric\n\ndef main():\n    pass\n' >"$probe"
+    local dir
+    dir="$(mktemp -d)"
+    printf 'from decimo import Numeric\n\ndef main():\n    pass\n' >"$dir/probe.mojo"
     local ok=0
-    pixi run mojo build -o temp/.decimo_probe "$probe" >/dev/null 2>&1 || ok=1
-    rm -f "$probe" temp/.decimo_probe
+    pixi run mojo build -o "$dir/probe" "$dir/probe.mojo" >/dev/null 2>&1 || ok=1
+    rm -rf "$dir"
     return $ok
 }
 
@@ -99,7 +107,10 @@ if [[ -z "$DECIMO_COMMIT" ]]; then
     exit 1
 fi
 
-CLONE_DIR="temp/decimo"
+# Outside `temp/`, because `-I temp` is on every Linamo build: a directory
+# named `temp/decimo` would resolve as the package `decimo` and shadow the
+# `.mojoc` built from it.
+CLONE_DIR=".decimo-src"
 if [[ -f "$PKG" && -f "$STAMP" && "$(cat "$STAMP")" == "git:$DECIMO_COMMIT" ]]; then
     echo "decimo: reusing $PKG (commit ${DECIMO_COMMIT:0:8})."
     exit 0

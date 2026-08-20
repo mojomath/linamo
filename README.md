@@ -16,6 +16,7 @@ A matrix and linear algebra library for Mojo.
 - [Quick start](#quick-start)
   - [Create matrices](#create-matrices)
   - [Arithmetic](#arithmetic)
+  - [Arbitrary-precision elements](#arbitrary-precision-elements)
   - [Linear algebra](#linear-algebra)
 - [Project structure](#project-structure)
 - [Status](#status)
@@ -126,7 +127,7 @@ import linamo as la
 
 fn main() raises:
     # From nested lists
-    var A = la.matrix[DType.float64](
+    var A = la.matrix[Float64](
         [[1.0, 2.0, 3.0],
          [4.0, 5.0, 6.0],
          [7.0, 8.0, 9.0]]
@@ -134,9 +135,9 @@ fn main() raises:
     print(A)
 
     # Convenience constructors
-    var I = la.eye[DType.float64](3)       # 3×3 identity
-    var Z = la.zeros[DType.float64](2, 4)  # 2×4 zeros
-    var O = la.ones[DType.float64](3, 3)   # 3×3 ones
+    var I = la.eye[Float64](3)       # 3×3 identity
+    var Z = la.zeros[Float64](2, 4)  # 2×4 zeros
+    var O = la.ones[Float64](3, 3)   # 3×3 ones
 ```
 
 ### Arithmetic
@@ -150,6 +151,26 @@ fn main() raises:
     # Scalar operations
     from linamo.routines.math import scalar_mul
     var scaled = scalar_mul(A, 2.0)
+```
+
+### Arbitrary-precision elements
+
+A matrix is parameterised on an element *type*, so
+[Decimo](https://github.com/forfudan/decimo)'s exact numbers go in the brackets
+where `Float64` would. The operators and routines are the same names; only the
+arithmetic underneath differs.
+
+```mojo
+import linamo as la
+from linamo import BInt, Decimal
+
+def main() raises:
+    var a = la.matrix[BInt]([[1, 2], [3, 4]])
+    print(a @ a)                 # matrix multiplication, exact
+    print(la.trace(a))
+
+    var prices = la.matrix[Decimal]([[Decimal("0.1"), Decimal("0.2")]])
+    print(la.sum(prices))        # 0.3, which binary floating point cannot say
 ```
 
 ### Linear algebra
@@ -166,7 +187,7 @@ fn main() raises:
     var piv = lup[2].copy()
 
     # Cholesky (A = LL^T, requires SPD matrix)
-    var spd = la.matrix[DType.float64](
+    var spd = la.matrix[Float64](
         [[4.0, 12.0, -16.0],
          [12.0, 37.0, -43.0],
          [-16.0, -43.0, 98.0]]
@@ -207,13 +228,17 @@ linamo
 │   ├── traits/
 │   │   └── matrix_like.mojo     # MatrixLike trait
 │   └── utils/
+│       ├── element.mojo         # compile-time facts about an element type
 │       ├── indexing.mojo
 │       └── str.mojo
+├── tools/
+│   └── ensure_decimo.sh         # resolves and precompiles the decimo dependency
 └── tests/
     ├── test_all.sh
     ├── matrix/                   # Matrix creation, indexing, lifecycle, str
     ├── matrix_view/              # View slicing, view-on-view
     ├── static_matrix/            # StaticMatrix tests
+    ├── bignum/                   # Matrices of BigInt, BigDecimal, Decimal128
     └── routines/                 # creation, linalg, math, decompositions
 ```
 
@@ -228,6 +253,10 @@ what exists today; see the [Roadmap](docs/ROADMAP.md) for upcoming phases
 - Mojo `>=1.0.0,<1.1.0`
 - MAX `>=26.5.0,<26.6` — supplies `parallelize()`, which moved out of the Mojo
   standard library in 1.0.0
+- [Decimo](https://github.com/forfudan/decimo) — supplies the `Numeric` trait
+  the matrix types are written against. `pixi run decimo` resolves and
+  precompiles it; `pixi run test`, `examples` and `pack` depend on that task,
+  so it needs no separate step
 
 ## License
 

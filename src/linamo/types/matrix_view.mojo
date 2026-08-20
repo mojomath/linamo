@@ -3,9 +3,12 @@ This module defines the `MatrixView` type, which is a view on a `Matrix`.
 """
 
 import std.math as builtin_math
+import linamo.routines.linalg
 import linamo.routines.math
 import linamo.routines.logic
 import linamo.routines.manipulation
+
+from decimo import Numeric
 
 from linamo.types.errors import IndexError
 from linamo.types.matrix import Matrix
@@ -444,6 +447,20 @@ struct MatrixView[
             1,
         )
 
+    def transpose(self) -> Matrix[Self.T]:
+        """Returns the transpose of this view as a new owning matrix.
+
+        The result is C-contiguous regardless of this view's layout.
+        Transposing only moves elements, so this exists for every element type.
+
+        There is no `.T` spelling to go with it: `T` is this struct's element
+        type parameter, and a parameter and a method cannot share a name.
+
+        Returns:
+            A new matrix with the rows and columns exchanged.
+        """
+        return linamo.routines.linalg.transpose(self)
+
     def astype[
         d: DType, target: DType, //, Target: Copyable & Deinitable
     ](self) raises -> Matrix[Scalar[target]] where (
@@ -580,6 +597,12 @@ struct MatrixView[
         """Performs matrix multiplication."""
         return linamo.routines.math.matmul(
             self._as_simd[d](), other._as_simd[d]()
+        )
+
+    def __neg__[d: DType](self) -> Matrix[Scalar[d]] where Self.T == Scalar[d]:
+        """Negates every element."""
+        return linamo.routines.math.scalar_rsub(
+            self._as_simd[d](), Scalar[d](0)
         )
 
     # ===--------------------------------------------------------------------===#
@@ -735,6 +758,107 @@ struct MatrixView[
         return linamo.routines.math.scalar_rdiv(
             self._as_simd[d](), rebind[Scalar[d]](other)
         )
+
+    # ===--------------------------------------------------------------------===#
+    # Arbitrary-precision operands
+    # ===--------------------------------------------------------------------===#
+    # The counterpart of the block of the same name on `Matrix`: one more
+    # overload of each operator, selected by `conforms_to(Self.T, Numeric)`
+    # where the ones above are selected by `Self.T == Scalar[d]`.
+
+    def __add__[
+        origin_b: Origin
+    ](self, other: MatrixView[Self.T, origin_b]) raises -> Matrix[
+        Self.T
+    ] where conforms_to(Self.T, Numeric):
+        """Performs element-wise addition."""
+        return linamo.routines.math.add(self, other)
+
+    def __sub__[
+        origin_b: Origin
+    ](self, other: MatrixView[Self.T, origin_b]) raises -> Matrix[
+        Self.T
+    ] where conforms_to(Self.T, Numeric):
+        """Performs element-wise subtraction."""
+        return linamo.routines.math.sub(self, other)
+
+    def __mul__[
+        origin_b: Origin
+    ](self, other: MatrixView[Self.T, origin_b]) raises -> Matrix[
+        Self.T
+    ] where conforms_to(Self.T, Numeric):
+        """Performs element-wise multiplication."""
+        return linamo.routines.math.mul(self, other)
+
+    def __truediv__[
+        origin_b: Origin
+    ](self, other: MatrixView[Self.T, origin_b]) raises -> Matrix[
+        Self.T
+    ] where conforms_to(Self.T, Numeric):
+        """Performs element-wise division."""
+        return linamo.routines.math.div(self, other)
+
+    def __matmul__[
+        origin_b: Origin
+    ](self, other: MatrixView[Self.T, origin_b]) raises -> Matrix[
+        Self.T
+    ] where conforms_to(Self.T, Numeric):
+        """Performs matrix multiplication."""
+        return linamo.routines.math.matmul(self, other)
+
+    def __neg__(
+        self,
+    ) raises -> Matrix[Self.T] where conforms_to(Self.T, Numeric):
+        """Negates every element."""
+        return linamo.routines.math.neg(self)
+
+    def __add__(
+        self, other: Self.ElementType
+    ) raises -> Matrix[Self.T] where conforms_to(Self.T, Numeric):
+        """Adds a value to every element of the view."""
+        return linamo.routines.math.scalar_add(self, other)
+
+    def __sub__(
+        self, other: Self.ElementType
+    ) raises -> Matrix[Self.T] where conforms_to(Self.T, Numeric):
+        """Subtracts a value from every element of the view."""
+        return linamo.routines.math.scalar_sub(self, other)
+
+    def __mul__(
+        self, other: Self.ElementType
+    ) raises -> Matrix[Self.T] where conforms_to(Self.T, Numeric):
+        """Multiplies every element of the view by a value."""
+        return linamo.routines.math.scalar_mul(self, other)
+
+    def __truediv__(
+        self, other: Self.ElementType
+    ) raises -> Matrix[Self.T] where conforms_to(Self.T, Numeric):
+        """Divides every element of the view by a value."""
+        return linamo.routines.math.scalar_div(self, other)
+
+    def __radd__(
+        self, other: Self.ElementType
+    ) raises -> Matrix[Self.T] where conforms_to(Self.T, Numeric):
+        """Adds every element of the view to a value (`value + view`)."""
+        return linamo.routines.math.scalar_add(self, other)
+
+    def __rmul__(
+        self, other: Self.ElementType
+    ) raises -> Matrix[Self.T] where conforms_to(Self.T, Numeric):
+        """Multiplies a value by every element (`value * view`)."""
+        return linamo.routines.math.scalar_mul(self, other)
+
+    def __rsub__(
+        self, other: Self.ElementType
+    ) raises -> Matrix[Self.T] where conforms_to(Self.T, Numeric):
+        """Subtracts every element of the view from a value (`value - view`)."""
+        return linamo.routines.math.scalar_rsub(self, other)
+
+    def __rtruediv__(
+        self, other: Self.ElementType
+    ) raises -> Matrix[Self.T] where conforms_to(Self.T, Numeric):
+        """Divides a value by every element of the view (`value / view`)."""
+        return linamo.routines.math.scalar_rdiv(self, other)
 
     # ===--------------------------------------------------------------------===#
     # Comparison operators

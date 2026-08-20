@@ -1,66 +1,54 @@
-# Element-type aliases.
-# `int` and `uint` in particular are names no library should be
-# claiming unqualified. Each type has a NumPy-style long name and a
-# Rust-style short one; they are the same alias, so pick one per codebase.
+# ===---------------------------------------------------------------------- ===#
+# Element types
+# ===---------------------------------------------------------------------- ===#
+# A matrix is parameterised on an element *type*, not on a `DType`, so the
+# element of a `Matrix[Float64]` is spelled with the stdlib's own name. That
+# leaves nothing for this library to alias: `la.f64` and `Float64` named the
+# same type, and one spelling is better than two.
 #
-# These name element *types*, not `DType` values: `Matrix[la.f64]` is
-# `Matrix[Float64]` is `Matrix[Scalar[DType.float64]]`, all one type. The
-# stdlib already spells most of them (`Float64`, `Int32`, ...), so these exist
-# for the lowercase NumPy register and for `bool_`, which the stdlib has no
-# name for --- `Bool` is a different type from `Scalar[DType.bool]`.
-
-comptime float64 = Float64
-"""64-bit floating point. Short form: `f64`."""
-comptime f64 = Float64
-"""64-bit floating point. Long form: `float64`."""
-comptime float32 = Float32
-"""32-bit floating point. Short form: `f32`."""
-comptime f32 = Float32
-"""32-bit floating point. Long form: `float32`."""
-
-comptime int64 = Int64
-"""64-bit signed integer. Short form: `i64`."""
-comptime i64 = Int64
-"""64-bit signed integer. Long form: `int64`."""
-comptime int32 = Int32
-"""32-bit signed integer. Short form: `i32`."""
-comptime i32 = Int32
-"""32-bit signed integer. Long form: `int32`."""
-comptime int16 = Int16
-"""16-bit signed integer. Short form: `i16`."""
-comptime i16 = Int16
-"""16-bit signed integer. Long form: `int16`."""
-comptime int8 = Int8
-"""8-bit signed integer. Short form: `i8`."""
-comptime i8 = Int8
-"""8-bit signed integer. Long form: `int8`."""
-
-comptime uint64 = UInt64
-"""64-bit unsigned integer. Short form: `u64`."""
-comptime u64 = UInt64
-"""64-bit unsigned integer. Long form: `uint64`."""
-comptime uint32 = UInt32
-"""32-bit unsigned integer. Short form: `u32`."""
-comptime u32 = UInt32
-"""32-bit unsigned integer. Long form: `uint32`."""
-comptime uint16 = UInt16
-"""16-bit unsigned integer. Short form: `u16`."""
-comptime u16 = UInt16
-"""16-bit unsigned integer. Long form: `uint16`."""
-comptime uint8 = UInt8
-"""8-bit unsigned integer. Short form: `u8`."""
-comptime u8 = UInt8
-"""8-bit unsigned integer. Long form: `uint8`."""
-
-comptime int = Int
-"""The platform's default signed integer width."""
-comptime uint = UInt
-"""The platform's default unsigned integer width."""
+# Two things do need a name here. `bool_` is the element of a comparison mask,
+# which the stdlib has no name for --- `Bool` is a different type from
+# `Scalar[DType.bool]`, and a matrix stores the latter. And the arbitrary-
+# precision element types come from decimo, re-exported below so that using
+# them takes no second import.
 
 comptime bool_ = Scalar[DType.bool]
 """The element type of a comparison mask. Trailing underscore as in NumPy,
 because `bool` is taken --- and because Mojo's `Bool` is a distinct type that
 a matrix does not store."""
+
+# Decimo's arbitrary-precision numbers, and the trait they conform to. These
+# are exactly the element types that carry their own arithmetic: `Matrix[BInt]`
+# adds, multiplies and multiplies-out with the same operators a
+# `Matrix[Float64]` uses. Decimo's other types (`BigUInt`, `Rational`,
+# `BigFloat`) are deliberately absent --- they do not conform to `Numeric`, so
+# a matrix of them would have no arithmetic, and re-exporting them here would
+# promise one.
+from decimo import (
+    Numeric,
+    BigInt,
+    BInt,
+    Integer,
+    BigDecimal,
+    BDec,
+    Decimal,
+    Decimal128,
+    Dec128,
+    RoundingMode,
+    ROUND_DOWN,
+    ROUND_HALF_UP,
+    ROUND_HALF_DOWN,
+    ROUND_HALF_EVEN,
+    ROUND_UP,
+    ROUND_CEILING,
+    ROUND_FLOOR,
+)
+
+# ===---------------------------------------------------------------------- ===#
+# Types and routines
+# ===---------------------------------------------------------------------- ===#
+# Everything a user reaches for is re-exported here, so `import linamo as la`
+# is the only import a program needs and `la.<name>` is the only spelling.
 
 from linamo.types.matrix import Matrix
 from linamo.types.matrix_view import MatrixView
@@ -109,6 +97,14 @@ from linamo.routines.manipulation import (
     resize,
 )
 from linamo.routines.math import max, min, prod, cumprod
+from linamo.routines.mutation import (
+    assign,
+    cols_mut,
+    fill,
+    rows_mut,
+    store,
+    view_mut,
+)
 from linamo.routines.random import rand, seed
 from linamo.routines.searching import argmax, argmin
 from linamo.routines.sorting import argsort, sort, sort_inplace

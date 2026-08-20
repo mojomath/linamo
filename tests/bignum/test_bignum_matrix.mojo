@@ -1,29 +1,23 @@
 """
-Tests for matrices of arbitrary-precision elements.
+Tests for matrices whose elements are decimo's numbers.
 
-Two halves, and the split is the point of `linamo.decimo` existing:
-
-- The routines that only *move* or *compare* elements come from core Linamo.
-  They are generic over the element type already and need no import from
-  `linamo.decimo` at all.
-- The arithmetic comes from `linamo.decimo`, because a `BigInt` has no dtype
-  and no vector instruction, so it cannot go through the scalar kernels.
+`BigInt`, `BigDecimal` and `Decimal128` conform to `decimo.Numeric`, so a
+matrix of them is an ordinary `Matrix` with the ordinary operators. What
+separates them from `Float64` is only where the arithmetic comes from: a
+`Numeric` element carries its own, and the scalar SIMD kernels are bypassed.
+The tests below are therefore written the way a user would write the code ---
+`a + b`, `a @ b`, `la.eye[BInt](3)` --- and pass through the `Numeric`
+overloads without naming them.
 """
 
 import std.testing as testing
 import linamo as la
-import linamo.decimo as lad
-from decimo import BigInt
+from linamo import BInt, Dec128
 
 
-def _a() raises -> la.Matrix[BigInt]:
+def _a() raises -> la.Matrix[BInt]:
     """Returns the 2x2 matrix `[[1, 2], [3, 4]]`."""
-    return la.matrix[BigInt](
-        [
-            [BigInt(1), BigInt(2)],
-            [BigInt(3), BigInt(4)],
-        ]
-    )
+    return la.matrix[BInt]([[1, 2], [3, 4]])
 
 
 # ===----------------------------------------------------------------------===#
@@ -44,38 +38,42 @@ def test_elements_are_independent_after_copy() raises:
     """Copying a matrix copies its elements, not a shared buffer."""
     var a = _a()
     var b = a.copy()
-    b[0, 0] = BigInt(99)
+    b[0, 0] = BInt(99)
     testing.assert_equal(String(a[0, 0]), "1")
     testing.assert_equal(String(b[0, 0]), "99")
 
 
 def test_element_larger_than_any_dtype() raises:
     """The reason for all of this: an element no `DType` can hold."""
-    var factorial = BigInt.one()
+    var factorial = BInt.one()
     for k in range(1, 31):
-        factorial = factorial * BigInt(k)
-    var m = lad.diag([factorial.copy(), factorial.copy()])
+        factorial = factorial * BInt(k)
+    var m = la.diag([factorial.copy(), factorial.copy()])
     # 30! = 265252859812191058636308480000000, well past 2^64.
     testing.assert_equal(String(m[0, 0]), "265252859812191058636308480000000")
     testing.assert_equal(
-        String(lad.trace(m)), "530505719624382117272616960000000"
+        String(la.trace(m)), "530505719624382117272616960000000"
     )
 
 
 # ===----------------------------------------------------------------------===#
-# Routines that need no arithmetic, and so need no `linamo.decimo`
+# Routines that only move or compare elements
 # ===----------------------------------------------------------------------===#
+# These were generic over the element type before `Numeric` existed and stay
+# that way: nothing here adds or multiplies anything.
 
 
 def test_transpose_is_generic() raises:
-    """`transpose` only moves elements, so core Linamo already has it."""
+    """`transpose` only moves elements, as a routine and as a method."""
     var t = la.transpose(_a())
     testing.assert_equal(String(t[0, 1]), "3")
     testing.assert_equal(String(t[1, 0]), "2")
+    var u = _a().transpose()
+    testing.assert_equal(String(u[0, 1]), "3")
 
 
 def test_slicing_yields_a_view() raises:
-    """Slicing a `BigInt` matrix borrows rather than copies."""
+    """Slicing a `BInt` matrix borrows rather than copies."""
     var a = _a()
     var row = a[1:2, :]
     testing.assert_equal(row.nrows(), 1)
@@ -102,12 +100,8 @@ def test_contiguous_f_order_is_generic() raises:
 
 
 def test_sort_rides_the_stdlib_comparable() raises:
-    """`sort` asks only for `Comparable`, which `BigInt` already declares."""
-    var m = la.matrix[BigInt](
-        [
-            [BigInt(30), BigInt(10), BigInt(20)],
-        ]
-    )
+    """`sort` asks only for `Comparable`, which `BInt` already declares."""
+    var m = la.matrix[BInt]([[30, 10, 20]])
     var s = la.sort(m, 1)
     testing.assert_equal(String(s[0, 0]), "10")
     testing.assert_equal(String(s[0, 1]), "20")
@@ -115,12 +109,8 @@ def test_sort_rides_the_stdlib_comparable() raises:
 
 
 def test_argsort_and_argmax_are_generic() raises:
-    """The index routines compare elements and return `int64` positions."""
-    var m = la.matrix[BigInt](
-        [
-            [BigInt(30), BigInt(10), BigInt(20)],
-        ]
-    )
+    """The index routines compare elements and return `Int64` positions."""
+    var m = la.matrix[BInt]([[30, 10, 20]])
     var order = la.argsort(m, 1)
     testing.assert_equal(order[0, 0], 1)
     testing.assert_equal(order[0, 2], 0)
@@ -129,40 +119,47 @@ def test_argsort_and_argmax_are_generic() raises:
 
 
 # ===----------------------------------------------------------------------===#
-# Arithmetic, from `linamo.decimo`
+# Arithmetic through the operators
 # ===----------------------------------------------------------------------===#
 
 
 def test_add_and_sub() raises:
     """Element-wise addition and subtraction."""
     var a = _a()
-    var s = lad.add(a, a)
+    var s = a + a
     testing.assert_equal(String(s[0, 0]), "2")
     testing.assert_equal(String(s[1, 1]), "8")
-    var d = lad.sub(s, a)
+    var d = s - a
     testing.assert_equal(String(d[1, 1]), "4")
 
 
 def test_mul_is_element_wise() raises:
-    """`mul` is the Hadamard product, not matrix multiplication."""
-    var p = lad.mul(_a(), _a())
+    """`*` is the Hadamard product; `@` is matrix multiplication."""
+    var p = _a() * _a()
     testing.assert_equal(String(p[0, 1]), "4")
     testing.assert_equal(String(p[1, 0]), "9")
 
 
-def test_neg_and_scalar_ops() raises:
-    """Negation, and the two scalar-operand forms."""
-    var n = lad.neg(_a())
+def test_div_truncates_on_an_integral_element() raises:
+    """`/` on a `BInt` truncates toward zero, as `Int` does."""
+    var q = _a() / la.matrix[BInt]([[2, 3], [2, 3]])
+    testing.assert_equal(String(q[0, 0]), "0")
+    testing.assert_equal(String(q[1, 0]), "1")
+
+
+def test_neg_and_scalar_operands() raises:
+    """Negation, and a value on either side of the operator."""
+    var n = -_a()
     testing.assert_equal(String(n[0, 0]), "-1")
-    var s = lad.scalar_add(_a(), BigInt(10))
-    testing.assert_equal(String(s[1, 1]), "14")
-    var t = lad.scalar_mul(_a(), BigInt(3))
-    testing.assert_equal(String(t[1, 1]), "12")
+    testing.assert_equal(String((_a() + BInt(10))[1, 1]), "14")
+    testing.assert_equal(String((_a() * BInt(3))[1, 1]), "12")
+    testing.assert_equal(String((BInt(10) - _a())[0, 0]), "9")
+    testing.assert_equal(String((BInt(2) * _a())[1, 1]), "8")
 
 
 def test_matmul() raises:
     """`[[1, 2], [3, 4]]` squared is `[[7, 10], [15, 22]]`."""
-    var p = lad.matmul(_a(), _a())
+    var p = _a() @ _a()
     testing.assert_equal(String(p[0, 0]), "7")
     testing.assert_equal(String(p[0, 1]), "10")
     testing.assert_equal(String(p[1, 0]), "15")
@@ -171,46 +168,46 @@ def test_matmul() raises:
 
 def test_matmul_against_identity() raises:
     """Multiplying by the identity leaves a matrix unchanged."""
-    var p = lad.matmul(_a(), lad.identity[BigInt](2))
+    var p = _a() @ la.identity[BInt](2)
     testing.assert_equal(String(p[0, 1]), "2")
     testing.assert_equal(String(p[1, 0]), "3")
 
 
 def test_matmul_shape_mismatch_raises() raises:
     """Mismatched inner dimensions are a `ValueError`, not a wrong answer."""
-    var wide = la.matrix[BigInt]([[BigInt(1), BigInt(2), BigInt(3)]])
+    var wide = la.matrix[BInt]([[1, 2, 3]])
     with testing.assert_raises():
-        var _p = lad.matmul(wide, wide)
+        var _p = wide @ wide
 
 
 def test_add_shape_mismatch_raises() raises:
     """Element-wise operations check their shapes."""
-    var wide = la.matrix[BigInt]([[BigInt(1), BigInt(2), BigInt(3)]])
+    var wide = la.matrix[BInt]([[1, 2, 3]])
     with testing.assert_raises():
-        var _s = lad.add(_a(), wide)
+        var _s = _a() + wide
 
 
-def test_total_and_trace() raises:
+def test_sum_and_trace() raises:
     """The whole-matrix sum and the diagonal sum."""
-    testing.assert_equal(String(lad.total(_a())), "10")
-    testing.assert_equal(String(lad.trace(_a())), "5")
+    testing.assert_equal(String(la.sum(_a())), "10")
+    testing.assert_equal(String(la.trace(_a())), "5")
 
 
 def test_trace_requires_square() raises:
     """A trace is defined for square matrices only."""
-    var wide = la.matrix[BigInt]([[BigInt(1), BigInt(2), BigInt(3)]])
+    var wide = la.matrix[BInt]([[1, 2, 3]])
     with testing.assert_raises():
-        var _t = lad.trace(wide)
+        var _t = la.trace(wide)
 
 
 def test_zeros_ones_and_eye() raises:
     """The creation routines ask `Numeric` for a zero and a one."""
-    var z = lad.zeros[BigInt](2, 3)
+    var z = la.zeros[BInt](2, 3)
     testing.assert_equal(z.size(), 6)
     testing.assert_equal(String(z[1, 2]), "0")
-    var o = lad.ones[BigInt](2, 2)
+    var o = la.ones[BInt](2, 2)
     testing.assert_equal(String(o[0, 1]), "1")
-    var i = lad.eye[BigInt](3)
+    var i = la.eye[BInt](3)
     testing.assert_equal(String(i[1, 1]), "1")
     testing.assert_equal(String(i[1, 2]), "0")
 
@@ -219,9 +216,30 @@ def test_views_are_accepted_as_operands() raises:
     """A `MatrixView` operand works wherever a `Matrix` does."""
     var a = _a()
     var top = a[0:1, :]
-    var s = lad.add(top, top)
+    var s = top + top
     testing.assert_equal(s.nrows(), 1)
     testing.assert_equal(String(s[0, 1]), "4")
+    var t = top.transpose()
+    testing.assert_equal(String(t[1, 0]), "2")
+
+
+# ===----------------------------------------------------------------------===#
+# The other two `Numeric` element types
+# ===----------------------------------------------------------------------===#
+
+
+def test_decimal128_matrix() raises:
+    """`Decimal128` is exact where a binary float is not: 0.1 + 0.2 == 0.3."""
+    var a = la.matrix[Dec128]([[Dec128("0.1"), Dec128("0.2")]])
+    var b = la.matrix[Dec128]([[Dec128("0.2"), Dec128("0.1")]])
+    testing.assert_equal(String((a + b)[0, 0]), "0.3")
+    testing.assert_equal(String(la.sum(a)), "0.3")
+
+
+def test_bigdecimal_matrix() raises:
+    """`la.Decimal` is decimo's arbitrary-precision decimal."""
+    var a = la.matrix[la.Decimal]([[la.Decimal("1.5"), la.Decimal("2.5")]])
+    testing.assert_equal(String((a * la.Decimal("2"))[0, 1]), "5.0")
 
 
 def main() raises:

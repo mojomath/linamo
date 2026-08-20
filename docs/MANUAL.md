@@ -49,6 +49,9 @@ manual is the prose half: the shape of the API, not an enumeration of it.
     - [Contiguity is not required](#contiguity-is-not-required)
     - [The one rule: do not reallocate](#the-one-rule-do-not-reallocate)
   - [Errors](#errors)
+  - [Arbitrary-precision elements](#arbitrary-precision-elements)
+    - [How it works, and what it costs](#how-it-works-and-what-it-costs)
+    - [Decimo is a hard dependency](#decimo-is-a-hard-dependency)
   - [StaticMatrix](#staticmatrix)
     - [Crossing over to `Matrix`](#crossing-over-to-matrix)
   - [Appendix A: how it works inside](#appendix-a-how-it-works-inside)
@@ -80,26 +83,27 @@ One import gets you the library:
 import linamo as la          # la.matrix, la.zeros, la.transpose, ...
 ```
 
-Everything in the top-level namespace is re-exported from
-`src/linamo/__init__.mojo`; anything not there is reached by its module path,
-for example `from linamo.routines.mutation import fill`.
+Everything a program reaches for is re-exported from
+`src/linamo/__init__.mojo`, so `la.<name>` is the only spelling needed --- the
+types, every routine, the mutating routines in `linamo.routines.mutation`, and
+the arbitrary-precision element types from Decimo. Anything not there is
+reached by its module path.
 
-That includes the element types, which come in two spellings of the same alias:
+Scalar element types are spelled with the stdlib's own names:
 
 ```mojo
-var A = la.matrix[la.float64](...)   # NumPy-style long name
-var B = la.matrix[la.f64](...)       # Rust-style short name
-var C = la.matrix[Float64](...)  # the underlying spelling, always valid
+var A = la.matrix[Float64](...)
+var B = la.matrix[Int32](...)
 ```
 
-The pairs are `float64`/`f64`, `float32`/`f32`, `int64`/`i64` down to
-`int8`/`i8`, `uint64`/`u64` down to `uint8`/`u8`, plus `int` and `uint` for the
-platform's default widths. They are aliases, not distinct types, so pick one
-style per codebase; this manual uses the long names.
+Linamo aliases none of them. A matrix is parameterised on an element *type*
+rather than on a `DType`, so `Float64` already names what goes in the brackets
+and a second spelling for it would buy nothing. The one exception is
+`la.bool_`, the element of a comparison mask, which the stdlib has no name for.
 
-They are deliberately *not* exported unqualified. `from linamo.prelude import *`
-gives you `la` and nothing else - a library that puts bare `int` and `uint` in
-your global namespace has overstepped.
+Nothing is exported unqualified. `from linamo.prelude import *` gives you `la`
+and nothing else --- a library that puts bare names in your global namespace
+has overstepped.
 
 A first program:
 
@@ -1176,52 +1180,74 @@ compile errors instead, and are not in this table.
 
 ## Arbitrary-precision elements
 
-`Matrix` takes an element type, so `Matrix[BigInt]`, `Matrix[BigDecimal]` and
-`Matrix[Decimal128]` are ordinary matrices holding
-[Decimo](https://github.com/forfudan/decimo) numbers. What changes is only
-where the arithmetic comes from.
+`Matrix` takes an element type, so `Matrix[BInt]`, `Matrix[Decimal]` and
+`Matrix[Dec128]` are ordinary matrices holding
+[Decimo](https://github.com/forfudan/decimo) numbers. They are not a separate
+API: the operators, the creation routines and the reductions are the same
+names, and Linamo re-exports the element types so that using them costs no
+second import.
+
+```mojo
+import linamo as la
+from linamo import BInt
+
+var a = la.matrix[BInt]([[1, 2], [3, 4]])
+
+a + a               # element-wise, as for any other element type
+a @ a               # matrix multiplication
+a * BInt(3)         # a value on either side of the operator
+a.transpose()       # only moves elements
+la.sort(a, 1)       # only compares them
+la.trace(a)         # the diagonal sum
+la.eye[BInt](3)     # asks `Numeric` for a zero and a one
+```
+
+The element types Linamo re-exports are exactly those that conform to
+`decimo.Numeric`, under both of Decimo's spellings:
+
+| Long name    | Short name | What it is                                    |
+| ------------ | ---------- | --------------------------------------------- |
+| `BigInt`     | `BInt`     | arbitrary-precision integer (also `Integer`)  |
+| `BigDecimal` | `BDec`     | arbitrary-precision decimal (also `Decimal`)  |
+| `Decimal128` | `Dec128`   | 128-bit exact decimal                         |
+
+Decimo's `BigUInt`, `Rational` and `BigFloat` are deliberately not re-exported.
+They do not conform to `Numeric`, so a matrix of them would have no arithmetic,
+and naming them here would promise one. Import them from `decimo` directly if
+you want to store them.
+
+### How it works, and what it costs
+
+Every routine name above has two overloads. The scalar one is selected by
+`Self.T == Scalar[d]` and runs the SIMD kernels; the other is selected by
+`conforms_to(Self.T, Numeric)` and runs a plain loop. No element type
+satisfies both clauses, so `a + b` is one spelling that resolves to whichever
+applies, and neither overload can shadow the other.
+
+The split exists because a `Scalar[d]`'s `+` lowers to a vector instruction
+that an arbitrary-precision element has no equivalent of. There is therefore no
+SIMD and no `parallelize` on the `Numeric` path: a `BInt` addition allocates,
+so those loops are memory-bound and the plain triple loop in `matmul` is what
+the operation costs.
+
+`//`, `%` and `**` have no `Numeric` counterpart. The trait closes over
+`+ - * /` and nothing else, and `/` on an integral element truncates toward
+zero the way `Int` does.
+
+### Decimo is a hard dependency
+
+The trait lives in Decimo rather than here because Mojo's conformance is
+nominal and has to be declared where the struct is defined: only Decimo can say
+that `BigInt` is `Numeric`. Since Linamo's matrix types name that trait, and
+Mojo has no conditional imports, Decimo has to be on the include path to
+compile any part of Linamo:
 
 ```bash
 pixi run decimo    # build the decimo package into temp/
 ```
 
-```mojo
-import linamo as la
-import linamo.decimo as lad
-from decimo import BigInt
-
-var a = la.matrix[BigInt]([[BigInt(1), BigInt(2)], [BigInt(3), BigInt(4)]])
-
-la.transpose(a)     # core Linamo: only moves elements
-la.sort(a, 1)       # core Linamo: only compares them
-lad.matmul(a, a)    # linamo.decimo: needs arithmetic
-```
-
-The split is not arbitrary. Every routine in `linamo.routines` is written
-against `Scalar[d]`, whose `+` the compiler lowers to a vector instruction; an
-arbitrary-precision element has no such instruction and no dtype to name, so
-its arithmetic cannot go through those kernels. It is written once instead
-against `decimo.Numeric`, in `linamo.decimo`.
-
-Anything that does *not* need arithmetic needs nothing from `linamo.decimo`:
-
-| Needs                         | Routines                                                                                                                       | Where they live              |
-| ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------ | ---------------------------- |
-| nothing but moving elements   | slicing, `transpose`, `reshape`, `reshape_view`, `flatten`, `contiguous`, `reorder_layout`, `broadcast_to`, iteration          | core Linamo, generic already |
-| the stdlib `Comparable`       | `sort`, `sort_inplace`, `argsort`, `argmin`, `argmax`                                                                          | core Linamo, generic already |
-| arithmetic (`decimo.Numeric`) | `add`, `sub`, `mul`, `neg`, `matmul`, `scalar_add`, `scalar_mul`, `total`, `trace`, `zeros`, `ones`, `eye`, `identity`, `diag` | `linamo.decimo`              |
-
-The trait lives in Decimo rather than here because Mojo's conformance is
-nominal and has to be declared where the struct is defined: only Decimo can
-say that `BigInt` is `Numeric`. Confining the dependency to a submodule does
-not remove it — Mojo has no conditional imports, so `pixi run pack` compiles
-`src/linamo/decimo` too — but it does keep core Linamo free of any mention of
-Decimo, keeps Decimo's symbols out of scope unless you import them, and leaves
-a clean seam if `linamo-decimo` ever ships as its own package.
-
-There is no SIMD and no `parallelize` on this path. A `BigInt` addition
-allocates, so these loops are memory-bound and the plain triple loop in
-`matmul` is what the operation costs.
+`pixi run test`, `pixi run examples` and `pixi run pack` depend on that task,
+so running them is enough.
 
 ## StaticMatrix
 

@@ -1085,3 +1085,29 @@ call site keeps it.
 |            | before the suite and now also runs `examples/run_all.sh`:     |
 |            | without the include path, `tests/decimo` and the decimo       |
 |            | example fail to compile rather than skip.                     |
+| 2026-08-20 | `linamo.decimo` is gone, folded into `linamo.routines`.       |
+|            | Decimo is a hard dependency now, not an optional corner: it   |
+|            | always was one in practice --- `mojo precompile src/linamo`   |
+|            | never resolved without it --- and the submodule bought a      |
+|            | separation that only source-mode builds could use, at the     |
+|            | price of a second namespace and function-call syntax for      |
+|            | arithmetic. `Matrix` and `MatrixView` carry the operators for |
+|            | both element families on one method name, `Self.T ==          |
+|            | Scalar[d]` selecting the SIMD kernels and                     |
+|            | `conforms_to(Self.T, Numeric)` the loops; the clauses are     |
+|            | disjoint, so `a + b`, `a @ b` and `la.eye[BInt](3)` read the  |
+|            | same whatever the element. Mojo 1.0 has no `extension`, so    |
+|            | this had to go on the structs themselves --- there was no     |
+|            | third option. Decimo's three `Numeric` types are re-exported  |
+|            | from `la`; `BigUInt`, `Rational` and `BigFloat` are not,      |
+|            | since a matrix of them would have no arithmetic. Also:        |
+|            | `transpose()` as a method (no `.T` --- a parameter and a      |
+|            | method cannot share a name), unary `-` on both types for      |
+|            | scalars too, `routines.mutation` re-exported from `la`, and   |
+|            | the lowercase element aliases dropped now that `Float64`      |
+|            | names the element type itself --- `bool_` stays, having       |
+|            | nothing in the stdlib to name it. `tools/ensure_decimo.sh`    |
+|            | built its conda probe inside `temp/`, where Mojo found the    |
+|            | fallback `decimo.mojoc` next to it and deleted it as a stale  |
+|            | shadow; the probe now builds in a scratch directory and the   |
+|            | clone lives outside the include path. 523 tests.              |

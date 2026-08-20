@@ -13,6 +13,8 @@ both cases, as NumPy's `keepdims=True` would - this library has no 1-D type to
 degrade to, and a `1 x n` result composes with everything else here.
 """
 
+from decimo import Numeric
+
 from linamo.routines.functional import apply_along_axis, fold
 from linamo.types.errors import ValueError
 from linamo.types.matrix import Matrix
@@ -46,6 +48,32 @@ def sum[
         The sum of all elements, or zero if the operand is empty.
     """
     return _sum_lane(m)
+
+
+def sum[
+    T: Numeric, origin: Origin[mut=False]
+](m: MatrixView[T, origin]) raises -> T:
+    """Sums every element of a matrix or view.
+
+    The arbitrary-precision twin of the routine above. There is no `fold` here:
+    `fold` is written against `Scalar[dtype]`, and an element that carries its
+    own `__add__` needs the plain accumulation loop instead.
+
+    Parameters:
+        T: The type of the matrix elements.
+        origin: The origin of the operand.
+
+    Args:
+        m: The matrix or view to reduce.
+
+    Returns:
+        The sum of every element, or zero for an empty input.
+    """
+    var acc = T.zero()
+    for i in range(m.nrows()):
+        for j in range(m.ncols()):
+            acc = acc + m[i, j]
+    return acc^
 
 
 def sum[
