@@ -74,7 +74,7 @@ def _arg_axis[
 
 
 def argmin[
-    T: Copyable & Deinitable & Comparable, origin: Origin[mut=False]
+    T: Copyable & Deinitable & Comparable, origin: Origin[mut=False], //
 ](m: MatrixView[T, origin]) raises -> Int:
     """Returns the row-major index of the smallest element.
 
@@ -99,7 +99,7 @@ def argmin[
 
 
 def argmin[
-    T: Copyable & Deinitable & Comparable, origin: Origin[mut=False]
+    T: Copyable & Deinitable & Comparable, origin: Origin[mut=False], //
 ](m: MatrixView[T, origin], axis: Int) raises -> Matrix[Scalar[DType.int64]]:
     """Returns the index of the smallest element along one axis.
 
@@ -122,7 +122,7 @@ def argmin[
 
 
 def argmax[
-    T: Copyable & Deinitable & Comparable, origin: Origin[mut=False]
+    T: Copyable & Deinitable & Comparable, origin: Origin[mut=False], //
 ](m: MatrixView[T, origin]) raises -> Int:
     """Returns the row-major index of the largest element.
 
@@ -147,7 +147,7 @@ def argmax[
 
 
 def argmax[
-    T: Copyable & Deinitable & Comparable, origin: Origin[mut=False]
+    T: Copyable & Deinitable & Comparable, origin: Origin[mut=False], //
 ](m: MatrixView[T, origin], axis: Int) raises -> Matrix[Scalar[DType.int64]]:
     """Returns the index of the largest element along one axis.
 

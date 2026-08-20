@@ -15,7 +15,7 @@
 #      libraries together. This is the path to use while a decimo change is
 #      still uncommitted.
 #   2. The conda package `decimo` from the modular-community channel, once it
-#      ships a build carrying `decimo.Numeric`.
+#      ships a build carrying `decimo.Numeric` and `decimo.Parsable`.
 #   3. The upstream git repository, pinned at $DECIMO_COMMIT.
 #
 # The package is always *precompiled with this workspace's own `mojo`*. A
@@ -37,9 +37,9 @@
 set -euo pipefail
 
 DECIMO_REPO="${DECIMO_REPO:-https://github.com/forfudan/decimo.git}"
-# The commit that introduces `decimo.Numeric`. Update this when decimo
-# releases and the conda package carries the trait, at which point source 2
-# takes over and this is only the fallback.
+# The commit that introduces `decimo.Numeric` and `decimo.Parsable`. Update
+# this when decimo releases and the conda package carries both traits, at which
+# point source 2 takes over and this is only the fallback.
 DECIMO_COMMIT="${DECIMO_COMMIT:-3bb326f39ca2db97544aabeefa247f4ab013cf0e}"
 MODE="${LINAMO_DECIMO:-auto}"
 
@@ -79,7 +79,7 @@ fi
 env_has_decimo() {
     local dir
     dir="$(mktemp -d)"
-    printf 'from decimo import Numeric\n\ndef main():\n    pass\n' >"$dir/probe.mojo"
+    printf 'from decimo import Numeric, Parsable\n\ndef main():\n    pass\n' >"$dir/probe.mojo"
     local ok=0
     pixi run mojo build -o "$dir/probe" "$dir/probe.mojo" >/dev/null 2>&1 || ok=1
     rm -rf "$dir"
@@ -103,7 +103,7 @@ fi
 if [[ -z "$DECIMO_COMMIT" ]]; then
     echo "decimo: not provided by the environment, and no upstream commit is" >&2
     echo "        pinned yet. Set DECIMO_PATH to a local checkout, or set" >&2
-    echo "        DECIMO_COMMIT once the trait lands upstream." >&2
+    echo "        DECIMO_COMMIT once the traits land upstream." >&2
     exit 1
 fi
 

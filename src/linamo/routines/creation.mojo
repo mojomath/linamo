@@ -4,7 +4,7 @@ This module defines routines for creating matrices and matrix views in Linamo.
 
 from std.math import ceil
 
-from decimo import Numeric
+from decimo import Numeric, Parsable
 
 from linamo.types.errors import ValueError
 from linamo.types.matrix import Matrix
@@ -582,7 +582,7 @@ def empty[
 
 
 def zeros_like[
-    dtype: DType, origin: Origin
+    dtype: DType, origin: Origin, //
 ](a: MatrixView[Scalar[dtype], origin]) -> Matrix[Scalar[dtype]]:
     """Creates a matrix of zeros with the same shape and dtype as `a`.
 
@@ -600,7 +600,7 @@ def zeros_like[
 
 
 def ones_like[
-    dtype: DType, origin: Origin
+    dtype: DType, origin: Origin, //
 ](a: MatrixView[Scalar[dtype], origin]) -> Matrix[Scalar[dtype]]:
     """Creates a matrix of ones with the same shape and dtype as `a`.
 
@@ -618,7 +618,7 @@ def ones_like[
 
 
 def full_like[
-    dtype: DType, origin: Origin
+    dtype: DType, origin: Origin, //
 ](a: MatrixView[Scalar[dtype], origin], fill_value: Scalar[dtype]) -> Matrix[
     Scalar[dtype]
 ]:
@@ -639,7 +639,7 @@ def full_like[
 
 
 def empty_like[
-    dtype: DType, origin: Origin
+    dtype: DType, origin: Origin, //
 ](a: MatrixView[Scalar[dtype], origin]) -> Matrix[Scalar[dtype]]:
     """Creates a matrix shaped and typed like `a`, with unspecified contents.
 
@@ -890,17 +890,56 @@ def _parse_element[
         )
 
 
+def _parse_parsable[
+    T: Copyable & Deinitable & Parsable
+](token: String, function: String) raises -> T:
+    """Parses one whitespace-free token into an arbitrary-precision element.
+
+    The twin of `_parse_element` above. `Scalar[dtype]` goes through `atof` and
+    `atol`, which cap the value at the width of the dtype; a `Parsable` element
+    reads the token itself and keeps every digit of it.
+
+    Parameters:
+        T: The type of the matrix elements.
+
+    Args:
+        token: The text to parse.
+        function: The caller\'s name, for the error message.
+
+    Returns:
+        The parsed value.
+
+    Raises:
+        ValueError: If `token` is not a literal the element type accepts.
+    """
+    try:
+        return T.from_string(token)
+    except e:
+        raise ValueError(
+            function=function,
+            message=String("Cannot parse '", token, "' as a number: ", e),
+        )
+
+
 def _tokenize_rows[
-    dtype: DType
-](text: String, function: String) raises -> List[List[Scalar[dtype]]]:
+    T: Copyable & Deinitable,
+    //,
+    parse: def(String, String) raises thin -> T,
+](text: String, function: String) raises -> List[List[T]]:
     """Splits a bracketed matrix literal into rows of parsed elements.
 
     Elements are separated by whitespace or by commas; a nested `[...]` opens
     a row. Text with no nesting is one row, so `"[1, 2, 3]"` and `"1 2 3"`
     both parse as a single row of three.
 
+    The bracket walk is the same whatever the elements are, so the element type
+    enters only through `parse`. That is what lets one literal syntax serve
+    `Float64` and `BigDecimal` alike.
+
     Parameters:
-        dtype: The data type of the matrix elements.
+        T: The type of the matrix elements.
+        parse: Turns one token into an element, given the caller's name for
+            the error message.
 
     Args:
         text: The literal to split.
@@ -917,8 +956,8 @@ def _tokenize_rows[
     comptime RBRACKET = ord("]")
 
     var bytes = text.as_bytes()
-    var rows = List[List[Scalar[dtype]]]()
-    var current = List[Scalar[dtype]]()
+    var rows = List[List[T]]()
+    var current = List[T]()
     var depth = 0
     var token_start = -1
 
@@ -939,11 +978,7 @@ def _tokenize_rows[
         )
 
         if (opens or closes or separates) and token_start >= 0:
-            current.append(
-                _parse_element[dtype](
-                    String(text[byte=token_start:i]), function
-                )
-            )
+            current.append(parse(String(text[byte=token_start:i]), function))
             token_start = -1
 
         if opens:
@@ -964,16 +999,14 @@ def _tokenize_rows[
                 )
             if depth == 2:
                 rows.append(current^)
-                current = List[Scalar[dtype]]()
+                current = List[T]()
             depth -= 1
         elif not separates and token_start < 0:
             token_start = i
 
     if token_start >= 0:
         current.append(
-            _parse_element[dtype](
-                String(text[byte = token_start : len(bytes)]), function
-            )
+            parse(String(text[byte = token_start : len(bytes)]), function)
         )
     if depth != 0:
         raise ValueError(
@@ -1019,7 +1052,9 @@ def from_string[
             neither "C" nor "F".
     """
     comptime fn_name = "from_string(text, order)"
-    return matrix[Scalar[dtype]](_tokenize_rows[dtype](text, fn_name), order)
+    return matrix[Scalar[dtype]](
+        _tokenize_rows[parse=_parse_element[dtype]](text, fn_name), order
+    )
 
 
 def from_string[
@@ -1053,7 +1088,7 @@ def from_string[
             `nrows * ncols`, or if `order` is neither "C" nor "F".
     """
     comptime fn_name = "from_string(text, nrows, ncols, order)"
-    var rows = _tokenize_rows[dtype](text, fn_name)
+    var rows = _tokenize_rows[parse=_parse_element[dtype]](text, fn_name)
     var flat = List[Scalar[dtype]]()
     for row in rows:
         for element in row:
@@ -1061,3 +1096,73 @@ def from_string[
     return matrix[Scalar[dtype]](
         flat_list=flat^, nrows=nrows, ncols=ncols, order=order
     )
+
+
+def from_string[
+    T: Copyable & Deinitable & Parsable
+](text: String, order: String = "C") raises -> Matrix[T]:
+    """Creates an arbitrary-precision matrix from a bracketed literal.
+
+    The twin of the routine above, for elements that parse themselves. It is
+    the short spelling of a matrix the caller could build element by element;
+    what it is not is a conversion from `Float64`. `BigDecimal` and
+    `Decimal128` have no implicit constructor from one, and going through one
+    would round the literal to a binary float before the element ever saw it.
+    `"0.1"` read this way is a tenth; `Float64(0.1)` is not.
+
+    Parameters:
+        T: The type of the matrix elements, such as `BDec` or `Dec128`.
+
+    Args:
+        text: The literal to parse.
+        order: The memory layout of the result, "C" or "F". Defaults to "C".
+
+    Returns:
+        A new matrix holding the parsed elements.
+
+    Raises:
+        ValueError: If the brackets are unbalanced, if a token is not a
+            literal the element type accepts, if the rows have different
+            lengths, or if `order` is neither "C" nor "F".
+    """
+    comptime fn_name = "from_string(text, order)"
+    return matrix[T](
+        _tokenize_rows[parse=_parse_parsable[T]](text, fn_name), order
+    )
+
+
+def from_string[
+    T: Copyable & Deinitable & Parsable
+](text: String, nrows: Int, ncols: Int, order: String = "C") raises -> Matrix[
+    T
+]:
+    """Creates an arbitrary-precision matrix of the given shape from a literal.
+
+    The bracket structure of `text` is ignored: every element found is read in
+    `order` into the requested shape.
+
+    Parameters:
+        T: The type of the matrix elements, such as `BDec` or `Dec128`.
+
+    Args:
+        text: The literal to parse.
+        nrows: The number of rows in the matrix.
+        ncols: The number of columns in the matrix.
+        order: The index order in which elements are read, "C" or "F".
+            Defaults to "C".
+
+    Returns:
+        A new `nrows x ncols` matrix holding the parsed elements.
+
+    Raises:
+        ValueError: If a token is not a literal the element type accepts, if
+            the element count is not `nrows * ncols`, or if `order` is neither
+            "C" nor "F".
+    """
+    comptime fn_name = "from_string(text, nrows, ncols, order)"
+    var rows = _tokenize_rows[parse=_parse_parsable[T]](text, fn_name)
+    var flat = List[T]()
+    for row in rows:
+        for element in row:
+            flat.append(element.copy())
+    return matrix[T](flat_list=flat^, nrows=nrows, ncols=ncols, order=order)

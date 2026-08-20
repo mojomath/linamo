@@ -26,9 +26,10 @@ from linamo.utils.indexing import get_offset
 
 def _compare_view[
     dtype: DType,
-    func: def(Scalar[dtype], Scalar[dtype]) thin -> Scalar[DType.bool],
     origin_a: Origin,
     origin_b: Origin,
+    //,
+    func: def(Scalar[dtype], Scalar[dtype]) thin -> Scalar[DType.bool],
 ](
     a: MatrixView[Scalar[dtype], origin_a],
     b: MatrixView[Scalar[dtype], origin_b],
@@ -89,8 +90,9 @@ def _compare_view[
 
 def _scalar_compare_view[
     dtype: DType,
-    func: def(Scalar[dtype], Scalar[dtype]) thin -> Scalar[DType.bool],
     origin: Origin,
+    //,
+    func: def(Scalar[dtype], Scalar[dtype]) thin -> Scalar[DType.bool],
 ](mat: MatrixView[Scalar[dtype], origin], scalar: Scalar[dtype]) -> Matrix[
     Scalar[DType.bool]
 ]:
@@ -141,7 +143,7 @@ def _scalar_compare_view[
 
 
 def greater[
-    dtype: DType, origin_a: Origin, origin_b: Origin
+    dtype: DType, origin_a: Origin, origin_b: Origin, //
 ](
     a: MatrixView[Scalar[dtype], origin_a],
     b: MatrixView[Scalar[dtype], origin_b],
@@ -151,7 +153,7 @@ def greater[
 
 
 def scalar_greater[
-    dtype: DType, origin: Origin
+    dtype: DType, origin: Origin, //
 ](mat: MatrixView[Scalar[dtype], origin], scalar: Scalar[dtype]) -> Matrix[
     Scalar[DType.bool]
 ]:
@@ -166,7 +168,7 @@ def scalar_greater[
 
 
 def greater_equal[
-    dtype: DType, origin_a: Origin, origin_b: Origin
+    dtype: DType, origin_a: Origin, origin_b: Origin, //
 ](
     a: MatrixView[Scalar[dtype], origin_a],
     b: MatrixView[Scalar[dtype], origin_b],
@@ -176,7 +178,7 @@ def greater_equal[
 
 
 def scalar_greater_equal[
-    dtype: DType, origin: Origin
+    dtype: DType, origin: Origin, //
 ](mat: MatrixView[Scalar[dtype], origin], scalar: Scalar[dtype]) -> Matrix[
     Scalar[DType.bool]
 ]:
@@ -191,7 +193,7 @@ def scalar_greater_equal[
 
 
 def less[
-    dtype: DType, origin_a: Origin, origin_b: Origin
+    dtype: DType, origin_a: Origin, origin_b: Origin, //
 ](
     a: MatrixView[Scalar[dtype], origin_a],
     b: MatrixView[Scalar[dtype], origin_b],
@@ -201,7 +203,7 @@ def less[
 
 
 def scalar_less[
-    dtype: DType, origin: Origin
+    dtype: DType, origin: Origin, //
 ](mat: MatrixView[Scalar[dtype], origin], scalar: Scalar[dtype]) -> Matrix[
     Scalar[DType.bool]
 ]:
@@ -215,7 +217,7 @@ def scalar_less[
 
 
 def less_equal[
-    dtype: DType, origin_a: Origin, origin_b: Origin
+    dtype: DType, origin_a: Origin, origin_b: Origin, //
 ](
     a: MatrixView[Scalar[dtype], origin_a],
     b: MatrixView[Scalar[dtype], origin_b],
@@ -225,7 +227,7 @@ def less_equal[
 
 
 def scalar_less_equal[
-    dtype: DType, origin: Origin
+    dtype: DType, origin: Origin, //
 ](mat: MatrixView[Scalar[dtype], origin], scalar: Scalar[dtype]) -> Matrix[
     Scalar[DType.bool]
 ]:
@@ -240,7 +242,7 @@ def scalar_less_equal[
 
 
 def equal[
-    dtype: DType, origin_a: Origin, origin_b: Origin
+    dtype: DType, origin_a: Origin, origin_b: Origin, //
 ](
     a: MatrixView[Scalar[dtype], origin_a],
     b: MatrixView[Scalar[dtype], origin_b],
@@ -250,7 +252,7 @@ def equal[
 
 
 def scalar_equal[
-    dtype: DType, origin: Origin
+    dtype: DType, origin: Origin, //
 ](mat: MatrixView[Scalar[dtype], origin], scalar: Scalar[dtype]) -> Matrix[
     Scalar[DType.bool]
 ]:
@@ -264,7 +266,7 @@ def scalar_equal[
 
 
 def not_equal[
-    dtype: DType, origin_a: Origin, origin_b: Origin
+    dtype: DType, origin_a: Origin, origin_b: Origin, //
 ](
     a: MatrixView[Scalar[dtype], origin_a],
     b: MatrixView[Scalar[dtype], origin_b],
@@ -274,7 +276,7 @@ def not_equal[
 
 
 def scalar_not_equal[
-    dtype: DType, origin: Origin
+    dtype: DType, origin: Origin, //
 ](mat: MatrixView[Scalar[dtype], origin], scalar: Scalar[dtype]) -> Matrix[
     Scalar[DType.bool]
 ]:
@@ -320,7 +322,7 @@ def _isclose_element[
 
 
 def _isclose_view[
-    dtype: DType, origin_a: Origin, origin_b: Origin
+    dtype: DType, origin_a: Origin, origin_b: Origin, //
 ](
     a: MatrixView[Scalar[dtype], origin_a],
     b: MatrixView[Scalar[dtype], origin_b],
@@ -388,7 +390,7 @@ def _isclose_view[
 
 
 def _scalar_isclose_view[
-    dtype: DType, origin: Origin
+    dtype: DType, origin: Origin, //
 ](
     mat: MatrixView[Scalar[dtype], origin],
     scalar: Scalar[dtype],
@@ -445,7 +447,7 @@ def _scalar_isclose_view[
 
 
 def isclose[
-    dtype: DType, origin_a: Origin, origin_b: Origin
+    dtype: DType, origin_a: Origin, origin_b: Origin, //
 ](
     a: MatrixView[Scalar[dtype], origin_a],
     b: MatrixView[Scalar[dtype], origin_b],
@@ -482,7 +484,7 @@ def isclose[
 
 
 def scalar_isclose[
-    dtype: DType, origin: Origin
+    dtype: DType, origin: Origin, //
 ](
     mat: MatrixView[Scalar[dtype], origin],
     scalar: Scalar[dtype],
@@ -515,7 +517,7 @@ def scalar_isclose[
 
 
 def allclose[
-    dtype: DType, origin_a: Origin, origin_b: Origin
+    dtype: DType, origin_a: Origin, origin_b: Origin, //
 ](
     a: MatrixView[Scalar[dtype], origin_a],
     b: MatrixView[Scalar[dtype], origin_b],
@@ -562,7 +564,7 @@ def allclose[
 
 
 def scalar_allclose[
-    dtype: DType, origin: Origin
+    dtype: DType, origin: Origin, //
 ](
     mat: MatrixView[Scalar[dtype], origin],
     scalar: Scalar[dtype],
@@ -636,7 +638,7 @@ def _logical_xor_element[
 
 
 def logical_and[
-    dtype: DType, origin_a: Origin, origin_b: Origin
+    dtype: DType, origin_a: Origin, origin_b: Origin, //
 ](
     a: MatrixView[Scalar[dtype], origin_a],
     b: MatrixView[Scalar[dtype], origin_b],
@@ -646,7 +648,7 @@ def logical_and[
 
 
 def scalar_logical_and[
-    dtype: DType, origin: Origin
+    dtype: DType, origin: Origin, //
 ](mat: MatrixView[Scalar[dtype], origin], scalar: Scalar[dtype]) -> Matrix[
     Scalar[DType.bool]
 ]:
@@ -655,7 +657,7 @@ def scalar_logical_and[
 
 
 def logical_or[
-    dtype: DType, origin_a: Origin, origin_b: Origin
+    dtype: DType, origin_a: Origin, origin_b: Origin, //
 ](
     a: MatrixView[Scalar[dtype], origin_a],
     b: MatrixView[Scalar[dtype], origin_b],
@@ -665,7 +667,7 @@ def logical_or[
 
 
 def scalar_logical_or[
-    dtype: DType, origin: Origin
+    dtype: DType, origin: Origin, //
 ](mat: MatrixView[Scalar[dtype], origin], scalar: Scalar[dtype]) -> Matrix[
     Scalar[DType.bool]
 ]:
@@ -674,7 +676,7 @@ def scalar_logical_or[
 
 
 def logical_xor[
-    dtype: DType, origin_a: Origin, origin_b: Origin
+    dtype: DType, origin_a: Origin, origin_b: Origin, //
 ](
     a: MatrixView[Scalar[dtype], origin_a],
     b: MatrixView[Scalar[dtype], origin_b],
@@ -685,7 +687,7 @@ def logical_xor[
 
 
 def scalar_logical_xor[
-    dtype: DType, origin: Origin
+    dtype: DType, origin: Origin, //
 ](mat: MatrixView[Scalar[dtype], origin], scalar: Scalar[dtype]) -> Matrix[
     Scalar[DType.bool]
 ]:
@@ -694,7 +696,7 @@ def scalar_logical_xor[
 
 
 def logical_not[
-    dtype: DType, origin: Origin
+    dtype: DType, origin: Origin, //
 ](mat: MatrixView[Scalar[dtype], origin]) -> Matrix[Scalar[DType.bool]]:
     """Element-wise negation: True where the operand is zero.
 
@@ -731,7 +733,7 @@ def logical_not[
 
 
 def all[
-    dtype: DType, origin: Origin[mut=False]
+    dtype: DType, origin: Origin[mut=False], //
 ](m: MatrixView[Scalar[dtype], origin]) -> Bool:
     """Returns True if every element is non-zero.
 
@@ -756,7 +758,7 @@ def all[
 
 
 def all[
-    dtype: DType, origin: Origin[mut=False]
+    dtype: DType, origin: Origin[mut=False], //
 ](m: MatrixView[Scalar[dtype], origin], axis: Int) raises -> Matrix[
     Scalar[DType.bool]
 ]:
@@ -791,7 +793,7 @@ def all[
 
 
 def any[
-    dtype: DType, origin: Origin[mut=False]
+    dtype: DType, origin: Origin[mut=False], //
 ](m: MatrixView[Scalar[dtype], origin]) -> Bool:
     """Returns True if at least one element is non-zero.
 
@@ -815,7 +817,7 @@ def any[
 
 
 def any[
-    dtype: DType, origin: Origin[mut=False]
+    dtype: DType, origin: Origin[mut=False], //
 ](m: MatrixView[Scalar[dtype], origin], axis: Int) raises -> Matrix[
     Scalar[DType.bool]
 ]:

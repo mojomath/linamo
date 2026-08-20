@@ -17,7 +17,7 @@ from linamo.utils.indexing import get_offset
 
 
 def transpose[
-    T: Copyable & Deinitable, origin: Origin
+    T: Copyable & Deinitable, origin: Origin, //
 ](view: MatrixView[T, origin]) -> Matrix[T]:
     """Returns the transpose of a matrix view.
 
@@ -56,7 +56,7 @@ def transpose[
 
 
 def trace[
-    dtype: DType, origin: Origin
+    dtype: DType, origin: Origin, //
 ](view: MatrixView[Scalar[dtype], origin]) raises -> Scalar[dtype]:
     """Computes the trace (sum of diagonal elements) of a square matrix view."""
     if view.nrows() != view.ncols():
@@ -70,7 +70,9 @@ def trace[
     return result
 
 
-def trace[T: Numeric, origin: Origin](view: MatrixView[T, origin]) raises -> T:
+def trace[
+    T: Numeric, origin: Origin, //
+](view: MatrixView[T, origin]) raises -> T:
     """Computes the trace (sum of diagonal elements) of a square matrix view.
 
     Parameters:
@@ -98,7 +100,7 @@ def trace[T: Numeric, origin: Origin](view: MatrixView[T, origin]) raises -> T:
 
 
 def lu[
-    dtype: DType, origin: Origin
+    dtype: DType, origin: Origin, //
 ](
     view: MatrixView[Scalar[dtype], origin],
 ) raises -> Tuple[
@@ -187,7 +189,7 @@ def lu[
 
 
 def cholesky[
-    dtype: DType, origin: Origin
+    dtype: DType, origin: Origin, //
 ](view: MatrixView[Scalar[dtype], origin]) raises -> Matrix[Scalar[dtype]]:
     """Computes the Cholesky decomposition: A = L L^T.
 
@@ -228,7 +230,7 @@ def cholesky[
 
 
 def qr[
-    dtype: DType, origin: Origin
+    dtype: DType, origin: Origin, //
 ](view: MatrixView[Scalar[dtype], origin]) raises -> Tuple[
     Matrix[Scalar[dtype]], Matrix[Scalar[dtype]]
 ]:
@@ -316,7 +318,7 @@ def qr[
 
 
 def det[
-    dtype: DType, origin: Origin
+    dtype: DType, origin: Origin, //
 ](view: MatrixView[Scalar[dtype], origin]) raises -> Scalar[dtype]:
     """Computes the determinant of a square matrix view via LU decomposition."""
     if view.nrows() != view.ncols():
@@ -352,7 +354,7 @@ def det[
 
 
 def solve[
-    dtype: DType, origin_a: Origin, origin_b: Origin
+    dtype: DType, origin_a: Origin, origin_b: Origin, //
 ](
     A: MatrixView[Scalar[dtype], origin_a],
     b: MatrixView[Scalar[dtype], origin_b],
@@ -425,7 +427,7 @@ def solve[
 
 
 def inv[
-    dtype: DType, origin: Origin
+    dtype: DType, origin: Origin, //
 ](view: MatrixView[Scalar[dtype], origin]) raises -> Matrix[Scalar[dtype]]:
     """Computes the inverse of a square matrix view using LU decomposition.
 
@@ -454,7 +456,7 @@ def inv[
 
 
 def lstsq[
-    dtype: DType, origin_a: Origin, origin_b: Origin
+    dtype: DType, origin_a: Origin, origin_b: Origin, //
 ](
     A: MatrixView[Scalar[dtype], origin_a],
     b: MatrixView[Scalar[dtype], origin_b],

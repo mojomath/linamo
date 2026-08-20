@@ -89,7 +89,7 @@ def _ravel(row: Int, col: Int, nrows: Int, ncols: Int, c_order: Bool) -> Int:
 
 
 def reshape[
-    T: Copyable & Deinitable, origin: Origin
+    T: Copyable & Deinitable, origin: Origin, //
 ](
     a: MatrixView[T, origin],
     nrows: Int,
@@ -237,7 +237,7 @@ def reshape_view[
 
 
 def flatten[
-    T: Copyable & Deinitable, origin: Origin
+    T: Copyable & Deinitable, origin: Origin, //
 ](a: MatrixView[T, origin], order: String = "C") raises -> Matrix[T]:
     """Returns the elements of `a` as a new `1 x size` matrix.
 
@@ -263,7 +263,7 @@ def flatten[
 
 
 def resize[
-    dtype: DType, origin: Origin
+    dtype: DType, origin: Origin, //
 ](
     a: MatrixView[Scalar[dtype], origin], nrows: Int, ncols: Int
 ) raises -> Matrix[Scalar[dtype]]:
@@ -322,7 +322,7 @@ def resize[
 
 
 def contiguous[
-    T: Copyable & Deinitable, origin: Origin
+    T: Copyable & Deinitable, origin: Origin, //
 ](a: MatrixView[T, origin], order: String = "C") raises -> Matrix[T]:
     """Returns a dense copy of `a` in the requested memory layout.
 
@@ -369,7 +369,7 @@ def contiguous[
 
 
 def reorder_layout[
-    T: Copyable & Deinitable, origin: Origin
+    T: Copyable & Deinitable, origin: Origin, //
 ](a: MatrixView[T, origin]) raises -> Matrix[T]:
     """Returns a copy of `a` in the opposite memory layout.
 

@@ -364,7 +364,7 @@ struct LinamoError[error_type: String = "LinamoError"](Writable):
         else:
             self.previous_error = String(previous_error.value())
 
-    def write_to[W: Writer](self, mut writer: W):
+    def write_to[W: Writer, //](self, mut writer: W):
         """Writes a Python-style traceback to a writer.
 
         A chained error is printed first, as Python does:

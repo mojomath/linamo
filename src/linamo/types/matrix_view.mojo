@@ -129,7 +129,7 @@ struct MatrixView[
         """Initializes a MatrixView instance that references a Matrix.
 
         Args:
-            data: A span representing the matrix data.
+            buffer: A span representing the matrix data.
             nrows: The number of rows in the view.
             ncols: The number of columns in the view.
             row_stride: The row stride for accessing elements.
@@ -159,7 +159,7 @@ struct MatrixView[
     # borrows of one matrix and would not compile.
     @implicit
     def __init__[
-        E: Copyable & Deinitable
+        E: Copyable & Deinitable, //
     ](out self: MatrixView[E, ImmOrigin(origin_of(m._data))], ref m: Matrix[E]):
         """Converts a `Matrix` into a read-only view of the whole matrix.
 
@@ -513,7 +513,7 @@ struct MatrixView[
         return result
 
     def write_to[
-        W: Writer
+        W: Writer, //
     ](self, mut writer: W) where conforms_to(Self.T, Writable):
         """Writes the matrix view to a writer."""
         writer.write("MatrixView, ")
@@ -558,7 +558,7 @@ struct MatrixView[
     # since an element-wise operation has to allocate somewhere.
 
     def __add__[
-        d: DType, origin_b: Origin
+        d: DType, origin_b: Origin, //
     ](self, other: MatrixView[Self.T, origin_b]) raises -> Matrix[
         Scalar[d]
     ] where (Self.T == Scalar[d]):
@@ -566,7 +566,7 @@ struct MatrixView[
         return linamo.routines.math.add(self._as_simd[d](), other._as_simd[d]())
 
     def __sub__[
-        d: DType, origin_b: Origin
+        d: DType, origin_b: Origin, //
     ](self, other: MatrixView[Self.T, origin_b]) raises -> Matrix[
         Scalar[d]
     ] where (Self.T == Scalar[d]):
@@ -574,7 +574,7 @@ struct MatrixView[
         return linamo.routines.math.sub(self._as_simd[d](), other._as_simd[d]())
 
     def __mul__[
-        d: DType, origin_b: Origin
+        d: DType, origin_b: Origin, //
     ](self, other: MatrixView[Self.T, origin_b]) raises -> Matrix[
         Scalar[d]
     ] where (Self.T == Scalar[d]):
@@ -582,7 +582,7 @@ struct MatrixView[
         return linamo.routines.math.mul(self._as_simd[d](), other._as_simd[d]())
 
     def __truediv__[
-        d: DType, origin_b: Origin
+        d: DType, origin_b: Origin, //
     ](self, other: MatrixView[Self.T, origin_b]) raises -> Matrix[
         Scalar[d]
     ] where (Self.T == Scalar[d]):
@@ -590,7 +590,7 @@ struct MatrixView[
         return linamo.routines.math.div(self._as_simd[d](), other._as_simd[d]())
 
     def __matmul__[
-        d: DType, origin_b: Origin
+        d: DType, origin_b: Origin, //
     ](self, other: MatrixView[Self.T, origin_b]) raises -> Matrix[
         Scalar[d]
     ] where (Self.T == Scalar[d]):
@@ -599,7 +599,9 @@ struct MatrixView[
             self._as_simd[d](), other._as_simd[d]()
         )
 
-    def __neg__[d: DType](self) -> Matrix[Scalar[d]] where Self.T == Scalar[d]:
+    def __neg__[
+        d: DType, //
+    ](self) -> Matrix[Scalar[d]] where Self.T == Scalar[d]:
         """Negates every element."""
         return linamo.routines.math.scalar_rsub(
             self._as_simd[d](), Scalar[d](0)
@@ -610,7 +612,7 @@ struct MatrixView[
     # ===--------------------------------------------------------------------===#
 
     def __add__[
-        d: DType
+        d: DType, //
     ](self, other: Self.ElementType) -> Matrix[Scalar[d]] where (
         Self.T == Scalar[d]
     ):
@@ -620,7 +622,7 @@ struct MatrixView[
         )
 
     def __sub__[
-        d: DType
+        d: DType, //
     ](self, other: Self.ElementType) -> Matrix[Scalar[d]] where (
         Self.T == Scalar[d]
     ):
@@ -630,7 +632,7 @@ struct MatrixView[
         )
 
     def __mul__[
-        d: DType
+        d: DType, //
     ](self, other: Self.ElementType) -> Matrix[Scalar[d]] where (
         Self.T == Scalar[d]
     ):
@@ -640,7 +642,7 @@ struct MatrixView[
         )
 
     def __truediv__[
-        d: DType
+        d: DType, //
     ](self, other: Self.ElementType) -> Matrix[Scalar[d]] where (
         Self.T == Scalar[d]
     ):
@@ -650,7 +652,7 @@ struct MatrixView[
         )
 
     def __floordiv__[
-        d: DType
+        d: DType, //
     ](self, other: Self.ElementType) -> Matrix[Scalar[d]] where (
         Self.T == Scalar[d]
     ):
@@ -660,7 +662,7 @@ struct MatrixView[
         )
 
     def __mod__[
-        d: DType
+        d: DType, //
     ](self, other: Self.ElementType) -> Matrix[Scalar[d]] where (
         Self.T == Scalar[d]
     ):
@@ -670,7 +672,7 @@ struct MatrixView[
         )
 
     def __pow__[
-        d: DType
+        d: DType, //
     ](self, other: Self.ElementType) -> Matrix[Scalar[d]] where (
         Self.T == Scalar[d]
     ):
@@ -685,7 +687,7 @@ struct MatrixView[
     # `__pow__` is element-wise, matching NumPy's `**`.
 
     def __floordiv__[
-        d: DType, origin_b: Origin
+        d: DType, origin_b: Origin, //
     ](self, other: MatrixView[Self.T, origin_b]) raises -> Matrix[
         Scalar[d]
     ] where (Self.T == Scalar[d]):
@@ -695,7 +697,7 @@ struct MatrixView[
         )
 
     def __mod__[
-        d: DType, origin_b: Origin
+        d: DType, origin_b: Origin, //
     ](self, other: MatrixView[Self.T, origin_b]) raises -> Matrix[
         Scalar[d]
     ] where (Self.T == Scalar[d]):
@@ -703,7 +705,7 @@ struct MatrixView[
         return linamo.routines.math.mod(self._as_simd[d](), other._as_simd[d]())
 
     def __pow__[
-        d: DType, origin_b: Origin
+        d: DType, origin_b: Origin, //
     ](self, other: MatrixView[Self.T, origin_b]) raises -> Matrix[
         Scalar[d]
     ] where (Self.T == Scalar[d]):
@@ -719,7 +721,7 @@ struct MatrixView[
     # can be defined here. See `routines/mutation.mojo`.
 
     def __radd__[
-        d: DType
+        d: DType, //
     ](self, other: Self.ElementType) -> Matrix[Scalar[d]] where (
         Self.T == Scalar[d]
     ):
@@ -729,7 +731,7 @@ struct MatrixView[
         )
 
     def __rmul__[
-        d: DType
+        d: DType, //
     ](self, other: Self.ElementType) -> Matrix[Scalar[d]] where (
         Self.T == Scalar[d]
     ):
@@ -739,7 +741,7 @@ struct MatrixView[
         )
 
     def __rsub__[
-        d: DType
+        d: DType, //
     ](self, other: Self.ElementType) -> Matrix[Scalar[d]] where (
         Self.T == Scalar[d]
     ):
@@ -750,7 +752,7 @@ struct MatrixView[
         )
 
     def __rtruediv__[
-        d: DType
+        d: DType, //
     ](self, other: Self.ElementType) -> Matrix[Scalar[d]] where (
         Self.T == Scalar[d]
     ):
@@ -767,7 +769,7 @@ struct MatrixView[
     # where the ones above are selected by `Self.T == Scalar[d]`.
 
     def __add__[
-        origin_b: Origin
+        origin_b: Origin, //
     ](self, other: MatrixView[Self.T, origin_b]) raises -> Matrix[
         Self.T
     ] where conforms_to(Self.T, Numeric):
@@ -775,7 +777,7 @@ struct MatrixView[
         return linamo.routines.math.add(self, other)
 
     def __sub__[
-        origin_b: Origin
+        origin_b: Origin, //
     ](self, other: MatrixView[Self.T, origin_b]) raises -> Matrix[
         Self.T
     ] where conforms_to(Self.T, Numeric):
@@ -783,7 +785,7 @@ struct MatrixView[
         return linamo.routines.math.sub(self, other)
 
     def __mul__[
-        origin_b: Origin
+        origin_b: Origin, //
     ](self, other: MatrixView[Self.T, origin_b]) raises -> Matrix[
         Self.T
     ] where conforms_to(Self.T, Numeric):
@@ -791,7 +793,7 @@ struct MatrixView[
         return linamo.routines.math.mul(self, other)
 
     def __truediv__[
-        origin_b: Origin
+        origin_b: Origin, //
     ](self, other: MatrixView[Self.T, origin_b]) raises -> Matrix[
         Self.T
     ] where conforms_to(Self.T, Numeric):
@@ -799,7 +801,7 @@ struct MatrixView[
         return linamo.routines.math.div(self, other)
 
     def __matmul__[
-        origin_b: Origin
+        origin_b: Origin, //
     ](self, other: MatrixView[Self.T, origin_b]) raises -> Matrix[
         Self.T
     ] where conforms_to(Self.T, Numeric):
@@ -866,7 +868,7 @@ struct MatrixView[
     # Element-wise `Matrix[DType.bool]` masks, as on `Matrix`.
 
     def __lt__[
-        d: DType, origin_b: Origin
+        d: DType, origin_b: Origin, //
     ](self, other: MatrixView[Self.T, origin_b]) raises -> Matrix[
         Scalar[DType.bool]
     ] where (Self.T == Scalar[d]):
@@ -876,7 +878,7 @@ struct MatrixView[
         )
 
     def __lt__[
-        d: DType
+        d: DType, //
     ](self, other: Self.ElementType) -> Matrix[Scalar[DType.bool]] where (
         Self.T == Scalar[d]
     ):
@@ -886,7 +888,7 @@ struct MatrixView[
         )
 
     def __le__[
-        d: DType, origin_b: Origin
+        d: DType, origin_b: Origin, //
     ](self, other: MatrixView[Self.T, origin_b]) raises -> Matrix[
         Scalar[DType.bool]
     ] where (Self.T == Scalar[d]):
@@ -897,7 +899,7 @@ struct MatrixView[
         )
 
     def __le__[
-        d: DType
+        d: DType, //
     ](self, other: Self.ElementType) -> Matrix[Scalar[DType.bool]] where (
         Self.T == Scalar[d]
     ):
@@ -907,7 +909,7 @@ struct MatrixView[
         )
 
     def __gt__[
-        d: DType, origin_b: Origin
+        d: DType, origin_b: Origin, //
     ](self, other: MatrixView[Self.T, origin_b]) raises -> Matrix[
         Scalar[DType.bool]
     ] where (Self.T == Scalar[d]):
@@ -917,7 +919,7 @@ struct MatrixView[
         )
 
     def __gt__[
-        d: DType
+        d: DType, //
     ](self, other: Self.ElementType) -> Matrix[Scalar[DType.bool]] where (
         Self.T == Scalar[d]
     ):
@@ -927,7 +929,7 @@ struct MatrixView[
         )
 
     def __ge__[
-        d: DType, origin_b: Origin
+        d: DType, origin_b: Origin, //
     ](self, other: MatrixView[Self.T, origin_b]) raises -> Matrix[
         Scalar[DType.bool]
     ] where (Self.T == Scalar[d]):
@@ -938,7 +940,7 @@ struct MatrixView[
         )
 
     def __ge__[
-        d: DType
+        d: DType, //
     ](self, other: Self.ElementType) -> Matrix[Scalar[DType.bool]] where (
         Self.T == Scalar[d]
     ):
@@ -948,7 +950,7 @@ struct MatrixView[
         )
 
     def __eq__[
-        d: DType, origin_b: Origin
+        d: DType, origin_b: Origin, //
     ](self, other: MatrixView[Self.T, origin_b]) raises -> Matrix[
         Scalar[DType.bool]
     ] where (Self.T == Scalar[d]):
@@ -958,7 +960,7 @@ struct MatrixView[
         )
 
     def __eq__[
-        d: DType
+        d: DType, //
     ](self, other: Self.ElementType) -> Matrix[Scalar[DType.bool]] where (
         Self.T == Scalar[d]
     ):
@@ -968,7 +970,7 @@ struct MatrixView[
         )
 
     def __ne__[
-        d: DType, origin_b: Origin
+        d: DType, origin_b: Origin, //
     ](self, other: MatrixView[Self.T, origin_b]) raises -> Matrix[
         Scalar[DType.bool]
     ] where (Self.T == Scalar[d]):
@@ -978,7 +980,7 @@ struct MatrixView[
         )
 
     def __ne__[
-        d: DType
+        d: DType, //
     ](self, other: Self.ElementType) -> Matrix[Scalar[DType.bool]] where (
         Self.T == Scalar[d]
     ):

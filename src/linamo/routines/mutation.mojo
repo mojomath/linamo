@@ -220,7 +220,7 @@ def assign[
 
 
 def view_mut[
-    T: Copyable & Deinitable
+    T: Copyable & Deinitable, //
 ](ref m: Matrix[T], x: Slice, y: Slice) raises -> MatrixView[
     T, origin_of(m._data)
 ]:

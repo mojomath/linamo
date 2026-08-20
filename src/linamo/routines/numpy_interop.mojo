@@ -105,7 +105,9 @@ def from_numpy[
 # ===----------------------------------------------------------------------===#
 
 
-def to_numpy[dtype: DType](mat: Matrix[Scalar[dtype]]) raises -> PythonObject:
+def to_numpy[
+    dtype: DType, //
+](mat: Matrix[Scalar[dtype]]) raises -> PythonObject:
     """Export a Matrix to a numpy ndarray.
 
     Data is always copied. The resulting numpy array is C-contiguous.

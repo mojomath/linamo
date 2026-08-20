@@ -242,5 +242,60 @@ def test_bigdecimal_matrix() raises:
     testing.assert_equal(String((a * la.Decimal("2"))[0, 1]), "5.0")
 
 
+# ===----------------------------------------------------------------------===#
+# Parsing from text
+# ===----------------------------------------------------------------------===#
+# The elements could be built one at a time instead; what has no equivalent is
+# a conversion from `Float64`, since `Dec128` and `BDec` have no implicit
+# constructor from one and any route through it would round the value to a
+# binary float first. The assertions below therefore check exactness, not just
+# the digits.
+
+
+def test_from_string_dec128_is_exact() raises:
+    """A tenth parsed as `Dec128` is a tenth, not the nearest binary float."""
+    var a = la.from_string[Dec128]("[[0.1, 0.2], [0.3, 0.4]]")
+    testing.assert_equal(a.nrows(), 2)
+    testing.assert_equal(a.ncols(), 2)
+    testing.assert_equal(String(a[0, 0]), "0.1")
+    # 0.1 + 0.2 + 0.3 + 0.4 is 1 exactly; in Float64 it is not.
+    testing.assert_equal(String(la.sum(a)), "1.0")
+
+
+def test_from_string_bigdecimal_shape_given() raises:
+    """The shaped overload reads the elements in `order`, ignoring brackets."""
+    var a = la.from_string[la.BDec]("1.5 2.5 3.5 4.5", 2, 2, order="C")
+    testing.assert_equal(a.nrows(), 2)
+    testing.assert_equal(String(a[0, 1]), "2.5")
+    testing.assert_equal(String(a[1, 0]), "3.5")
+
+
+def test_from_string_bigint_beyond_any_width() raises:
+    """An integer past 128 bits survives, having passed through no literal."""
+    var a = la.from_string[BInt]("[[170141183460469231731687303715884105728]]")
+    testing.assert_equal(String(a[0, 0]), String(BInt(2) ** BInt(127)))
+
+
+def test_from_string_rejects_a_non_number() raises:
+    """A cell that is not a number raises and names the offending token."""
+    var raised = False
+    try:
+        _ = la.from_string[Dec128]("[[1, oops]]")
+    except e:
+        raised = True
+        testing.assert_true("oops" in String(e), "the message names the token")
+    testing.assert_true(raised, "from_string on a bad token")
+
+
+def test_from_string_rejects_ragged_rows() raises:
+    """Rows of unequal length raise, as they do for a scalar element."""
+    var raised = False
+    try:
+        _ = la.from_string[Dec128]("[[1, 2], [3]]")
+    except:
+        raised = True
+    testing.assert_true(raised, "from_string on ragged rows")
+
+
 def main() raises:
     testing.TestSuite.discover_tests[__functions_in_module()]().run()

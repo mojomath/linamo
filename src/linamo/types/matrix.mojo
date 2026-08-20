@@ -201,7 +201,7 @@ struct Matrix[T: Copyable & Deinitable](
         self._col_stride = col_stride
 
     def __init__[
-        d: DType
+        d: DType, //
     ](
         out self,
         nrows: Int,
@@ -769,7 +769,7 @@ struct Matrix[T: Copyable & Deinitable](
         return result
 
     def write_to[
-        W: Writer
+        W: Writer, //
     ](self, mut writer: W) where conforms_to(Self.T, Writable):
         """Writes the matrix to a writer."""
         writer.write("Matrix, ")
@@ -811,7 +811,7 @@ struct Matrix[T: Copyable & Deinitable](
     # pair of shared borrows rather than an aliasing violation.
 
     def __add__[
-        d: DType, origin: Origin
+        d: DType, origin: Origin, //
     ](self, other: MatrixView[Self.T, origin]) raises -> Matrix[
         Scalar[d]
     ] where (Self.T == Scalar[d]):
@@ -821,7 +821,7 @@ struct Matrix[T: Copyable & Deinitable](
         )
 
     def __sub__[
-        d: DType, origin: Origin
+        d: DType, origin: Origin, //
     ](self, other: MatrixView[Self.T, origin]) raises -> Matrix[
         Scalar[d]
     ] where (Self.T == Scalar[d]):
@@ -831,7 +831,7 @@ struct Matrix[T: Copyable & Deinitable](
         )
 
     def __mul__[
-        d: DType, origin: Origin
+        d: DType, origin: Origin, //
     ](self, other: MatrixView[Self.T, origin]) raises -> Matrix[
         Scalar[d]
     ] where (Self.T == Scalar[d]):
@@ -841,7 +841,7 @@ struct Matrix[T: Copyable & Deinitable](
         )
 
     def __truediv__[
-        d: DType, origin: Origin
+        d: DType, origin: Origin, //
     ](self, other: MatrixView[Self.T, origin]) raises -> Matrix[
         Scalar[d]
     ] where (Self.T == Scalar[d]):
@@ -851,7 +851,7 @@ struct Matrix[T: Copyable & Deinitable](
         )
 
     def __matmul__[
-        d: DType, origin: Origin
+        d: DType, origin: Origin, //
     ](self, other: MatrixView[Self.T, origin]) raises -> Matrix[
         Scalar[d]
     ] where (Self.T == Scalar[d]):
@@ -860,7 +860,9 @@ struct Matrix[T: Copyable & Deinitable](
             self._simd_view[d](), other._as_simd[d]()
         )
 
-    def __neg__[d: DType](self) -> Matrix[Scalar[d]] where Self.T == Scalar[d]:
+    def __neg__[
+        d: DType, //
+    ](self) -> Matrix[Scalar[d]] where Self.T == Scalar[d]:
         """Negates every element."""
         return linamo.routines.math.scalar_rsub(
             self._simd_view[d](), Scalar[d](0)
@@ -874,7 +876,7 @@ struct Matrix[T: Copyable & Deinitable](
     # `2.0 + A` direction.
 
     def __add__[
-        d: DType
+        d: DType, //
     ](self, other: Self.ElementType) -> Matrix[Scalar[d]] where (
         Self.T == Scalar[d]
     ):
@@ -884,7 +886,7 @@ struct Matrix[T: Copyable & Deinitable](
         )
 
     def __sub__[
-        d: DType
+        d: DType, //
     ](self, other: Self.ElementType) -> Matrix[Scalar[d]] where (
         Self.T == Scalar[d]
     ):
@@ -894,7 +896,7 @@ struct Matrix[T: Copyable & Deinitable](
         )
 
     def __mul__[
-        d: DType
+        d: DType, //
     ](self, other: Self.ElementType) -> Matrix[Scalar[d]] where (
         Self.T == Scalar[d]
     ):
@@ -904,7 +906,7 @@ struct Matrix[T: Copyable & Deinitable](
         )
 
     def __truediv__[
-        d: DType
+        d: DType, //
     ](self, other: Self.ElementType) -> Matrix[Scalar[d]] where (
         Self.T == Scalar[d]
     ):
@@ -914,7 +916,7 @@ struct Matrix[T: Copyable & Deinitable](
         )
 
     def __floordiv__[
-        d: DType
+        d: DType, //
     ](self, other: Self.ElementType) -> Matrix[Scalar[d]] where (
         Self.T == Scalar[d]
     ):
@@ -924,7 +926,7 @@ struct Matrix[T: Copyable & Deinitable](
         )
 
     def __mod__[
-        d: DType
+        d: DType, //
     ](self, other: Self.ElementType) -> Matrix[Scalar[d]] where (
         Self.T == Scalar[d]
     ):
@@ -934,7 +936,7 @@ struct Matrix[T: Copyable & Deinitable](
         )
 
     def __pow__[
-        d: DType
+        d: DType, //
     ](self, other: Self.ElementType) -> Matrix[Scalar[d]] where (
         Self.T == Scalar[d]
     ):
@@ -950,7 +952,7 @@ struct Matrix[T: Copyable & Deinitable](
     # is a different operation and is spelled as a named routine, not `**`.
 
     def __floordiv__[
-        d: DType, origin: Origin
+        d: DType, origin: Origin, //
     ](self, other: MatrixView[Self.T, origin]) raises -> Matrix[
         Scalar[d]
     ] where (Self.T == Scalar[d]):
@@ -960,7 +962,7 @@ struct Matrix[T: Copyable & Deinitable](
         )
 
     def __mod__[
-        d: DType, origin: Origin
+        d: DType, origin: Origin, //
     ](self, other: MatrixView[Self.T, origin]) raises -> Matrix[
         Scalar[d]
     ] where (Self.T == Scalar[d]):
@@ -970,7 +972,7 @@ struct Matrix[T: Copyable & Deinitable](
         )
 
     def __pow__[
-        d: DType, origin: Origin
+        d: DType, origin: Origin, //
     ](self, other: MatrixView[Self.T, origin]) raises -> Matrix[
         Scalar[d]
     ] where (Self.T == Scalar[d]):
@@ -991,7 +993,7 @@ struct Matrix[T: Copyable & Deinitable](
     # which is a worse API than either having all four or none.
 
     def __radd__[
-        d: DType
+        d: DType, //
     ](self, other: Self.ElementType) -> Matrix[Scalar[d]] where (
         Self.T == Scalar[d]
     ):
@@ -1001,7 +1003,7 @@ struct Matrix[T: Copyable & Deinitable](
         )
 
     def __rmul__[
-        d: DType
+        d: DType, //
     ](self, other: Self.ElementType) -> Matrix[Scalar[d]] where (
         Self.T == Scalar[d]
     ):
@@ -1011,7 +1013,7 @@ struct Matrix[T: Copyable & Deinitable](
         )
 
     def __rsub__[
-        d: DType
+        d: DType, //
     ](self, other: Self.ElementType) -> Matrix[Scalar[d]] where (
         Self.T == Scalar[d]
     ):
@@ -1022,7 +1024,7 @@ struct Matrix[T: Copyable & Deinitable](
         )
 
     def __rtruediv__[
-        d: DType
+        d: DType, //
     ](self, other: Self.ElementType) -> Matrix[Scalar[d]] where (
         Self.T == Scalar[d]
     ):
@@ -1047,7 +1049,7 @@ struct Matrix[T: Copyable & Deinitable](
     # same operation on `BigInt` and a missing one on `BigDecimal`.
 
     def __add__[
-        origin: Origin
+        origin: Origin, //
     ](self, other: MatrixView[Self.T, origin]) raises -> Matrix[
         Self.T
     ] where conforms_to(Self.T, Numeric):
@@ -1055,7 +1057,7 @@ struct Matrix[T: Copyable & Deinitable](
         return linamo.routines.math.add(self, other)
 
     def __sub__[
-        origin: Origin
+        origin: Origin, //
     ](self, other: MatrixView[Self.T, origin]) raises -> Matrix[
         Self.T
     ] where conforms_to(Self.T, Numeric):
@@ -1063,7 +1065,7 @@ struct Matrix[T: Copyable & Deinitable](
         return linamo.routines.math.sub(self, other)
 
     def __mul__[
-        origin: Origin
+        origin: Origin, //
     ](self, other: MatrixView[Self.T, origin]) raises -> Matrix[
         Self.T
     ] where conforms_to(Self.T, Numeric):
@@ -1071,7 +1073,7 @@ struct Matrix[T: Copyable & Deinitable](
         return linamo.routines.math.mul(self, other)
 
     def __truediv__[
-        origin: Origin
+        origin: Origin, //
     ](self, other: MatrixView[Self.T, origin]) raises -> Matrix[
         Self.T
     ] where conforms_to(Self.T, Numeric):
@@ -1079,7 +1081,7 @@ struct Matrix[T: Copyable & Deinitable](
         return linamo.routines.math.div(self, other)
 
     def __matmul__[
-        origin: Origin
+        origin: Origin, //
     ](self, other: MatrixView[Self.T, origin]) raises -> Matrix[
         Self.T
     ] where conforms_to(Self.T, Numeric):
@@ -1154,7 +1156,7 @@ struct Matrix[T: Copyable & Deinitable](
     # not hand out a mutable reference to `a` while a view of it is live.
 
     def __iadd__[
-        d: DType, origin: Origin
+        d: DType, origin: Origin, //
     ](mut self, other: MatrixView[Self.T, origin]) raises where (
         Self.T == Scalar[d]
     ):
@@ -1164,7 +1166,7 @@ struct Matrix[T: Copyable & Deinitable](
         )
 
     def __iadd__[
-        d: DType
+        d: DType, //
     ](mut self, other: Self.ElementType) where Self.T == Scalar[d]:
         """In-place element-wise addition with a scalar."""
         linamo.routines.math._scalar_elementwise_inplace[
@@ -1172,7 +1174,7 @@ struct Matrix[T: Copyable & Deinitable](
         ](rebind[Matrix[Scalar[d]]](self), rebind[Scalar[d]](other))
 
     def __isub__[
-        d: DType, origin: Origin
+        d: DType, origin: Origin, //
     ](mut self, other: MatrixView[Self.T, origin]) raises where (
         Self.T == Scalar[d]
     ):
@@ -1182,7 +1184,7 @@ struct Matrix[T: Copyable & Deinitable](
         )
 
     def __isub__[
-        d: DType
+        d: DType, //
     ](mut self, other: Self.ElementType) where Self.T == Scalar[d]:
         """In-place element-wise subtraction with a scalar."""
         linamo.routines.math._scalar_elementwise_inplace[
@@ -1190,7 +1192,7 @@ struct Matrix[T: Copyable & Deinitable](
         ](rebind[Matrix[Scalar[d]]](self), rebind[Scalar[d]](other))
 
     def __imul__[
-        d: DType, origin: Origin
+        d: DType, origin: Origin, //
     ](mut self, other: MatrixView[Self.T, origin]) raises where (
         Self.T == Scalar[d]
     ):
@@ -1200,7 +1202,7 @@ struct Matrix[T: Copyable & Deinitable](
         )
 
     def __imul__[
-        d: DType
+        d: DType, //
     ](mut self, other: Self.ElementType) where Self.T == Scalar[d]:
         """In-place element-wise multiplication with a scalar."""
         linamo.routines.math._scalar_elementwise_inplace[
@@ -1208,7 +1210,7 @@ struct Matrix[T: Copyable & Deinitable](
         ](rebind[Matrix[Scalar[d]]](self), rebind[Scalar[d]](other))
 
     def __itruediv__[
-        d: DType, origin: Origin
+        d: DType, origin: Origin, //
     ](mut self, other: MatrixView[Self.T, origin]) raises where (
         Self.T == Scalar[d]
     ):
@@ -1218,7 +1220,7 @@ struct Matrix[T: Copyable & Deinitable](
         )
 
     def __itruediv__[
-        d: DType
+        d: DType, //
     ](mut self, other: Self.ElementType) where Self.T == Scalar[d]:
         """In-place element-wise division with a scalar."""
         linamo.routines.math._scalar_elementwise_inplace[
@@ -1226,7 +1228,7 @@ struct Matrix[T: Copyable & Deinitable](
         ](rebind[Matrix[Scalar[d]]](self), rebind[Scalar[d]](other))
 
     def __ifloordiv__[
-        d: DType, origin: Origin
+        d: DType, origin: Origin, //
     ](mut self, other: MatrixView[Self.T, origin]) raises where (
         Self.T == Scalar[d]
     ):
@@ -1236,7 +1238,7 @@ struct Matrix[T: Copyable & Deinitable](
         )
 
     def __ifloordiv__[
-        d: DType
+        d: DType, //
     ](mut self, other: Self.ElementType) where Self.T == Scalar[d]:
         """In-place element-wise floor division with a scalar."""
         linamo.routines.math._scalar_elementwise_inplace[
@@ -1244,7 +1246,7 @@ struct Matrix[T: Copyable & Deinitable](
         ](rebind[Matrix[Scalar[d]]](self), rebind[Scalar[d]](other))
 
     def __imod__[
-        d: DType, origin: Origin
+        d: DType, origin: Origin, //
     ](mut self, other: MatrixView[Self.T, origin]) raises where (
         Self.T == Scalar[d]
     ):
@@ -1254,7 +1256,7 @@ struct Matrix[T: Copyable & Deinitable](
         )
 
     def __imod__[
-        d: DType
+        d: DType, //
     ](mut self, other: Self.ElementType) where Self.T == Scalar[d]:
         """In-place element-wise modulo with a scalar."""
         linamo.routines.math._scalar_elementwise_inplace[
@@ -1270,7 +1272,7 @@ struct Matrix[T: Copyable & Deinitable](
     # whether two matrices are wholly identical.
 
     def __lt__[
-        d: DType, origin: Origin
+        d: DType, origin: Origin, //
     ](self, other: MatrixView[Self.T, origin]) raises -> Matrix[
         Scalar[DType.bool]
     ] where (Self.T == Scalar[d]):
@@ -1280,7 +1282,7 @@ struct Matrix[T: Copyable & Deinitable](
         )
 
     def __lt__[
-        d: DType
+        d: DType, //
     ](self, other: Self.ElementType) -> Matrix[Scalar[DType.bool]] where (
         Self.T == Scalar[d]
     ):
@@ -1290,7 +1292,7 @@ struct Matrix[T: Copyable & Deinitable](
         )
 
     def __le__[
-        d: DType, origin: Origin
+        d: DType, origin: Origin, //
     ](self, other: MatrixView[Self.T, origin]) raises -> Matrix[
         Scalar[DType.bool]
     ] where (Self.T == Scalar[d]):
@@ -1301,7 +1303,7 @@ struct Matrix[T: Copyable & Deinitable](
         )
 
     def __le__[
-        d: DType
+        d: DType, //
     ](self, other: Self.ElementType) -> Matrix[Scalar[DType.bool]] where (
         Self.T == Scalar[d]
     ):
@@ -1311,7 +1313,7 @@ struct Matrix[T: Copyable & Deinitable](
         )
 
     def __gt__[
-        d: DType, origin: Origin
+        d: DType, origin: Origin, //
     ](self, other: MatrixView[Self.T, origin]) raises -> Matrix[
         Scalar[DType.bool]
     ] where (Self.T == Scalar[d]):
@@ -1321,7 +1323,7 @@ struct Matrix[T: Copyable & Deinitable](
         )
 
     def __gt__[
-        d: DType
+        d: DType, //
     ](self, other: Self.ElementType) -> Matrix[Scalar[DType.bool]] where (
         Self.T == Scalar[d]
     ):
@@ -1331,7 +1333,7 @@ struct Matrix[T: Copyable & Deinitable](
         )
 
     def __ge__[
-        d: DType, origin: Origin
+        d: DType, origin: Origin, //
     ](self, other: MatrixView[Self.T, origin]) raises -> Matrix[
         Scalar[DType.bool]
     ] where (Self.T == Scalar[d]):
@@ -1342,7 +1344,7 @@ struct Matrix[T: Copyable & Deinitable](
         )
 
     def __ge__[
-        d: DType
+        d: DType, //
     ](self, other: Self.ElementType) -> Matrix[Scalar[DType.bool]] where (
         Self.T == Scalar[d]
     ):
@@ -1352,7 +1354,7 @@ struct Matrix[T: Copyable & Deinitable](
         )
 
     def __eq__[
-        d: DType, origin: Origin
+        d: DType, origin: Origin, //
     ](self, other: MatrixView[Self.T, origin]) raises -> Matrix[
         Scalar[DType.bool]
     ] where (Self.T == Scalar[d]):
@@ -1362,7 +1364,7 @@ struct Matrix[T: Copyable & Deinitable](
         )
 
     def __eq__[
-        d: DType
+        d: DType, //
     ](self, other: Self.ElementType) -> Matrix[Scalar[DType.bool]] where (
         Self.T == Scalar[d]
     ):
@@ -1372,7 +1374,7 @@ struct Matrix[T: Copyable & Deinitable](
         )
 
     def __ne__[
-        d: DType, origin: Origin
+        d: DType, origin: Origin, //
     ](self, other: MatrixView[Self.T, origin]) raises -> Matrix[
         Scalar[DType.bool]
     ] where (Self.T == Scalar[d]):
@@ -1382,7 +1384,7 @@ struct Matrix[T: Copyable & Deinitable](
         )
 
     def __ne__[
-        d: DType
+        d: DType, //
     ](self, other: Self.ElementType) -> Matrix[Scalar[DType.bool]] where (
         Self.T == Scalar[d]
     ):

@@ -26,6 +26,7 @@ a matrix does not store."""
 # promise one.
 from decimo import (
     Numeric,
+    Parsable,
     BigInt,
     BInt,
     Integer,

@@ -42,7 +42,7 @@ from linamo.utils.indexing import get_offset
 
 
 def add[
-    T: Copyable & Deinitable, nrows: Int, ncols: Int
+    T: Copyable & Deinitable, nrows: Int, ncols: Int, //
 ](
     a: StaticMatrix[T, nrows, ncols], b: StaticMatrix[T, nrows, ncols]
 ) -> StaticMatrix[T, nrows, ncols]:
@@ -59,7 +59,7 @@ def add[
 
 
 def sub[
-    T: Copyable & Deinitable, nrows: Int, ncols: Int
+    T: Copyable & Deinitable, nrows: Int, ncols: Int, //
 ](
     a: StaticMatrix[T, nrows, ncols], b: StaticMatrix[T, nrows, ncols]
 ) -> StaticMatrix[T, nrows, ncols]:
@@ -76,7 +76,7 @@ def sub[
 
 
 def mul[
-    T: Copyable & Deinitable, nrows: Int, ncols: Int
+    T: Copyable & Deinitable, nrows: Int, ncols: Int, //
 ](
     a: StaticMatrix[T, nrows, ncols], b: StaticMatrix[T, nrows, ncols]
 ) -> StaticMatrix[T, nrows, ncols]:
@@ -93,7 +93,7 @@ def mul[
 
 
 def div[
-    T: Copyable & Deinitable, nrows: Int, ncols: Int
+    T: Copyable & Deinitable, nrows: Int, ncols: Int, //
 ](
     a: StaticMatrix[T, nrows, ncols], b: StaticMatrix[T, nrows, ncols]
 ) -> StaticMatrix[T, nrows, ncols]:
@@ -110,7 +110,7 @@ def div[
 
 
 def matmul[
-    T: Copyable & Deinitable, nrows: Int, ncols: Int, inner_dim: Int
+    T: Copyable & Deinitable, nrows: Int, ncols: Int, inner_dim: Int, //
 ](
     a: StaticMatrix[T, nrows, inner_dim],
     b: StaticMatrix[T, inner_dim, ncols],
@@ -200,9 +200,7 @@ def _matmul_workers(items: Int) -> Int:
 
 
 def _matmul_view_simd[
-    dtype: DType,
-    origin_a: Origin,
-    origin_b: Origin,
+    dtype: DType, origin_a: Origin, origin_b: Origin, //
 ](
     a: MatrixView[Scalar[dtype], origin_a],
     b: MatrixView[Scalar[dtype], origin_b],
@@ -429,9 +427,7 @@ def _matmul_view_simd[
 
 
 def matmul[
-    dtype: DType,
-    origin_a: Origin,
-    origin_b: Origin,
+    dtype: DType, origin_a: Origin, origin_b: Origin, //
 ](
     a: MatrixView[Scalar[dtype], origin_a],
     b: MatrixView[Scalar[dtype], origin_b],
@@ -486,9 +482,10 @@ def matmul[
 
 def _elementwise_view[
     dtype: DType,
-    func: def(Scalar[dtype], Scalar[dtype]) thin -> Scalar[dtype],
     origin_a: Origin,
     origin_b: Origin,
+    //,
+    func: def(Scalar[dtype], Scalar[dtype]) thin -> Scalar[dtype],
 ](
     a: MatrixView[Scalar[dtype], origin_a],
     b: MatrixView[Scalar[dtype], origin_b],
@@ -548,8 +545,9 @@ def _elementwise_view[
 
 def _scalar_elementwise_view[
     dtype: DType,
-    func: def(Scalar[dtype], Scalar[dtype]) thin -> Scalar[dtype],
     origin: Origin,
+    //,
+    func: def(Scalar[dtype], Scalar[dtype]) thin -> Scalar[dtype],
 ](
     mat: MatrixView[Scalar[dtype], origin],
     scalar: Scalar[dtype],
@@ -607,7 +605,7 @@ def _scalar_elementwise_view[
 
 
 def add[
-    dtype: DType, origin_a: Origin, origin_b: Origin
+    dtype: DType, origin_a: Origin, origin_b: Origin, //
 ](
     a: MatrixView[Scalar[dtype], origin_a],
     b: MatrixView[Scalar[dtype], origin_b],
@@ -622,7 +620,7 @@ def add[
 
 
 def sub[
-    dtype: DType, origin_a: Origin, origin_b: Origin
+    dtype: DType, origin_a: Origin, origin_b: Origin, //
 ](
     a: MatrixView[Scalar[dtype], origin_a],
     b: MatrixView[Scalar[dtype], origin_b],
@@ -637,7 +635,7 @@ def sub[
 
 
 def mul[
-    dtype: DType, origin_a: Origin, origin_b: Origin
+    dtype: DType, origin_a: Origin, origin_b: Origin, //
 ](
     a: MatrixView[Scalar[dtype], origin_a],
     b: MatrixView[Scalar[dtype], origin_b],
@@ -652,7 +650,7 @@ def mul[
 
 
 def div[
-    dtype: DType, origin_a: Origin, origin_b: Origin
+    dtype: DType, origin_a: Origin, origin_b: Origin, //
 ](
     a: MatrixView[Scalar[dtype], origin_a],
     b: MatrixView[Scalar[dtype], origin_b],
@@ -668,7 +666,7 @@ def div[
 
 
 def scalar_add[
-    dtype: DType, origin: Origin
+    dtype: DType, origin: Origin, //
 ](mat: MatrixView[Scalar[dtype], origin], scalar: Scalar[dtype]) -> Matrix[
     Scalar[dtype]
 ]:
@@ -677,7 +675,7 @@ def scalar_add[
 
 
 def scalar_sub[
-    dtype: DType, origin: Origin
+    dtype: DType, origin: Origin, //
 ](mat: MatrixView[Scalar[dtype], origin], scalar: Scalar[dtype]) -> Matrix[
     Scalar[dtype]
 ]:
@@ -686,7 +684,7 @@ def scalar_sub[
 
 
 def scalar_mul[
-    dtype: DType, origin: Origin
+    dtype: DType, origin: Origin, //
 ](mat: MatrixView[Scalar[dtype], origin], scalar: Scalar[dtype]) -> Matrix[
     Scalar[dtype]
 ]:
@@ -695,7 +693,7 @@ def scalar_mul[
 
 
 def scalar_div[
-    dtype: DType, origin: Origin
+    dtype: DType, origin: Origin, //
 ](mat: MatrixView[Scalar[dtype], origin], scalar: Scalar[dtype]) -> Matrix[
     Scalar[dtype]
 ]:
@@ -719,8 +717,9 @@ def scalar_div[
 
 def _elementwise_inplace[
     dtype: DType,
-    func: def(Scalar[dtype], Scalar[dtype]) thin -> Scalar[dtype],
     origin_b: Origin,
+    //,
+    func: def(Scalar[dtype], Scalar[dtype]) thin -> Scalar[dtype],
 ](mut a: Matrix[Scalar[dtype]], b: MatrixView[Scalar[dtype], origin_b]) raises:
     """Core in-place element-wise binary operation, writing into `a`.
 
@@ -762,6 +761,7 @@ def _elementwise_inplace[
 
 def _scalar_elementwise_inplace[
     dtype: DType,
+    //,
     func: def(Scalar[dtype], Scalar[dtype]) thin -> Scalar[dtype],
 ](mut mat: Matrix[Scalar[dtype]], scalar: Scalar[dtype]):
     """Core in-place scalar element-wise operation, writing into `mat`."""
@@ -823,7 +823,7 @@ def _rdiv_op[dtype: DType](a: Scalar[dtype], b: Scalar[dtype]) -> Scalar[dtype]:
 
 
 def floordiv[
-    dtype: DType, origin_a: Origin, origin_b: Origin
+    dtype: DType, origin_a: Origin, origin_b: Origin, //
 ](
     a: MatrixView[Scalar[dtype], origin_a],
     b: MatrixView[Scalar[dtype], origin_b],
@@ -838,7 +838,7 @@ def floordiv[
 
 
 def mod[
-    dtype: DType, origin_a: Origin, origin_b: Origin
+    dtype: DType, origin_a: Origin, origin_b: Origin, //
 ](
     a: MatrixView[Scalar[dtype], origin_a],
     b: MatrixView[Scalar[dtype], origin_b],
@@ -853,7 +853,7 @@ def mod[
 
 
 def pow[
-    dtype: DType, origin_a: Origin, origin_b: Origin
+    dtype: DType, origin_a: Origin, origin_b: Origin, //
 ](
     a: MatrixView[Scalar[dtype], origin_a],
     b: MatrixView[Scalar[dtype], origin_b],
@@ -869,7 +869,7 @@ def pow[
 
 
 def scalar_floordiv[
-    dtype: DType, origin: Origin
+    dtype: DType, origin: Origin, //
 ](mat: MatrixView[Scalar[dtype], origin], scalar: Scalar[dtype]) -> Matrix[
     Scalar[dtype]
 ]:
@@ -880,7 +880,7 @@ def scalar_floordiv[
 
 
 def scalar_mod[
-    dtype: DType, origin: Origin
+    dtype: DType, origin: Origin, //
 ](mat: MatrixView[Scalar[dtype], origin], scalar: Scalar[dtype]) -> Matrix[
     Scalar[dtype]
 ]:
@@ -889,7 +889,7 @@ def scalar_mod[
 
 
 def scalar_pow[
-    dtype: DType, origin: Origin
+    dtype: DType, origin: Origin, //
 ](mat: MatrixView[Scalar[dtype], origin], scalar: Scalar[dtype]) -> Matrix[
     Scalar[dtype]
 ]:
@@ -898,7 +898,7 @@ def scalar_pow[
 
 
 def scalar_rsub[
-    dtype: DType, origin: Origin
+    dtype: DType, origin: Origin, //
 ](mat: MatrixView[Scalar[dtype], origin], scalar: Scalar[dtype]) -> Matrix[
     Scalar[dtype]
 ]:
@@ -908,7 +908,7 @@ def scalar_rsub[
 
 
 def scalar_rdiv[
-    dtype: DType, origin: Origin
+    dtype: DType, origin: Origin, //
 ](mat: MatrixView[Scalar[dtype], origin], scalar: Scalar[dtype]) -> Matrix[
     Scalar[dtype]
 ]:
@@ -960,7 +960,7 @@ def _max_lane[
 
 
 def prod[
-    dtype: DType, origin: Origin[mut=False]
+    dtype: DType, origin: Origin[mut=False], //
 ](m: MatrixView[Scalar[dtype], origin]) -> Scalar[dtype]:
     """Multiplies every element of a matrix or view.
 
@@ -978,7 +978,7 @@ def prod[
 
 
 def prod[
-    dtype: DType, origin: Origin[mut=False]
+    dtype: DType, origin: Origin[mut=False], //
 ](m: MatrixView[Scalar[dtype], origin], axis: Int) raises -> Matrix[
     Scalar[dtype]
 ]:
@@ -1007,7 +1007,7 @@ def prod[
 
 
 def min[
-    dtype: DType, origin: Origin[mut=False]
+    dtype: DType, origin: Origin[mut=False], //
 ](m: MatrixView[Scalar[dtype], origin]) raises -> Scalar[dtype]:
     """Returns the smallest element of a matrix or view.
 
@@ -1032,7 +1032,7 @@ def min[
 
 
 def min[
-    dtype: DType, origin: Origin[mut=False]
+    dtype: DType, origin: Origin[mut=False], //
 ](m: MatrixView[Scalar[dtype], origin], axis: Int) raises -> Matrix[
     Scalar[dtype]
 ]:
@@ -1065,7 +1065,7 @@ def min[
 
 
 def max[
-    dtype: DType, origin: Origin[mut=False]
+    dtype: DType, origin: Origin[mut=False], //
 ](m: MatrixView[Scalar[dtype], origin]) raises -> Scalar[dtype]:
     """Returns the largest element of a matrix or view.
 
@@ -1090,7 +1090,7 @@ def max[
 
 
 def max[
-    dtype: DType, origin: Origin[mut=False]
+    dtype: DType, origin: Origin[mut=False], //
 ](m: MatrixView[Scalar[dtype], origin], axis: Int) raises -> Matrix[
     Scalar[dtype]
 ]:
@@ -1123,7 +1123,7 @@ def max[
 
 
 def cumprod[
-    dtype: DType, origin: Origin[mut=False]
+    dtype: DType, origin: Origin[mut=False], //
 ](m: MatrixView[Scalar[dtype], origin]) raises -> Matrix[Scalar[dtype]]:
     """Returns the running product over every element, in row-major order.
 
@@ -1149,7 +1149,7 @@ def cumprod[
 
 
 def cumprod[
-    dtype: DType, origin: Origin[mut=False]
+    dtype: DType, origin: Origin[mut=False], //
 ](m: MatrixView[Scalar[dtype], origin], axis: Int) raises -> Matrix[
     Scalar[dtype]
 ]:
@@ -1207,9 +1207,10 @@ def cumprod[
 
 def _elementwise_numeric[
     T: Numeric,
-    func: def(T, T) raises thin -> T,
     origin_a: Origin,
     origin_b: Origin,
+    //,
+    func: def(T, T) raises thin -> T,
 ](a: MatrixView[T, origin_a], b: MatrixView[T, origin_b]) raises -> Matrix[T]:
     """Core element-wise binary operation on two views of the same shape.
 
@@ -1228,9 +1229,7 @@ def _elementwise_numeric[
 
 
 def _scalar_elementwise_numeric[
-    T: Numeric,
-    func: def(T, T) raises thin -> T,
-    origin: Origin,
+    T: Numeric, origin: Origin, //, func: def(T, T) raises thin -> T
 ](mat: MatrixView[T, origin], scalar: T) raises -> Matrix[T]:
     """Core scalar-matrix element-wise operation on one view."""
     var buffer = List[T](capacity=mat.nrows() * mat.ncols())
@@ -1241,28 +1240,28 @@ def _scalar_elementwise_numeric[
 
 
 def add[
-    T: Numeric, origin_a: Origin, origin_b: Origin
+    T: Numeric, origin_a: Origin, origin_b: Origin, //
 ](a: MatrixView[T, origin_a], b: MatrixView[T, origin_b]) raises -> Matrix[T]:
     """Element-wise addition of two matrices or views."""
     return _elementwise_numeric[func=T.__add__](a, b)
 
 
 def sub[
-    T: Numeric, origin_a: Origin, origin_b: Origin
+    T: Numeric, origin_a: Origin, origin_b: Origin, //
 ](a: MatrixView[T, origin_a], b: MatrixView[T, origin_b]) raises -> Matrix[T]:
     """Element-wise subtraction of two matrices or views."""
     return _elementwise_numeric[func=T.__sub__](a, b)
 
 
 def mul[
-    T: Numeric, origin_a: Origin, origin_b: Origin
+    T: Numeric, origin_a: Origin, origin_b: Origin, //
 ](a: MatrixView[T, origin_a], b: MatrixView[T, origin_b]) raises -> Matrix[T]:
     """Element-wise multiplication of two matrices or views."""
     return _elementwise_numeric[func=T.__mul__](a, b)
 
 
 def div[
-    T: Numeric, origin_a: Origin, origin_b: Origin
+    T: Numeric, origin_a: Origin, origin_b: Origin, //
 ](a: MatrixView[T, origin_a], b: MatrixView[T, origin_b]) raises -> Matrix[T]:
     """Element-wise division of two matrices or views.
 
@@ -1272,35 +1271,35 @@ def div[
 
 
 def scalar_add[
-    T: Numeric, origin: Origin
+    T: Numeric, origin: Origin, //
 ](mat: MatrixView[T, origin], scalar: T) raises -> Matrix[T]:
     """Adds a value to every element of a matrix or view."""
     return _scalar_elementwise_numeric[func=T.__add__](mat, scalar)
 
 
 def scalar_sub[
-    T: Numeric, origin: Origin
+    T: Numeric, origin: Origin, //
 ](mat: MatrixView[T, origin], scalar: T) raises -> Matrix[T]:
     """Subtracts a value from every element of a matrix or view."""
     return _scalar_elementwise_numeric[func=T.__sub__](mat, scalar)
 
 
 def scalar_mul[
-    T: Numeric, origin: Origin
+    T: Numeric, origin: Origin, //
 ](mat: MatrixView[T, origin], scalar: T) raises -> Matrix[T]:
     """Multiplies every element of a matrix or view by a value."""
     return _scalar_elementwise_numeric[func=T.__mul__](mat, scalar)
 
 
 def scalar_div[
-    T: Numeric, origin: Origin
+    T: Numeric, origin: Origin, //
 ](mat: MatrixView[T, origin], scalar: T) raises -> Matrix[T]:
     """Divides every element of a matrix or view by a value."""
     return _scalar_elementwise_numeric[func=T.__truediv__](mat, scalar)
 
 
 def neg[
-    T: Numeric, origin: Origin
+    T: Numeric, origin: Origin, //
 ](a: MatrixView[T, origin]) raises -> Matrix[T]:
     """Negates every element of a matrix or view."""
     var buffer = List[T](capacity=a.nrows() * a.ncols())
@@ -1319,21 +1318,21 @@ def _rdiv_numeric[T: Numeric](a: T, b: T) raises -> T:
 
 
 def scalar_rsub[
-    T: Numeric, origin: Origin
+    T: Numeric, origin: Origin, //
 ](mat: MatrixView[T, origin], scalar: T) raises -> Matrix[T]:
     """Subtracts every element of a matrix or view from a value."""
     return _scalar_elementwise_numeric[func=_rsub_numeric[T]](mat, scalar)
 
 
 def scalar_rdiv[
-    T: Numeric, origin: Origin
+    T: Numeric, origin: Origin, //
 ](mat: MatrixView[T, origin], scalar: T) raises -> Matrix[T]:
     """Divides a value by every element of a matrix or view."""
     return _scalar_elementwise_numeric[func=_rdiv_numeric[T]](mat, scalar)
 
 
 def matmul[
-    T: Numeric, origin_a: Origin, origin_b: Origin
+    T: Numeric, origin_a: Origin, origin_b: Origin, //
 ](a: MatrixView[T, origin_a], b: MatrixView[T, origin_b]) raises -> Matrix[T]:
     """Performs matrix multiplication.
 

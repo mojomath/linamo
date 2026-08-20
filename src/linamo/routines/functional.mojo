@@ -33,6 +33,7 @@ from linamo.types.matrix_view import MatrixView
 def fold[
     dtype: DType,
     origin: Origin[mut=False],
+    //,
     func: def(Scalar[dtype], Scalar[dtype]) thin -> Scalar[dtype],
 ](v: MatrixView[Scalar[dtype], origin], init: Scalar[dtype]) -> Scalar[dtype]:
     """Reduces every element of a view to a single scalar.
@@ -92,6 +93,7 @@ def fold[
 def apply_along_axis[
     dtype: DType,
     origin: Origin[mut=False],
+    //,
     axis: Int,
     func: def(MatrixView[Scalar[dtype], origin]) thin -> Scalar[dtype],
 ](m: MatrixView[Scalar[dtype], origin]) raises -> Matrix[Scalar[dtype]] where (

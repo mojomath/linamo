@@ -33,7 +33,7 @@ def _sum_lane[
 
 
 def sum[
-    dtype: DType, origin: Origin[mut=False]
+    dtype: DType, origin: Origin[mut=False], //
 ](m: MatrixView[Scalar[dtype], origin]) -> Scalar[dtype]:
     """Sums every element of a matrix or view.
 
@@ -51,7 +51,7 @@ def sum[
 
 
 def sum[
-    T: Numeric, origin: Origin[mut=False]
+    T: Numeric, origin: Origin[mut=False], //
 ](m: MatrixView[T, origin]) raises -> T:
     """Sums every element of a matrix or view.
 
@@ -77,7 +77,7 @@ def sum[
 
 
 def sum[
-    dtype: DType, origin: Origin[mut=False]
+    dtype: DType, origin: Origin[mut=False], //
 ](m: MatrixView[Scalar[dtype], origin], axis: Int) raises -> Matrix[
     Scalar[dtype]
 ]:
@@ -116,7 +116,7 @@ def sum[
 
 
 def cumsum[
-    dtype: DType, origin: Origin[mut=False]
+    dtype: DType, origin: Origin[mut=False], //
 ](m: MatrixView[Scalar[dtype], origin]) raises -> Matrix[Scalar[dtype]]:
     """Returns the running sum over every element, in row-major order.
 
@@ -146,7 +146,7 @@ def cumsum[
 
 
 def cumsum[
-    dtype: DType, origin: Origin[mut=False]
+    dtype: DType, origin: Origin[mut=False], //
 ](m: MatrixView[Scalar[dtype], origin], axis: Int) raises -> Matrix[
     Scalar[dtype]
 ]:

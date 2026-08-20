@@ -39,7 +39,7 @@ def _check_axis(axis: Int, function: String) raises:
 
 
 def sort[
-    T: Copyable & Deinitable & Comparable, origin: Origin[mut=False]
+    T: Copyable & Deinitable & Comparable, origin: Origin[mut=False], //
 ](m: MatrixView[T, origin], axis: Int) raises -> Matrix[T]:
     """Returns a copy with each lane sorted ascending.
 
@@ -91,7 +91,7 @@ def sort[
 
 
 def sort_inplace[
-    T: Copyable & Deinitable & Comparable
+    T: Copyable & Deinitable & Comparable, //
 ](mut m: Matrix[T], axis: Int) raises:
     """Sorts each lane of a matrix ascending, in place.
 
@@ -131,7 +131,7 @@ def sort_inplace[
 
 
 def argsort[
-    T: Copyable & Deinitable & Comparable, origin: Origin[mut=False]
+    T: Copyable & Deinitable & Comparable, origin: Origin[mut=False], //
 ](m: MatrixView[T, origin], axis: Int) raises -> Matrix[Scalar[DType.int64]]:
     """Returns the indices that would sort each lane ascending.
 
@@ -171,7 +171,7 @@ def argsort[
 
 
 def _stable_order[
-    T: Copyable & Deinitable & Comparable, origin: Origin[mut=False]
+    T: Copyable & Deinitable & Comparable, origin: Origin[mut=False], //
 ](m: MatrixView[T, origin], lane: Int, axis: Int) -> List[Int]:
     """Returns the stable ascending permutation of one lane.
 

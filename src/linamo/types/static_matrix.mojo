@@ -266,7 +266,7 @@ struct StaticMatrix[T: Copyable & Deinitable, num_rows: Int, num_cols: Int](
                 result += "\n"
         return result
 
-    def write_to[W: Writer](self, mut writer: W):
+    def write_to[W: Writer, //](self, mut writer: W):
         """Writes the matrix to a writer."""
         writer.write("StaticMatrix, ")
         writer.write(element_type_name[Self.ElementType]())
@@ -304,7 +304,7 @@ struct StaticMatrix[T: Copyable & Deinitable, num_rows: Int, num_cols: Int](
         return linamo.routines.math.add(self._as_simd(), other._as_simd())
 
     def __matmul__[
-        other_num_cols: Int
+        other_num_cols: Int, //
     ](
         self, other: StaticMatrix[Self.T, Self.num_cols, other_num_cols]
     ) -> StaticMatrix[Scalar[Self.dtype], Self.num_rows, other_num_cols]:

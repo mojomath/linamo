@@ -17,6 +17,7 @@ manual is the prose half: the shape of the API, not an enumeration of it.
 - [Linamo User Manual](#linamo-user-manual)
   - [Getting started](#getting-started)
     - [The element type is a type](#the-element-type-is-a-type)
+    - [What goes in the brackets](#what-goes-in-the-brackets)
     - [Generating the symbol reference](#generating-the-symbol-reference)
   - [The two types](#the-two-types)
     - [Mutability of indexing and slicing](#mutability-of-indexing-and-slicing)
@@ -147,6 +148,35 @@ or give the list a type of its own first:
 var rows: List[List[Float64]] = [[1.0, 2.0], [3.0, 4.0]]
 var A = la.matrix(rows)          # element type inferred from the argument
 ```
+
+### What goes in the brackets
+
+If a name takes square brackets, everything in them is yours to write. The
+parameters Linamo works out for itself — the element type of an argument you
+already passed, the origin a view borrows from — sit behind a `//` in the
+signature and are unwritable:
+
+```mojo
+def sum[dtype: DType, origin: Origin[mut=False], //](
+    m: MatrixView[Scalar[dtype], origin]
+) -> Scalar[dtype]:
+```
+
+So `la.sum(m)` is the only spelling; `la.sum[DType.float64](m)` is rejected
+with *unexpected parameter*. Nothing is lost, because there was never a second
+answer available: `dtype` can only be whatever `m` holds.
+
+The marker also renumbers the slots, so the first parameter you *are* meant to
+write is always the first one in the brackets:
+
+```mojo
+m.load[4](0, 0)                    # 4 is the SIMD width, not the dtype
+la.apply_along_axis[0, my_lane](m) # 0 is the axis
+```
+
+Read a bracket list, then, as the list of decisions the library cannot make for
+you: the element type of a matrix conjured out of nothing (`la.zeros[BInt]`), a
+SIMD width, an axis, a comparison kernel.
 
 ### Generating the symbol reference
 
@@ -462,6 +492,29 @@ these names the offending token.
 
 `from_list` is the same thing for a list you already have — the positional
 spelling of the keyword-only `matrix(flat_list=..., nrows=..., ncols=...)`.
+
+`from_string` takes the arbitrary-precision element types too:
+
+```mojo
+var E = la.from_string[la.Dec128]("[[0.1, 0.2], [0.3, 0.4]]")
+var F = la.from_string[la.BDec]("[[1.5], [2.5]]")
+var G = la.from_string[la.BInt]("[[170141183460469231731687303715884105728]]")
+```
+
+For those types this is the short spelling of something you can always do by
+hand — `la.matrix[la.Dec128]([[la.Dec128("0.1"), la.Dec128("0.2")]])` builds
+the same matrix, one element at a time. What you cannot do is hand the routine
+a list of `Float64` and let the conversion happen: `Dec128` and `BDec` have no
+implicit constructor from one, deliberately, because it would round the literal
+to the nearest binary float before the element ever saw it and `0.1` would
+arrive as 0.1000000000000000055511151231257827. `la.Dec128(1.1)` is available
+if you want it, but it goes through `from_float` and inherits Float64's limits
+— decimo documents it as reliable to about 15 significant digits. Spelled from
+text, `0.1` is a tenth, and `la.sum` over `E` above is exactly `1`.
+
+`BInt` is capped the same way for a different reason: the integer in `G` is
+2^127, one past what any built-in width holds, so there is no literal type it
+could have passed through on the way in.
 
 ---
 
@@ -1200,10 +1253,15 @@ a.transpose()       # only moves elements
 la.sort(a, 1)       # only compares them
 la.trace(a)         # the diagonal sum
 la.eye[BInt](3)     # asks `Numeric` for a zero and a one
+
+la.from_string[BInt]("[[1, 2], [3, 4]]")   # asks `Parsable` to read the text
 ```
 
 The element types Linamo re-exports are exactly those that conform to
-`decimo.Numeric`, under both of Decimo's spellings:
+`decimo.Numeric`, under both of Decimo's spellings. All three also conform to
+`decimo.Parsable`, which is what `from_string` above asks for — the two traits
+are separate because the capabilities are, and a routine asks for whichever it
+uses:
 
 | Long name    | Short name | What it is                                    |
 | ------------ | ---------- | --------------------------------------------- |

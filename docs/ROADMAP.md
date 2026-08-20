@@ -1111,3 +1111,30 @@ call site keeps it.
 |            | fallback `decimo.mojoc` next to it and deleted it as a stale  |
 |            | shadow; the probe now builds in a scratch directory and the   |
 |            | clone lives outside the include path. 523 tests.              |
+| 2026-08-21 | Everything the compiler can deduce now sits behind a `//` and |
+|            | is unwritable: 209 signatures across the whole library, so a  |
+|            | bracket list means one thing everywhere --- these are the     |
+|            | decisions Linamo cannot make for you.                         |
+|            | `la.sum[DType.float64](m)` is now *unexpected parameter*      |
+|            | rather than a second way to spell `la.sum(m)`. The marker     |
+|            | also renumbers the slots, which is what makes `fold[my_op]`   |
+|            | and `apply_along_axis[0, lane]` positional; `func` and `axis` |
+|            | moved to the back of those two signatures and of the eight    |
+|            | element-wise helpers to allow it, invisibly, since every call |
+|            | site already named them by keyword. Left writable: the        |
+|            | element type of a matrix conjured from nothing (`zeros[T]`),  |
+|            | a SIMD width, an axis, a kernel passed as a `func=` value,    |
+|            | and `_simd_view[d]` / `_as_simd[d]`, whose `d` comes from a   |
+|            | `where` clause rather than an argument and so cannot be       |
+|            | inferred at a call site inside a generic method --- `Self.T`  |
+|            | is not concrete there yet. Also: `from_string` now takes      |
+|            | arbitrary-precision elements. Building one by hand always     |
+|            | worked --- `matrix[Dec128]([[Dec128("0.1")]])` --- but a list |
+|            | of `Float64` cannot be handed over: `Dec128` and `BDec` have  |
+|            | no implicit constructor from one, since routing a literal     |
+|            | through it would round to a binary float first. That needed a |
+|            | capability the `Numeric` trait does not carry, so decimo      |
+|            | gained `Parsable` (one static `from_string`) beside it, and   |
+|            | `numeric.mojo` became `traits.mojo` now that it holds two.    |
+|            | The bracket walk in `_tokenize_rows` is shared: the element   |
+|            | type enters only through a `parse` parameter. 528 tests.      |
