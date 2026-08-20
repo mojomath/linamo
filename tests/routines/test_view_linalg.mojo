@@ -28,9 +28,7 @@ from linamo.utils.test_utils import assert_matrices_close
 
 def test_transpose_view() raises:
     """Transpose a 2x2 sub-view of a 3x3 matrix."""
-    var a = matrix[DType.float64](
-        [[1.0, 2.0, 3.0], [4.0, 5.0, 6.0], [7.0, 8.0, 9.0]]
-    )
+    var a = matrix[Float64]([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0], [7.0, 8.0, 9.0]])
     var v = a[0:2, 0:2]  # [[1, 2], [4, 5]]
     var t = transpose(v)
     testing.assert_equal(t[0, 0], 1.0)
@@ -41,9 +39,7 @@ def test_transpose_view() raises:
 
 def test_transpose_view_rectangular() raises:
     """Transpose a 2x3 sub-view."""
-    var a = matrix[DType.float64](
-        [[1.0, 2.0, 3.0], [4.0, 5.0, 6.0], [7.0, 8.0, 9.0]]
-    )
+    var a = matrix[Float64]([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0], [7.0, 8.0, 9.0]])
     var v = a[0:2, 0:3]  # [[1, 2, 3], [4, 5, 6]]
     var t = transpose(v)
     # Should be 3x2
@@ -60,9 +56,7 @@ def test_transpose_view_rectangular() raises:
 
 def test_trace_view() raises:
     """Trace of a 2x2 sub-view."""
-    var a = matrix[DType.float64](
-        [[1.0, 2.0, 3.0], [4.0, 5.0, 6.0], [7.0, 8.0, 9.0]]
-    )
+    var a = matrix[Float64]([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0], [7.0, 8.0, 9.0]])
     var v = a[0:2, 0:2]  # [[1, 2], [4, 5]]
     var t = trace(v)
     testing.assert_equal(t, 6.0)  # 1 + 5
@@ -75,7 +69,7 @@ def test_trace_view() raises:
 
 def test_lu_view() raises:
     """LU decomposition on a 2x2 sub-view, then verify PA=LU."""
-    var a = matrix[DType.float64](
+    var a = matrix[Float64](
         [[4.0, 3.0, 99.0], [6.0, 3.0, 99.0], [99.0, 99.0, 99.0]]
     )
     var v = a[0:2, 0:2]  # [[4, 3], [6, 3]]
@@ -110,9 +104,7 @@ def test_lu_view() raises:
 def test_cholesky_view() raises:
     """Cholesky decomposition on a 2x2 sub-view of an SPD matrix."""
     # Build 3x3 with a 2x2 SPD top-left block: [[4, 2], [2, 5]]
-    var a = matrix[DType.float64](
-        [[4.0, 2.0, 0.0], [2.0, 5.0, 0.0], [0.0, 0.0, 1.0]]
-    )
+    var a = matrix[Float64]([[4.0, 2.0, 0.0], [2.0, 5.0, 0.0], [0.0, 0.0, 1.0]])
     var v = a[0:2, 0:2]
     var L = cholesky(v)
     # Verify L L^T = A_view
@@ -132,7 +124,7 @@ def test_cholesky_view() raises:
 
 def test_qr_view() raises:
     """QR decomposition on a 2x2 sub-view."""
-    var a = matrix[DType.float64](
+    var a = matrix[Float64](
         [[1.0, 2.0, 99.0], [3.0, 4.0, 99.0], [99.0, 99.0, 99.0]]
     )
     var v = a[0:2, 0:2]  # [[1, 2], [3, 4]]
@@ -159,7 +151,7 @@ def test_qr_view() raises:
 
 def test_det_view() raises:
     """Determinant of a 2x2 sub-view."""
-    var a = matrix[DType.float64](
+    var a = matrix[Float64](
         [[1.0, 2.0, 99.0], [3.0, 4.0, 99.0], [99.0, 99.0, 99.0]]
     )
     var v = a[0:2, 0:2]  # [[1, 2], [3, 4]], det = -2
@@ -177,36 +169,36 @@ def test_det_view() raises:
 
 def test_solve_view_view() raises:
     """Solve Ax = b where A and b are views."""
-    var big_a = matrix[DType.float64](
+    var big_a = matrix[Float64](
         [[2.0, 1.0, 99.0], [5.0, 3.0, 99.0], [99.0, 99.0, 99.0]]
     )
-    var big_b = matrix[DType.float64]([[5.0, 99.0], [13.0, 99.0], [99.0, 99.0]])
+    var big_b = matrix[Float64]([[5.0, 99.0], [13.0, 99.0], [99.0, 99.0]])
     var va = big_a[0:2, 0:2]
     var vb = big_b[0:2, 0:1]
     var x = solve(va, vb)
-    var expected = matrix[DType.float64]([[2.0], [1.0]])
+    var expected = matrix[Float64]([[2.0], [1.0]])
     assert_matrices_close(x, expected, msg="solve vv", atol=1e-10)
 
 
 def test_solve_mat_view() raises:
     """Solve Ax = b where A is Matrix, b is view."""
-    var A = matrix[DType.float64]([[2.0, 1.0], [5.0, 3.0]])
-    var big_b = matrix[DType.float64]([[5.0, 99.0], [13.0, 99.0]])
+    var A = matrix[Float64]([[2.0, 1.0], [5.0, 3.0]])
+    var big_b = matrix[Float64]([[5.0, 99.0], [13.0, 99.0]])
     var vb = big_b[0:2, 0:1]
     var x = solve(A, vb)
-    var expected = matrix[DType.float64]([[2.0], [1.0]])
+    var expected = matrix[Float64]([[2.0], [1.0]])
     assert_matrices_close(x, expected, msg="solve mv", atol=1e-10)
 
 
 def test_solve_view_mat() raises:
     """Solve Ax = b where A is view, b is Matrix."""
-    var big_a = matrix[DType.float64](
+    var big_a = matrix[Float64](
         [[2.0, 1.0, 99.0], [5.0, 3.0, 99.0], [99.0, 99.0, 99.0]]
     )
     var va = big_a[0:2, 0:2]
-    var b = matrix[DType.float64]([[5.0], [13.0]])
+    var b = matrix[Float64]([[5.0], [13.0]])
     var x = solve(va, b)
-    var expected = matrix[DType.float64]([[2.0], [1.0]])
+    var expected = matrix[Float64]([[2.0], [1.0]])
     assert_matrices_close(x, expected, msg="solve vm", atol=1e-10)
 
 
@@ -217,13 +209,13 @@ def test_solve_view_mat() raises:
 
 def test_inv_view() raises:
     """Inverse of a 2x2 sub-view."""
-    var big = matrix[DType.float64](
+    var big = matrix[Float64](
         [[2.0, 1.0, 99.0], [5.0, 3.0, 99.0], [99.0, 99.0, 99.0]]
     )
     var v = big[0:2, 0:2]  # [[2, 1], [5, 3]]
     var inv_v = inv(v)
     # inv([[2,1],[5,3]]) = [[3,-1],[-5,2]]
-    var expected = matrix[DType.float64]([[3.0, -1.0], [-5.0, 2.0]])
+    var expected = matrix[Float64]([[3.0, -1.0], [-5.0, 2.0]])
     assert_matrices_close(inv_v, expected, msg="inv of sub-view", atol=1e-10)
 
 
@@ -234,21 +226,21 @@ def test_inv_view() raises:
 
 def test_lstsq_view_view() raises:
     """Least-squares on two views (exact system: square)."""
-    var big_a = matrix[DType.float64](
+    var big_a = matrix[Float64](
         [[1.0, 1.0, 99.0], [1.0, 2.0, 99.0], [99.0, 99.0, 99.0]]
     )
-    var big_b = matrix[DType.float64]([[3.0, 99.0], [5.0, 99.0], [99.0, 99.0]])
+    var big_b = matrix[Float64]([[3.0, 99.0], [5.0, 99.0], [99.0, 99.0]])
     var va = big_a[0:2, 0:2]
     var vb = big_b[0:2, 0:1]
     var x = lstsq(va, vb)
-    var expected = matrix[DType.float64]([[1.0], [2.0]])
+    var expected = matrix[Float64]([[1.0], [2.0]])
     assert_matrices_close(x, expected, msg="lstsq view exact", atol=1e-9)
 
 
 def test_lstsq_overdetermined_view() raises:
     """Least-squares on an overdetermined system using views."""
-    var A = matrix[DType.float64]([[1.0, 1.0], [1.0, 2.0], [1.0, 3.0]])
-    var b = matrix[DType.float64]([[1.0], [2.0], [2.0]])
+    var A = matrix[Float64]([[1.0, 1.0], [1.0, 2.0], [1.0, 3.0]])
+    var b = matrix[Float64]([[1.0], [2.0], [2.0]])
     var x = lstsq(A.view(), b.view())
     # Verify via reconstruction: Ax should be close to b
     var Ax = matmul(A, x)

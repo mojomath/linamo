@@ -10,6 +10,7 @@ import linamo.routines.math
 import linamo.routines.logic
 import linamo.routines.manipulation
 import linamo.routines.mutation as mutation
+from linamo.utils.str import element_type_name
 from linamo.utils.indexing import (
     get_offset,
     indices_within_bounds,
@@ -18,21 +19,33 @@ from linamo.utils.indexing import (
 )
 
 
-struct Matrix[dtype: DType](Copyable, Movable, Sized, Writable):
+struct Matrix[T: Copyable & Deinitable](
+    Copyable, Movable, Sized, Writable where conforms_to(T, Writable)
+):
     """A 2D matrix type.
     A matrix owns its data and can write to it. The elements are stored in a
     contiguous block of memory in either row-major (C-contiguous) or
     column-major (Fortran-contiguous) order.
 
     Parameters:
-        dtype: The data type of the matrix elements.
+        T: The type of the matrix elements.
     """
 
     # [Mojo Miji]
-    # `comptime` can be used to define a type alias that can be translated back
-    # to the original type at compile time. We do this for convenience.
-    comptime ElementType = Scalar[Self.dtype]
-    """The type of the elements in the matrix, derived from the dtype."""
+    # The parameter is the element *type*, not a `DType`, so a matrix is
+    # spelled the way every other container is: `Matrix[Float64]` beside
+    # `List[Float64]`. `Float64` is itself `Scalar[DType.float64]`, so nothing
+    # about the scalar case is lost --- the routines recover the dtype by
+    # matching `Matrix[Scalar[d]]`, which infers `d` --- and an element type
+    # that has no `DType` at all, such as an arbitrary-precision integer, is
+    # now expressible.
+    #
+    # The bound is `List`'s own bound. A matrix is a container first, so it
+    # accepts exactly what its storage accepts, and the arithmetic
+    # requirements are asked for per method rather than up front.
+    comptime ElementType = Self.T
+    """The type of the elements in the matrix. A second name for `T`, used in
+    signatures where `T` alone would read as a stray letter."""
 
     # [Mojo Miji]
     # If we want to implement a simple 2D matrix type,
@@ -184,13 +197,15 @@ struct Matrix[dtype: DType](Copyable, Movable, Sized, Writable):
         self._row_stride = row_stride
         self._col_stride = col_stride
 
-    def __init__(
+    def __init__[
+        d: DType
+    ](
         out self,
         nrows: Int,
         ncols: Int,
         row_stride: Int,
         col_stride: Int,
-    ):
+    ) where (Self.T == Scalar[d]):
         debug_assert(
             layout_is_dense(nrows, ncols, row_stride, col_stride),
             "Debug assertion failed: `Matrix` layout is not C- or F-major",
@@ -201,7 +216,12 @@ struct Matrix[dtype: DType](Copyable, Movable, Sized, Writable):
             ),
             "Debug assertion failed: `Matrix` layout overruns its buffer",
         )
-        self._data = List[Self.ElementType](length=nrows * ncols, fill=0)
+        # `0` is a value only a numeric type has, so it is spelled as a
+        # `Scalar[d]` and restated as `Self.T` --- a rebind of one element,
+        # not of the buffer.
+        self._data = List[Self.ElementType](
+            length=nrows * ncols, fill=rebind[Self.ElementType](Scalar[d](0))
+        )
         self._nrows = nrows
         self._ncols = ncols
         self._row_stride = row_stride
@@ -282,7 +302,7 @@ struct Matrix[dtype: DType](Copyable, Movable, Sized, Writable):
         )[]
 
     # [Mojo Miji]
-    # When you pass `Self.dtype` and `origin_of(self)` as parameters to the
+    # When you pass `Self.T` and `origin_of(self)` as parameters to the
     # `MatrixView` type, you are creating a new, specific instantiation of the
     # generic `MatrixView` type that is tailored to the certain data type and
     # the origin of the current matrix instance.
@@ -309,7 +329,7 @@ struct Matrix[dtype: DType](Copyable, Movable, Sized, Writable):
     # `view(x, y)`, which does inherit mutability.
     def __getitem__(
         self, x: Slice, y: Slice
-    ) raises -> MatrixView[dtype=Self.dtype, origin=origin_of(self._data)]:
+    ) raises -> MatrixView[T=Self.T, origin=origin_of(self._data)]:
         """Gets a read-only view of the specified rows and columns."""
         return MatrixView(
             buffer=self._data,
@@ -341,7 +361,7 @@ struct Matrix[dtype: DType](Copyable, Movable, Sized, Writable):
             "Debug assertion failed: Indices out of bounds in `unsafe_load`",
         )
         var offset = get_offset(row, col, self._row_stride, self._col_stride)
-        return self._data._data.unsafe_offset(offset)[]
+        return self._data._data.unsafe_offset(offset)[].copy()
 
     # [Mojo Miji]
     # `read self`, not `ref self`. This method is the Matrix -> MatrixView
@@ -351,7 +371,7 @@ struct Matrix[dtype: DType](Copyable, Movable, Sized, Writable):
     # `m.view() - m.view()` was rejected as two mutable borrows of one matrix,
     # and meant an innocuous-looking call was a write door. It is now a
     # shorthand for `m[:, :]` and nothing more.
-    def view(imm self) -> MatrixView[Self.dtype, origin_of(self._data)]:
+    def view(imm self) -> MatrixView[Self.T, origin_of(self._data)]:
         """Gets a read-only view of the entire matrix.
 
         This is the same thing `m[:, :]` produces, and is the conversion the
@@ -383,7 +403,7 @@ struct Matrix[dtype: DType](Copyable, Movable, Sized, Writable):
 
     def rows[
         forward: Bool = True
-    ](self) -> MatrixAxisIter[Self.dtype, origin_of(self._data), 0, forward]:
+    ](self) -> MatrixAxisIter[Self.T, origin_of(self._data), 0, forward]:
         """Iterates over the rows, yielding each as a `1 x ncols` view.
 
         Nothing is copied. The rows are read-only regardless of how the
@@ -398,7 +418,7 @@ struct Matrix[dtype: DType](Copyable, Movable, Sized, Writable):
 
     def cols[
         forward: Bool = True
-    ](self) -> MatrixAxisIter[Self.dtype, origin_of(self._data), 1, forward]:
+    ](self) -> MatrixAxisIter[Self.T, origin_of(self._data), 1, forward]:
         """Iterates over the columns, yielding each as an `nrows x 1` view.
 
         Parameters:
@@ -408,7 +428,7 @@ struct Matrix[dtype: DType](Copyable, Movable, Sized, Writable):
 
     def __iter__(
         self,
-    ) -> MatrixAxisIter[Self.dtype, origin_of(self._data), 0, True]:
+    ) -> MatrixAxisIter[Self.T, origin_of(self._data), 0, True]:
         """Iterates over the rows, so `for row in matrix` walks row views."""
         return self.rows()
 
@@ -418,7 +438,7 @@ struct Matrix[dtype: DType](Copyable, Movable, Sized, Writable):
     # lands.
     def __reversed__(
         self,
-    ) -> MatrixAxisIter[Self.dtype, origin_of(self._data), 0, False]:
+    ) -> MatrixAxisIter[Self.T, origin_of(self._data), 0, False]:
         """Iterates over the rows from last to first."""
         return self.rows[False]()
 
@@ -426,9 +446,34 @@ struct Matrix[dtype: DType](Copyable, Movable, Sized, Writable):
     # SIMD access
     # ===--------------------------------------------------------------------===#
 
+    # [Mojo Miji]
+    # `where Self.T == Scalar[d]` decides whether a method exists, but it does
+    # not *refine* `T` inside the body: the body is still checked against the
+    # opaque `T`, so `self` will not bind to a parameter written in terms of
+    # `Scalar[d]`. This restates the element type for the routines that need
+    # it, and does so as a *view*, which is an O(1) metadata copy rather than a
+    # copy of the buffer. Every dtype-gated method below routes through it.
+    @always_inline
+    def _simd_view[
+        d: DType
+    ](imm self) -> MatrixView[Scalar[d], origin_of(self._data)] where (
+        Self.T == Scalar[d]
+    ):
+        """Returns a read-only view with the element type restated.
+
+        Parameters:
+            d: The dtype of the elements, deduced from `Self.T`.
+
+        Returns:
+            The same elements, typed so that the SIMD routines accept them.
+        """
+        return rebind[MatrixView[Scalar[d], origin_of(self._data)]](self.view())
+
     def load[
-        width: Int = 1
-    ](self, row: Int, col: Int) raises -> SIMD[Self.dtype, width]:
+        d: DType, //, width: Int = 1
+    ](self, row: Int, col: Int) raises -> SIMD[d, width] where (
+        Self.T == Scalar[d]
+    ):
         """Loads `width` elements along row `row`, starting at column `col`.
 
         When the row is contiguous (`col_stride == 1`) this is a single vector
@@ -436,6 +481,7 @@ struct Matrix[dtype: DType](Copyable, Movable, Sized, Writable):
         correct and only the speed changes.
 
         Parameters:
+            d: The dtype of the elements, deduced from `Self.T`.
             width: How many elements to load.
 
         Args:
@@ -461,19 +507,23 @@ struct Matrix[dtype: DType](Copyable, Movable, Sized, Writable):
         var base = get_offset(row, col, self._row_stride, self._col_stride)
         if self._col_stride == 1:
             return (
-                Span(self._data)
-                .unsafe_ptr()
+                self._simd_view[d]()
+                ._data.unsafe_ptr()
                 .unsafe_offset(base)
                 .unsafe_load[width=width]()
             )
-        var result = SIMD[Self.dtype, width]()
+        var result = SIMD[d, width]()
         for i in range(width):
-            result[i] = self._data[base + i * self._col_stride]
+            result[i] = rebind[Scalar[d]](
+                self._data[base + i * self._col_stride]
+            )
         return result
 
     def store[
-        width: Int = 1
-    ](mut self, row: Int, col: Int, value: SIMD[Self.dtype, width]) raises:
+        d: DType, //, width: Int = 1
+    ](mut self, row: Int, col: Int, value: SIMD[d, width]) raises where (
+        Self.T == Scalar[d]
+    ):
         """Stores `width` elements along row `row`, starting at column `col`.
 
         Unlike the view equivalent this can be a method, because a `Matrix`
@@ -481,6 +531,7 @@ struct Matrix[dtype: DType](Copyable, Movable, Sized, Writable):
         read-only instantiation the body would also have to satisfy.
 
         Parameters:
+            d: The dtype of the elements, deduced from `Self.T`.
             width: How many elements to store.
 
         Args:
@@ -502,13 +553,15 @@ struct Matrix[dtype: DType](Copyable, Movable, Sized, Writable):
                 message="SIMD store runs past the end of the matrix.",
             )
         var base = get_offset(row, col, self._row_stride, self._col_stride)
+        # A `mut` rebind of the buffer would copy it, so the element type is
+        # restated on the pointer instead --- a value, and one the write goes
+        # straight through.
+        var ptr = self._data.unsafe_ptr().unsafe_bitcast[Scalar[d]]()
         if self._col_stride == 1:
-            Span(self._data).unsafe_ptr().unsafe_offset(base).unsafe_store(
-                value
-            )
+            ptr.unsafe_offset(base).unsafe_store(value)
         else:
             for i in range(width):
-                self._data[base + i * self._col_stride] = value[i]
+                ptr.unsafe_offset(base + i * self._col_stride)[] = value[i]
 
     # ===--------------------------------------------------------------------===#
     # Region writes
@@ -543,7 +596,7 @@ struct Matrix[dtype: DType](Copyable, Movable, Sized, Writable):
             value: The scalar written to every element.
         """
         for i in range(len(self._data)):
-            self._data[i] = value
+            self._data[i] = value.copy()
 
     def set(mut self, rows: Slice, cols: Slice, value: Self.ElementType) raises:
         """Writes one scalar into every element of the selected region.
@@ -560,7 +613,7 @@ struct Matrix[dtype: DType](Copyable, Movable, Sized, Writable):
 
     def set[
         mut_b: Bool, //, origin_b: Origin[mut=mut_b]
-    ](mut self, src: MatrixView[Self.dtype, origin_b]) raises:
+    ](mut self, src: MatrixView[Self.T, origin_b]) raises:
         """Copies `src` into the whole matrix.
 
         Parameters:
@@ -581,7 +634,7 @@ struct Matrix[dtype: DType](Copyable, Movable, Sized, Writable):
         mut self,
         rows: Slice,
         cols: Slice,
-        src: MatrixView[Self.dtype, origin_b],
+        src: MatrixView[Self.T, origin_b],
     ) raises:
         """Copies `src` into the region selected by `rows` and `cols`.
 
@@ -617,11 +670,11 @@ struct Matrix[dtype: DType](Copyable, Movable, Sized, Writable):
         Raises:
             IndexError: If the indices are out of bounds.
         """
-        self[row, col] = value
+        self[row, col] = value.copy()
 
     def view_mut(
         ref self, x: Slice, y: Slice
-    ) raises -> MatrixView[Self.dtype, origin_of(self._data)]:
+    ) raises -> MatrixView[Self.T, origin_of(self._data)]:
         """Gets a writable view of a region of this matrix.
 
         The counterpart of `m[x, y]`, which is always read-only. The view
@@ -647,22 +700,36 @@ struct Matrix[dtype: DType](Copyable, Movable, Sized, Writable):
     # Type conversion
     # ===--------------------------------------------------------------------===#
 
-    def astype[target: DType](self) raises -> Matrix[target]:
+    def astype[
+        d: DType, target: DType, //, Target: Copyable & Deinitable
+    ](self) raises -> Matrix[Scalar[target]] where (
+        Self.T == Scalar[d] and Target == Scalar[target]
+    ):
         """Returns a C-contiguous copy of this matrix cast to `target`.
 
         Parameters:
-            target: The data type of the result elements.
+            d: The dtype of this matrix's elements, deduced from `Self.T`.
+            target: The dtype behind `Target`, deduced rather than
+                written.
+            Target: The type of the result elements.
 
         Returns:
-            A new `Matrix[target]` with the same shape.
+            A new `Matrix[Scalar[target]]` with the same shape.
         """
-        return linamo.routines.manipulation.astype[target](self)
+        return linamo.routines.manipulation.astype[Scalar[target]](
+            self._simd_view[d]()
+        )
 
     # ===--------------------------------------------------------------------===#
     # String Representation and Writing
     # ===--------------------------------------------------------------------===#
 
-    def __str__(self) -> String:
+    # [Mojo Miji]
+    # Both of these render elements as text, so they exist only when the
+    # element type can be written. The struct's `Writable` conformance carries
+    # the same condition, which is what keeps `print(m)` available for
+    # `Matrix[Float64]` and absent for an element type with no `write_to`.
+    def __str__(self) -> String where conforms_to(Self.T, Writable):
         """Returns a string representation of the matrix."""
         var result = String("")
         for i in range(self._nrows):
@@ -679,10 +746,12 @@ struct Matrix[dtype: DType](Copyable, Movable, Sized, Writable):
                 result += "\n"
         return result
 
-    def write_to[W: Writer](self, mut writer: W):
+    def write_to[
+        W: Writer
+    ](self, mut writer: W) where conforms_to(Self.T, Writable):
         """Writes the matrix to a writer."""
         writer.write("Matrix, ")
-        writer.write(self.dtype)
+        writer.write(element_type_name[Self.T]())
         writer.write(", ")
         writer.write(self._nrows)
         writer.write("x")
@@ -720,34 +789,54 @@ struct Matrix[dtype: DType](Copyable, Movable, Sized, Writable):
     # pair of shared borrows rather than an aliasing violation.
 
     def __add__[
-        origin: Origin
-    ](self, other: MatrixView[Self.dtype, origin]) raises -> Self:
+        d: DType, origin: Origin
+    ](self, other: MatrixView[Self.T, origin]) raises -> Matrix[
+        Scalar[d]
+    ] where (Self.T == Scalar[d]):
         """Performs element-wise addition."""
-        return linamo.routines.math.add(self, other)
+        return linamo.routines.math.add(
+            self._simd_view[d](), other._as_simd[d]()
+        )
 
     def __sub__[
-        origin: Origin
-    ](self, other: MatrixView[Self.dtype, origin]) raises -> Self:
+        d: DType, origin: Origin
+    ](self, other: MatrixView[Self.T, origin]) raises -> Matrix[
+        Scalar[d]
+    ] where (Self.T == Scalar[d]):
         """Performs element-wise subtraction."""
-        return linamo.routines.math.sub(self, other)
+        return linamo.routines.math.sub(
+            self._simd_view[d](), other._as_simd[d]()
+        )
 
     def __mul__[
-        origin: Origin
-    ](self, other: MatrixView[Self.dtype, origin]) raises -> Self:
+        d: DType, origin: Origin
+    ](self, other: MatrixView[Self.T, origin]) raises -> Matrix[
+        Scalar[d]
+    ] where (Self.T == Scalar[d]):
         """Performs element-wise multiplication."""
-        return linamo.routines.math.mul(self, other)
+        return linamo.routines.math.mul(
+            self._simd_view[d](), other._as_simd[d]()
+        )
 
     def __truediv__[
-        origin: Origin
-    ](self, other: MatrixView[Self.dtype, origin]) raises -> Self:
+        d: DType, origin: Origin
+    ](self, other: MatrixView[Self.T, origin]) raises -> Matrix[
+        Scalar[d]
+    ] where (Self.T == Scalar[d]):
         """Performs element-wise division."""
-        return linamo.routines.math.div(self, other)
+        return linamo.routines.math.div(
+            self._simd_view[d](), other._as_simd[d]()
+        )
 
     def __matmul__[
-        origin: Origin
-    ](self, other: MatrixView[Self.dtype, origin]) raises -> Self:
+        d: DType, origin: Origin
+    ](self, other: MatrixView[Self.T, origin]) raises -> Matrix[
+        Scalar[d]
+    ] where (Self.T == Scalar[d]):
         """Performs matrix multiplication."""
-        return linamo.routines.math.matmul(self, other)
+        return linamo.routines.math.matmul(
+            self._simd_view[d](), other._as_simd[d]()
+        )
 
     # ===------------------------------------------------------------------ ===#
     # Scalar operands for the arithmetic dunders
@@ -756,33 +845,75 @@ struct Matrix[dtype: DType](Copyable, Movable, Sized, Writable):
     # one, so it needs its own overload; the reflected forms below cover the
     # `2.0 + A` direction.
 
-    def __add__(self, other: Self.ElementType) -> Self:
+    def __add__[
+        d: DType
+    ](self, other: Self.ElementType) -> Matrix[Scalar[d]] where (
+        Self.T == Scalar[d]
+    ):
         """Adds a scalar to every element."""
-        return linamo.routines.math.scalar_add(self, other)
+        return linamo.routines.math.scalar_add(
+            self._simd_view[d](), rebind[Scalar[d]](other)
+        )
 
-    def __sub__(self, other: Self.ElementType) -> Self:
+    def __sub__[
+        d: DType
+    ](self, other: Self.ElementType) -> Matrix[Scalar[d]] where (
+        Self.T == Scalar[d]
+    ):
         """Subtracts a scalar from every element."""
-        return linamo.routines.math.scalar_sub(self, other)
+        return linamo.routines.math.scalar_sub(
+            self._simd_view[d](), rebind[Scalar[d]](other)
+        )
 
-    def __mul__(self, other: Self.ElementType) -> Self:
+    def __mul__[
+        d: DType
+    ](self, other: Self.ElementType) -> Matrix[Scalar[d]] where (
+        Self.T == Scalar[d]
+    ):
         """Multiplies every element by a scalar."""
-        return linamo.routines.math.scalar_mul(self, other)
+        return linamo.routines.math.scalar_mul(
+            self._simd_view[d](), rebind[Scalar[d]](other)
+        )
 
-    def __truediv__(self, other: Self.ElementType) -> Self:
+    def __truediv__[
+        d: DType
+    ](self, other: Self.ElementType) -> Matrix[Scalar[d]] where (
+        Self.T == Scalar[d]
+    ):
         """Divides every element by a scalar."""
-        return linamo.routines.math.scalar_div(self, other)
+        return linamo.routines.math.scalar_div(
+            self._simd_view[d](), rebind[Scalar[d]](other)
+        )
 
-    def __floordiv__(self, other: Self.ElementType) -> Self:
+    def __floordiv__[
+        d: DType
+    ](self, other: Self.ElementType) -> Matrix[Scalar[d]] where (
+        Self.T == Scalar[d]
+    ):
         """Floor-divides every element by a scalar."""
-        return linamo.routines.math.scalar_floordiv(self, other)
+        return linamo.routines.math.scalar_floordiv(
+            self._simd_view[d](), rebind[Scalar[d]](other)
+        )
 
-    def __mod__(self, other: Self.ElementType) -> Self:
+    def __mod__[
+        d: DType
+    ](self, other: Self.ElementType) -> Matrix[Scalar[d]] where (
+        Self.T == Scalar[d]
+    ):
         """Takes every element modulo a scalar."""
-        return linamo.routines.math.scalar_mod(self, other)
+        return linamo.routines.math.scalar_mod(
+            self._simd_view[d](), rebind[Scalar[d]](other)
+        )
 
-    def __pow__(self, other: Self.ElementType) -> Self:
+    def __pow__[
+        d: DType
+    ](self, other: Self.ElementType) -> Matrix[Scalar[d]] where (
+        Self.T == Scalar[d]
+    ):
         """Raises every element to a scalar power."""
-        return linamo.routines.math.scalar_pow(self, other)
+        return linamo.routines.math.scalar_pow(
+            self._simd_view[d](), rebind[Scalar[d]](other)
+        )
 
     # ===------------------------------------------------------------------ ===#
     # floordiv, mod, pow
@@ -791,22 +922,34 @@ struct Matrix[dtype: DType](Copyable, Movable, Sized, Writable):
     # is a different operation and is spelled as a named routine, not `**`.
 
     def __floordiv__[
-        origin: Origin
-    ](self, other: MatrixView[Self.dtype, origin]) raises -> Self:
+        d: DType, origin: Origin
+    ](self, other: MatrixView[Self.T, origin]) raises -> Matrix[
+        Scalar[d]
+    ] where (Self.T == Scalar[d]):
         """Performs element-wise floor division."""
-        return linamo.routines.math.floordiv(self, other)
+        return linamo.routines.math.floordiv(
+            self._simd_view[d](), other._as_simd[d]()
+        )
 
     def __mod__[
-        origin: Origin
-    ](self, other: MatrixView[Self.dtype, origin]) raises -> Self:
+        d: DType, origin: Origin
+    ](self, other: MatrixView[Self.T, origin]) raises -> Matrix[
+        Scalar[d]
+    ] where (Self.T == Scalar[d]):
         """Performs element-wise modulo."""
-        return linamo.routines.math.mod(self, other)
+        return linamo.routines.math.mod(
+            self._simd_view[d](), other._as_simd[d]()
+        )
 
     def __pow__[
-        origin: Origin
-    ](self, other: MatrixView[Self.dtype, origin]) raises -> Self:
+        d: DType, origin: Origin
+    ](self, other: MatrixView[Self.T, origin]) raises -> Matrix[
+        Scalar[d]
+    ] where (Self.T == Scalar[d]):
         """Performs element-wise exponentiation."""
-        return linamo.routines.math.pow(self, other)
+        return linamo.routines.math.pow(
+            self._simd_view[d](), other._as_simd[d]()
+        )
 
     # ===------------------------------------------------------------------ ===#
     # Reflected scalar operators
@@ -819,22 +962,46 @@ struct Matrix[dtype: DType](Copyable, Movable, Sized, Writable):
     # it `2.0 - A` would work while `2.0 / A` silently failed to compile,
     # which is a worse API than either having all four or none.
 
-    def __radd__(self, other: Self.ElementType) -> Self:
+    def __radd__[
+        d: DType
+    ](self, other: Self.ElementType) -> Matrix[Scalar[d]] where (
+        Self.T == Scalar[d]
+    ):
         """Adds every element of the matrix to a scalar (`scalar + mat`)."""
-        return linamo.routines.math.scalar_add(self, other)
+        return linamo.routines.math.scalar_add(
+            self._simd_view[d](), rebind[Scalar[d]](other)
+        )
 
-    def __rmul__(self, other: Self.ElementType) -> Self:
+    def __rmul__[
+        d: DType
+    ](self, other: Self.ElementType) -> Matrix[Scalar[d]] where (
+        Self.T == Scalar[d]
+    ):
         """Multiplies a scalar by every element (`scalar * mat`)."""
-        return linamo.routines.math.scalar_mul(self, other)
+        return linamo.routines.math.scalar_mul(
+            self._simd_view[d](), rebind[Scalar[d]](other)
+        )
 
-    def __rsub__(self, other: Self.ElementType) -> Self:
+    def __rsub__[
+        d: DType
+    ](self, other: Self.ElementType) -> Matrix[Scalar[d]] where (
+        Self.T == Scalar[d]
+    ):
         """Subtracts every element of the matrix from a scalar (`scalar - mat`).
         """
-        return linamo.routines.math.scalar_rsub(self, other)
+        return linamo.routines.math.scalar_rsub(
+            self._simd_view[d](), rebind[Scalar[d]](other)
+        )
 
-    def __rtruediv__(self, other: Self.ElementType) -> Self:
+    def __rtruediv__[
+        d: DType
+    ](self, other: Self.ElementType) -> Matrix[Scalar[d]] where (
+        Self.T == Scalar[d]
+    ):
         """Divides a scalar by every element of the matrix (`scalar / mat`)."""
-        return linamo.routines.math.scalar_rdiv(self, other)
+        return linamo.routines.math.scalar_rdiv(
+            self._simd_view[d](), rebind[Scalar[d]](other)
+        )
 
     # ===------------------------------------------------------------------ ===#
     # In-place operators
@@ -850,88 +1017,112 @@ struct Matrix[dtype: DType](Copyable, Movable, Sized, Writable):
     # not hand out a mutable reference to `a` while a view of it is live.
 
     def __iadd__[
-        origin: Origin
-    ](mut self, other: MatrixView[Self.dtype, origin]) raises:
+        d: DType, origin: Origin
+    ](mut self, other: MatrixView[Self.T, origin]) raises where (
+        Self.T == Scalar[d]
+    ):
         """In-place element-wise addition with another matrix or view."""
-        linamo.routines.math._elementwise_inplace[
-            func=Scalar[Self.dtype].__add__
-        ](self, other)
+        linamo.routines.math._elementwise_inplace[func=Scalar[d].__add__](
+            rebind[Matrix[Scalar[d]]](self), other._as_simd[d]()
+        )
 
-    def __iadd__(mut self, other: Self.ElementType):
+    def __iadd__[
+        d: DType
+    ](mut self, other: Self.ElementType) where Self.T == Scalar[d]:
         """In-place element-wise addition with a scalar."""
         linamo.routines.math._scalar_elementwise_inplace[
-            func=Scalar[Self.dtype].__add__
-        ](self, other)
+            func=Scalar[d].__add__
+        ](rebind[Matrix[Scalar[d]]](self), rebind[Scalar[d]](other))
 
     def __isub__[
-        origin: Origin
-    ](mut self, other: MatrixView[Self.dtype, origin]) raises:
+        d: DType, origin: Origin
+    ](mut self, other: MatrixView[Self.T, origin]) raises where (
+        Self.T == Scalar[d]
+    ):
         """In-place element-wise subtraction with another matrix or view."""
-        linamo.routines.math._elementwise_inplace[
-            func=Scalar[Self.dtype].__sub__
-        ](self, other)
+        linamo.routines.math._elementwise_inplace[func=Scalar[d].__sub__](
+            rebind[Matrix[Scalar[d]]](self), other._as_simd[d]()
+        )
 
-    def __isub__(mut self, other: Self.ElementType):
+    def __isub__[
+        d: DType
+    ](mut self, other: Self.ElementType) where Self.T == Scalar[d]:
         """In-place element-wise subtraction with a scalar."""
         linamo.routines.math._scalar_elementwise_inplace[
-            func=Scalar[Self.dtype].__sub__
-        ](self, other)
+            func=Scalar[d].__sub__
+        ](rebind[Matrix[Scalar[d]]](self), rebind[Scalar[d]](other))
 
     def __imul__[
-        origin: Origin
-    ](mut self, other: MatrixView[Self.dtype, origin]) raises:
+        d: DType, origin: Origin
+    ](mut self, other: MatrixView[Self.T, origin]) raises where (
+        Self.T == Scalar[d]
+    ):
         """In-place element-wise multiplication with another matrix or view."""
-        linamo.routines.math._elementwise_inplace[
-            func=Scalar[Self.dtype].__mul__
-        ](self, other)
+        linamo.routines.math._elementwise_inplace[func=Scalar[d].__mul__](
+            rebind[Matrix[Scalar[d]]](self), other._as_simd[d]()
+        )
 
-    def __imul__(mut self, other: Self.ElementType):
+    def __imul__[
+        d: DType
+    ](mut self, other: Self.ElementType) where Self.T == Scalar[d]:
         """In-place element-wise multiplication with a scalar."""
         linamo.routines.math._scalar_elementwise_inplace[
-            func=Scalar[Self.dtype].__mul__
-        ](self, other)
+            func=Scalar[d].__mul__
+        ](rebind[Matrix[Scalar[d]]](self), rebind[Scalar[d]](other))
 
     def __itruediv__[
-        origin: Origin
-    ](mut self, other: MatrixView[Self.dtype, origin]) raises:
+        d: DType, origin: Origin
+    ](mut self, other: MatrixView[Self.T, origin]) raises where (
+        Self.T == Scalar[d]
+    ):
         """In-place element-wise division with another matrix or view."""
-        linamo.routines.math._elementwise_inplace[
-            func=Scalar[Self.dtype].__truediv__
-        ](self, other)
+        linamo.routines.math._elementwise_inplace[func=Scalar[d].__truediv__](
+            rebind[Matrix[Scalar[d]]](self), other._as_simd[d]()
+        )
 
-    def __itruediv__(mut self, other: Self.ElementType):
+    def __itruediv__[
+        d: DType
+    ](mut self, other: Self.ElementType) where Self.T == Scalar[d]:
         """In-place element-wise division with a scalar."""
         linamo.routines.math._scalar_elementwise_inplace[
-            func=Scalar[Self.dtype].__truediv__
-        ](self, other)
+            func=Scalar[d].__truediv__
+        ](rebind[Matrix[Scalar[d]]](self), rebind[Scalar[d]](other))
 
     def __ifloordiv__[
-        origin: Origin
-    ](mut self, other: MatrixView[Self.dtype, origin]) raises:
+        d: DType, origin: Origin
+    ](mut self, other: MatrixView[Self.T, origin]) raises where (
+        Self.T == Scalar[d]
+    ):
         """In-place element-wise floor division with another matrix or view."""
-        linamo.routines.math._elementwise_inplace[
-            func=Scalar[Self.dtype].__floordiv__
-        ](self, other)
+        linamo.routines.math._elementwise_inplace[func=Scalar[d].__floordiv__](
+            rebind[Matrix[Scalar[d]]](self), other._as_simd[d]()
+        )
 
-    def __ifloordiv__(mut self, other: Self.ElementType):
+    def __ifloordiv__[
+        d: DType
+    ](mut self, other: Self.ElementType) where Self.T == Scalar[d]:
         """In-place element-wise floor division with a scalar."""
         linamo.routines.math._scalar_elementwise_inplace[
-            func=Scalar[Self.dtype].__floordiv__
-        ](self, other)
+            func=Scalar[d].__floordiv__
+        ](rebind[Matrix[Scalar[d]]](self), rebind[Scalar[d]](other))
 
     def __imod__[
-        origin: Origin
-    ](mut self, other: MatrixView[Self.dtype, origin]) raises:
+        d: DType, origin: Origin
+    ](mut self, other: MatrixView[Self.T, origin]) raises where (
+        Self.T == Scalar[d]
+    ):
         """In-place element-wise modulo with another matrix or view."""
-        linamo.routines.math._elementwise_inplace[
-            func=Scalar[Self.dtype].__mod__
-        ](self, other)
+        linamo.routines.math._elementwise_inplace[func=Scalar[d].__mod__](
+            rebind[Matrix[Scalar[d]]](self), other._as_simd[d]()
+        )
 
-    def __imod__(mut self, other: Self.ElementType):
+    def __imod__[
+        d: DType
+    ](mut self, other: Self.ElementType) where Self.T == Scalar[d]:
         """In-place element-wise modulo with a scalar."""
         linamo.routines.math._scalar_elementwise_inplace[
-            func=Scalar[Self.dtype].__mod__
-        ](self, other)
+            func=Scalar[d].__mod__
+        ](rebind[Matrix[Scalar[d]]](self), rebind[Scalar[d]](other))
 
     # ===------------------------------------------------------------------ ===#
     # Comparison operators
@@ -942,63 +1133,123 @@ struct Matrix[dtype: DType](Copyable, Movable, Sized, Writable):
     # whether two matrices are wholly identical.
 
     def __lt__[
-        origin: Origin
-    ](self, other: MatrixView[Self.dtype, origin]) raises -> Matrix[DType.bool]:
+        d: DType, origin: Origin
+    ](self, other: MatrixView[Self.T, origin]) raises -> Matrix[
+        Scalar[DType.bool]
+    ] where (Self.T == Scalar[d]):
         """Element-wise less-than comparison with another matrix or view."""
-        return linamo.routines.logic.less(self, other)
+        return linamo.routines.logic.less(
+            self._simd_view[d](), other._as_simd[d]()
+        )
 
-    def __lt__(self, other: Self.ElementType) -> Matrix[DType.bool]:
+    def __lt__[
+        d: DType
+    ](self, other: Self.ElementType) -> Matrix[Scalar[DType.bool]] where (
+        Self.T == Scalar[d]
+    ):
         """Element-wise less-than comparison against a scalar."""
-        return linamo.routines.logic.scalar_less(self, other)
+        return linamo.routines.logic.scalar_less(
+            self._simd_view[d](), rebind[Scalar[d]](other)
+        )
 
     def __le__[
-        origin: Origin
-    ](self, other: MatrixView[Self.dtype, origin]) raises -> Matrix[DType.bool]:
+        d: DType, origin: Origin
+    ](self, other: MatrixView[Self.T, origin]) raises -> Matrix[
+        Scalar[DType.bool]
+    ] where (Self.T == Scalar[d]):
         """Element-wise less-than-or-equal comparison with another matrix or view.
         """
-        return linamo.routines.logic.less_equal(self, other)
+        return linamo.routines.logic.less_equal(
+            self._simd_view[d](), other._as_simd[d]()
+        )
 
-    def __le__(self, other: Self.ElementType) -> Matrix[DType.bool]:
+    def __le__[
+        d: DType
+    ](self, other: Self.ElementType) -> Matrix[Scalar[DType.bool]] where (
+        Self.T == Scalar[d]
+    ):
         """Element-wise less-than-or-equal comparison against a scalar."""
-        return linamo.routines.logic.scalar_less_equal(self, other)
+        return linamo.routines.logic.scalar_less_equal(
+            self._simd_view[d](), rebind[Scalar[d]](other)
+        )
 
     def __gt__[
-        origin: Origin
-    ](self, other: MatrixView[Self.dtype, origin]) raises -> Matrix[DType.bool]:
+        d: DType, origin: Origin
+    ](self, other: MatrixView[Self.T, origin]) raises -> Matrix[
+        Scalar[DType.bool]
+    ] where (Self.T == Scalar[d]):
         """Element-wise greater-than comparison with another matrix or view."""
-        return linamo.routines.logic.greater(self, other)
+        return linamo.routines.logic.greater(
+            self._simd_view[d](), other._as_simd[d]()
+        )
 
-    def __gt__(self, other: Self.ElementType) -> Matrix[DType.bool]:
+    def __gt__[
+        d: DType
+    ](self, other: Self.ElementType) -> Matrix[Scalar[DType.bool]] where (
+        Self.T == Scalar[d]
+    ):
         """Element-wise greater-than comparison against a scalar."""
-        return linamo.routines.logic.scalar_greater(self, other)
+        return linamo.routines.logic.scalar_greater(
+            self._simd_view[d](), rebind[Scalar[d]](other)
+        )
 
     def __ge__[
-        origin: Origin
-    ](self, other: MatrixView[Self.dtype, origin]) raises -> Matrix[DType.bool]:
+        d: DType, origin: Origin
+    ](self, other: MatrixView[Self.T, origin]) raises -> Matrix[
+        Scalar[DType.bool]
+    ] where (Self.T == Scalar[d]):
         """Element-wise greater-than-or-equal comparison with another matrix or view.
         """
-        return linamo.routines.logic.greater_equal(self, other)
+        return linamo.routines.logic.greater_equal(
+            self._simd_view[d](), other._as_simd[d]()
+        )
 
-    def __ge__(self, other: Self.ElementType) -> Matrix[DType.bool]:
+    def __ge__[
+        d: DType
+    ](self, other: Self.ElementType) -> Matrix[Scalar[DType.bool]] where (
+        Self.T == Scalar[d]
+    ):
         """Element-wise greater-than-or-equal comparison against a scalar."""
-        return linamo.routines.logic.scalar_greater_equal(self, other)
+        return linamo.routines.logic.scalar_greater_equal(
+            self._simd_view[d](), rebind[Scalar[d]](other)
+        )
 
     def __eq__[
-        origin: Origin
-    ](self, other: MatrixView[Self.dtype, origin]) raises -> Matrix[DType.bool]:
+        d: DType, origin: Origin
+    ](self, other: MatrixView[Self.T, origin]) raises -> Matrix[
+        Scalar[DType.bool]
+    ] where (Self.T == Scalar[d]):
         """Element-wise equality comparison with another matrix or view."""
-        return linamo.routines.logic.equal(self, other)
+        return linamo.routines.logic.equal(
+            self._simd_view[d](), other._as_simd[d]()
+        )
 
-    def __eq__(self, other: Self.ElementType) -> Matrix[DType.bool]:
+    def __eq__[
+        d: DType
+    ](self, other: Self.ElementType) -> Matrix[Scalar[DType.bool]] where (
+        Self.T == Scalar[d]
+    ):
         """Element-wise equality comparison against a scalar."""
-        return linamo.routines.logic.scalar_equal(self, other)
+        return linamo.routines.logic.scalar_equal(
+            self._simd_view[d](), rebind[Scalar[d]](other)
+        )
 
     def __ne__[
-        origin: Origin
-    ](self, other: MatrixView[Self.dtype, origin]) raises -> Matrix[DType.bool]:
+        d: DType, origin: Origin
+    ](self, other: MatrixView[Self.T, origin]) raises -> Matrix[
+        Scalar[DType.bool]
+    ] where (Self.T == Scalar[d]):
         """Element-wise inequality comparison with another matrix or view."""
-        return linamo.routines.logic.not_equal(self, other)
+        return linamo.routines.logic.not_equal(
+            self._simd_view[d](), other._as_simd[d]()
+        )
 
-    def __ne__(self, other: Self.ElementType) -> Matrix[DType.bool]:
+    def __ne__[
+        d: DType
+    ](self, other: Self.ElementType) -> Matrix[Scalar[DType.bool]] where (
+        Self.T == Scalar[d]
+    ):
         """Element-wise inequality comparison against a scalar."""
-        return linamo.routines.logic.scalar_not_equal(self, other)
+        return linamo.routines.logic.scalar_not_equal(
+            self._simd_view[d](), rebind[Scalar[d]](other)
+        )

@@ -19,6 +19,11 @@ through its own strides, so a transposed or column-major matrix keeps its
 layout. It takes a `Matrix` rather than a `MatrixView` for the reason given in
 `routines/mutation.mojo`: a view is generic over `origin` and Mojo checks a
 body against the read-only instantiation too.
+
+Nothing here needs a dtype. Sorting asks its element type to compare and to
+copy, both of which the *standard library* `Comparable` and `Copyable` already
+say, so these routines are generic over the element type and work on a
+`Matrix[BigInt]` with no import from `linamo.decimo`.
 """
 
 from std.builtin.sort import sort as _sort_list
@@ -34,12 +39,12 @@ def _check_axis(axis: Int, function: String) raises:
 
 
 def sort[
-    dtype: DType, origin: Origin[mut=False]
-](m: MatrixView[dtype, origin], axis: Int) raises -> Matrix[dtype]:
+    T: Copyable & Deinitable & Comparable, origin: Origin[mut=False]
+](m: MatrixView[T, origin], axis: Int) raises -> Matrix[T]:
     """Returns a copy with each lane sorted ascending.
 
     Parameters:
-        dtype: The data type of the matrix elements.
+        T: The type of the matrix elements.
         origin: The origin of the operand.
 
     Args:
@@ -54,29 +59,40 @@ def sort[
         ValueError: If `axis` is neither 0 nor 1.
     """
     _check_axis(axis, "sort(m, axis)")
-    var result = Matrix[dtype](m.nrows(), m.ncols(), m.ncols(), 1)
 
+    # Every lane is sorted first and the result is laid down afterwards, in
+    # buffer order. Writing each lane into a pre-sized result as it is
+    # finished would scatter into storage that, for an element type owning a
+    # heap allocation, has nothing valid in it yet.
+    var lanes = List[List[T]]()
     if axis == 0:
         for j in range(m.ncols()):
-            var lane = List[Scalar[dtype]](capacity=m.nrows())
+            var lane = List[T](capacity=m.nrows())
             for i in range(m.nrows()):
-                lane.append(m[i, j])
+                lane.append(m[i, j].copy())
             _sort_list(lane)
-            for i in range(m.nrows()):
-                result._data[i * m.ncols() + j] = lane[i]
+            lanes.append(lane^)
     else:
         for i in range(m.nrows()):
-            var lane = List[Scalar[dtype]](capacity=m.ncols())
+            var lane = List[T](capacity=m.ncols())
             for j in range(m.ncols()):
-                lane.append(m[i, j])
+                lane.append(m[i, j].copy())
             _sort_list(lane)
-            for j in range(m.ncols()):
-                result._data[i * m.ncols() + j] = lane[j]
+            lanes.append(lane^)
 
-    return result^
+    var buffer = List[T](capacity=m.nrows() * m.ncols())
+    for i in range(m.nrows()):
+        for j in range(m.ncols()):
+            if axis == 0:
+                buffer.append(lanes[j][i].copy())
+            else:
+                buffer.append(lanes[i][j].copy())
+    return Matrix[T](buffer^, m.nrows(), m.ncols(), m.ncols(), 1)
 
 
-def sort_inplace[dtype: DType](mut m: Matrix[dtype], axis: Int) raises:
+def sort_inplace[
+    T: Copyable & Deinitable & Comparable
+](mut m: Matrix[T], axis: Int) raises:
     """Sorts each lane of a matrix ascending, in place.
 
     The matrix keeps its own strides, so a column-major or transposed matrix is
@@ -84,7 +100,7 @@ def sort_inplace[dtype: DType](mut m: Matrix[dtype], axis: Int) raises:
     C-contiguous result) would.
 
     Parameters:
-        dtype: The data type of the matrix elements.
+        T: The type of the matrix elements.
 
     Args:
         m: The matrix to sort. Modified in place.
@@ -98,32 +114,32 @@ def sort_inplace[dtype: DType](mut m: Matrix[dtype], axis: Int) raises:
 
     if axis == 0:
         for j in range(m.ncols()):
-            var lane = List[Scalar[dtype]](capacity=m.nrows())
+            var lane = List[T](capacity=m.nrows())
             for i in range(m.nrows()):
-                lane.append(m[i, j])
+                lane.append(m[i, j].copy())
             _sort_list(lane)
             for i in range(m.nrows()):
-                m[i, j] = lane[i]
+                m[i, j] = lane[i].copy()
     else:
         for i in range(m.nrows()):
-            var lane = List[Scalar[dtype]](capacity=m.ncols())
+            var lane = List[T](capacity=m.ncols())
             for j in range(m.ncols()):
-                lane.append(m[i, j])
+                lane.append(m[i, j].copy())
             _sort_list(lane)
             for j in range(m.ncols()):
-                m[i, j] = lane[j]
+                m[i, j] = lane[j].copy()
 
 
 def argsort[
-    dtype: DType, origin: Origin[mut=False]
-](m: MatrixView[dtype, origin], axis: Int) raises -> Matrix[DType.int64]:
+    T: Copyable & Deinitable & Comparable, origin: Origin[mut=False]
+](m: MatrixView[T, origin], axis: Int) raises -> Matrix[Scalar[DType.int64]]:
     """Returns the indices that would sort each lane ascending.
 
     Ties keep their original relative order, so the result is a stable
     permutation and `argsort` agrees with `sort` element for element.
 
     Parameters:
-        dtype: The data type of the matrix elements.
+        T: The type of the matrix elements.
         origin: The origin of the operand.
 
     Args:
@@ -138,7 +154,7 @@ def argsort[
         ValueError: If `axis` is neither 0 nor 1.
     """
     _check_axis(axis, "argsort(m, axis)")
-    var result = Matrix[DType.int64](m.nrows(), m.ncols(), m.ncols(), 1)
+    var result = Matrix[Scalar[DType.int64]](m.nrows(), m.ncols(), m.ncols(), 1)
 
     if axis == 0:
         for j in range(m.ncols()):
@@ -155,8 +171,8 @@ def argsort[
 
 
 def _stable_order[
-    dtype: DType, origin: Origin[mut=False]
-](m: MatrixView[dtype, origin], lane: Int, axis: Int) -> List[Int]:
+    T: Copyable & Deinitable & Comparable, origin: Origin[mut=False]
+](m: MatrixView[T, origin], lane: Int, axis: Int) -> List[Int]:
     """Returns the stable ascending permutation of one lane.
 
     Insertion sort on the index list. The lane is already gathered by index
@@ -170,11 +186,13 @@ def _stable_order[
     var order = List[Int](capacity=n)
 
     for k in range(n):
-        var value = m[k, lane] if axis == 0 else m[lane, k]
+        var value = m[k, lane].copy() if axis == 0 else m[lane, k].copy()
         var pos = len(order)
         while pos > 0:
             var prev = order[pos - 1]
-            var prev_value = m[prev, lane] if axis == 0 else m[lane, prev]
+            var prev_value = (
+                m[prev, lane].copy() if axis == 0 else m[lane, prev].copy()
+            )
             if prev_value > value:
                 pos -= 1
             else:

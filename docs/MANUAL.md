@@ -16,7 +16,7 @@ manual is the prose half: the shape of the API, not an enumeration of it.
 
 - [Linamo User Manual](#linamo-user-manual)
   - [Getting started](#getting-started)
-    - [The element type is a `DType`](#the-element-type-is-a-dtype)
+    - [The element type is a type](#the-element-type-is-a-type)
     - [Generating the symbol reference](#generating-the-symbol-reference)
   - [The two types](#the-two-types)
     - [Mutability of indexing and slicing](#mutability-of-indexing-and-slicing)
@@ -89,7 +89,7 @@ That includes the element types, which come in two spellings of the same alias:
 ```mojo
 var A = la.matrix[la.float64](...)   # NumPy-style long name
 var B = la.matrix[la.f64](...)       # Rust-style short name
-var C = la.matrix[DType.float64](...)  # the underlying spelling, always valid
+var C = la.matrix[Float64](...)  # the underlying spelling, always valid
 ```
 
 The pairs are `float64`/`f64`, `float32`/`f32`, `int64`/`i64` down to
@@ -107,30 +107,41 @@ A first program:
 import linamo as la
 
 def main() raises:
-    var A = la.matrix[DType.float64]([[1.0, 2.0], [3.0, 4.0]])
-    var B = la.eye[DType.float64](2)
+    var A = la.matrix[Float64]([[1.0, 2.0], [3.0, 4.0]])
+    var B = la.eye[Float64](2)
     print(A @ B)
     print(la.det(A))
 ```
 
-### The element type is a `DType`
+### The element type is a type
 
-Every matrix carries its element type as a compile-time `DType` parameter, the
-way `SIMD` does: `Matrix[DType.float64]`, `Matrix[DType.int32]`,
-`Matrix[DType.bool]`. Elements are `Scalar[dtype]`, which is `SIMD[dtype, 1]`.
-The parameter defaults to `DType.float64` almost everywhere, so `la.zeros(2, 3)`
-is a float64 matrix.
+A matrix names its element type the way every other container does:
+`Matrix[Float64]`, `Matrix[Int32]`, `Matrix[la.bool_]`, beside `List[Float64]`.
+The parameter defaults to `Float64` almost everywhere, so `la.zeros(2, 3)` is a
+float64 matrix.
+
+`Float64` *is* `Scalar[DType.float64]`, so nothing about the scalar case is
+lost by spelling it this way — the SIMD routines recover the dtype by matching
+`Matrix[Scalar[d]]`, which infers `d` — and an element type with no `DType`
+behind it at all becomes expressible. Where the stdlib has no name for one,
+Linamo supplies it: `la.bool_` is `Scalar[DType.bool]`, which is a different
+type from Mojo's `Bool`.
+
+`StaticMatrix` is spelled the same way, `StaticMatrix[Float64, 2, 3]`, but only
+ever accepts a scalar: its buffer is one SIMD register, and an element type
+that has no register to live in is a compile error naming `Matrix` as the
+alternative.
 
 The default is *not* available on the routines that take a list, though —
-`la.matrix([[1.0, 2.0]])` does not compile, and `la.matrix[DType.float64](...)`
+`la.matrix([[1.0, 2.0]])` does not compile, and `la.matrix[Float64](...)`
 is required. The reason is that a list literal has no type of its own until it
-is given one, and here it would have to be given `List[List[Scalar[dtype]]]`
-with `dtype` still unknown; the compiler cannot resolve either side first. Name
-the dtype, or give the list a type of its own first:
+is given one, and here it would have to be given `List[List[T]]` with `T` still
+unknown; the compiler cannot resolve either side first. Name the element type,
+or give the list a type of its own first:
 
 ```mojo
 var rows: List[List[Float64]] = [[1.0, 2.0], [3.0, 4.0]]
-var A = la.matrix(rows)          # dtype inferred from the argument
+var A = la.matrix(rows)          # element type inferred from the argument
 ```
 
 ### Generating the symbol reference
@@ -306,7 +317,7 @@ either. If views inherited mutability, then on a `var` matrix the most ordinary
 expressions in linear algebra would be rejected by the compiler:
 
 ```mojo
-var a = la.matrix[DType.float64]([[10.0, 20.0], [1.0, 2.0]])
+var a = la.matrix[Float64]([[10.0, 20.0], [1.0, 2.0]])
 
 var d = a[0:1, :] - a[1:2, :]      # two views of `a` in one call
 var p = a[0:2, 0:2] @ a[0:2, 0:2]
@@ -334,42 +345,42 @@ var c = v.as_imm() + v.as_imm()
 
 ## Creating matrices
 
-| Call                                                       | Gives you                                     |
-| ---------------------------------------------------------- | --------------------------------------------- |
-| `matrix[dtype](list_of_rows, order="C")`                   | a matrix from nested lists                    |
-| `matrix[dtype](flat_list=..., nrows=, ncols=, order=)`     | a matrix from one flat list                   |
-| `zeros[dtype](nrows, ncols)`                               | all zeros                                     |
-| `ones[dtype](nrows, ncols)`                                | all ones                                      |
-| `full[dtype](nrows, ncols, fill_value)`                    | one repeated value                            |
-| `eye[dtype](n)` / `identity[dtype](n)`                     | the `n x n` identity                          |
-| `diag[dtype](values)`                                      | a square matrix with `values` on the diagonal |
-| `diag[dtype](m)`                                           | the diagonal of `m`, as a `List`              |
-| `smatrix[nrows, ncols, dtype](list_of_rows)`               | a `StaticMatrix`                              |
-| `empty[dtype](nrows, ncols)`                               | uninitialised storage of that shape           |
-| `zeros_like(m)` / `ones_like(m)`                           | zeros or ones shaped like `m`                 |
-| `full_like(m, fill_value)` / `empty_like(m)`               | one value, or uninitialised, shaped like `m`  |
-| `arange[dtype](stop)` / `arange[dtype](start, stop, step)` | a `1 x n` row of evenly spaced values         |
-| `linspace[dtype](start, stop, num, endpoint)`              | a `1 x num` row from `start` to `stop`        |
-| `from_list[dtype](flat_list, nrows, ncols, order)`         | a matrix from one flat list, positionally     |
-| `from_string[dtype](text)`                                 | a matrix parsed from a literal                |
-| `rand[dtype](nrows, ncols, low, high)`                     | uniform random values                         |
-| `seed(value)`                                              | pins `rand` for reproducibility               |
+| Call                                               | Gives you                                     |
+| -------------------------------------------------- | --------------------------------------------- |
+| `matrix[T](list_of_rows, order="C")`               | a matrix from nested lists                    |
+| `matrix[T](flat_list=..., nrows=, ncols=, order=)` | a matrix from one flat list                   |
+| `zeros[T](nrows, ncols)`                           | all zeros                                     |
+| `ones[T](nrows, ncols)`                            | all ones                                      |
+| `full[T](nrows, ncols, fill_value)`                | one repeated value                            |
+| `eye[T](n)` / `identity[T](n)`                     | the `n x n` identity                          |
+| `diag[T](values)`                                  | a square matrix with `values` on the diagonal |
+| `diag[T](m)`                                       | the diagonal of `m`, as a `List`              |
+| `smatrix[nrows, ncols, T](list_of_rows)`           | a `StaticMatrix`                              |
+| `empty[T](nrows, ncols)`                           | uninitialised storage of that shape           |
+| `zeros_like(m)` / `ones_like(m)`                   | zeros or ones shaped like `m`                 |
+| `full_like(m, fill_value)` / `empty_like(m)`       | one value, or uninitialised, shaped like `m`  |
+| `arange[T](stop)` / `arange[T](start, stop, step)` | a `1 x n` row of evenly spaced values         |
+| `linspace[T](start, stop, num, endpoint)`          | a `1 x num` row from `start` to `stop`        |
+| `from_list[T](flat_list, nrows, ncols, order)`     | a matrix from one flat list, positionally     |
+| `from_string[T](text)`                             | a matrix parsed from a literal                |
+| `rand[T](nrows, ncols, low, high)`                 | uniform random values                         |
+| `seed(value)`                                      | pins `rand` for reproducibility               |
 
 ```mojo
 import linamo as la
 
 def main() raises:
-    var A = la.matrix[DType.float64]([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]])
-    var B = la.matrix[DType.float64](
+    var A = la.matrix[Float64]([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]])
+    var B = la.matrix[Float64](
         flat_list=[1.0, 2.0, 3.0, 4.0, 5.0, 6.0], nrows=2, ncols=3
     )
-    var F = la.matrix[DType.float64]([[1.0, 2.0], [3.0, 4.0]], order="F")
+    var F = la.matrix[Float64]([[1.0, 2.0], [3.0, 4.0]], order="F")
 
-    var Z = la.zeros[DType.float64](2, 3)
-    var O = la.ones[DType.int32](2, 3)
-    var C = la.full[DType.float64](2, 2, 7.5)
-    var I = la.eye[DType.float64](3)
-    var D = la.diag[DType.float64]([1.0, 2.0, 3.0])
+    var Z = la.zeros[Float64](2, 3)
+    var O = la.ones[Int32](2, 3)
+    var C = la.full[Float64](2, 2, 7.5)
+    var I = la.eye[Float64](3)
+    var D = la.diag[Float64]([1.0, 2.0, 3.0])
 ```
 
 `order` chooses the memory layout: `"C"` for row-major, `"F"` for column-major.
@@ -381,8 +392,8 @@ lengths, on a `flat_list` whose length is not `nrows * ncols`, or on an `order`
 other than `"C"` or `"F"`. The shape-only routines — `zeros`, `ones`, `full`,
 `eye`, `identity` — cannot fail and are not `raises` at all.
 
-The `[dtype]` is required whenever a list is passed and optional otherwise; see
-[The element type is a `DType`](#the-element-type-is-a-dtype) for why.
+The `[T]` is required whenever a list is passed and optional otherwise; see
+[The element type is a type](#the-element-type-is-a-type) for why.
 
 ### Ranges, shapes copied from another matrix, and random values
 
@@ -391,11 +402,11 @@ and a row is what NumPy's 1-D result prints as. `reshape(x, n, 1)` gives the
 column.
 
 ```mojo
-var x = la.arange[DType.float64](5.0)              # 1x5: 0 1 2 3 4
-var y = la.arange[DType.float64](1.0, 2.0, 0.25)   # 1x4: 1 1.25 1.5 1.75
-var d = la.arange[DType.int64](10, 0, -3)          # 1x4: 10 7 4 1
-var t = la.linspace[DType.float64](0.0, 1.0, 5)    # 1x5: 0 0.25 0.5 0.75 1
-var h = la.linspace[DType.float64](0.0, 1.0, 5, endpoint=False)
+var x = la.arange[Float64](5.0)              # 1x5: 0 1 2 3 4
+var y = la.arange[Float64](1.0, 2.0, 0.25)   # 1x4: 1 1.25 1.5 1.75
+var d = la.arange[Int64](10, 0, -3)          # 1x4: 10 7 4 1
+var t = la.linspace[Float64](0.0, 1.0, 5)    # 1x5: 0 0.25 0.5 0.75 1
+var h = la.linspace[Float64](0.0, 1.0, 5, endpoint=False)
 ```
 
 `arange` excludes `stop`, as Python's `range` does, and `linspace` includes it
@@ -409,10 +420,10 @@ never its layout — the result is always C-contiguous, like every other owning
 result. Use `astype` to change the dtype.
 
 ```mojo
-var A = la.matrix[DType.float64]([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]])
+var A = la.matrix[Float64]([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]])
 var Z = la.zeros_like(A)          # 2x3 of zeros
 var S = la.zeros_like(A[0:2, 1:3])  # 2x2 — a view works too
-var E = la.empty[DType.float64](2, 2)  # contents unspecified; write before reading
+var E = la.empty[Float64](2, 2)  # contents unspecified; write before reading
 ```
 
 `rand` draws uniformly from the closed interval `[low, high]`, defaulting to
@@ -421,9 +432,9 @@ run reproducible:
 
 ```mojo
 la.seed(42)
-var R = la.rand[DType.float64](2, 3)         # values in [0, 1]
-var Q = la.rand[DType.float64](3, 3, -2.0, 2.0)
-var K = la.rand[DType.int64](2, 2, 1, 6)     # integers, both bounds included
+var R = la.rand[Float64](2, 3)         # values in [0, 1]
+var Q = la.rand[Float64](3, 3, -2.0, 2.0)
+var K = la.rand[Int64](2, 2, 1, 6)     # integers, both bounds included
 ```
 
 ### Parsing a matrix from text
@@ -432,10 +443,10 @@ var K = la.rand[DType.int64](2, 2, 1, 6)     # integers, both bounds included
 commas and rows by nested brackets:
 
 ```mojo
-var A = la.from_string[DType.float64]("[[1, 2, 3], [4, 5.5, 6]]")  # 2x3
-var B = la.from_string[DType.float64]("[[1 2 3]\n [4 5 6]]")       # 2x3
-var C = la.from_string[DType.float64]("1 2 3")                     # 1x3, one row
-var D = la.from_string[DType.int32]("[1, 2, 3, 4]", 2, 2)          # shape given
+var A = la.from_string[Float64]("[[1, 2, 3], [4, 5.5, 6]]")  # 2x3
+var B = la.from_string[Float64]("[[1 2 3]\n [4 5 6]]")       # 2x3
+var C = la.from_string[Float64]("1 2 3")                     # 1x3, one row
+var D = la.from_string[Int32]("[1, 2, 3, 4]", 2, 2)          # shape given
 ```
 
 A literal with no nesting is a single row. The second overload takes an
@@ -453,7 +464,7 @@ spelling of the keyword-only `matrix(flat_list=..., nrows=..., ncols=...)`.
 ## Indexing and slicing
 
 ```mojo
-var A = la.matrix[DType.float64]([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]])
+var A = la.matrix[Float64]([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]])
 
 var x = A[1, 2]          # 6.0 — a single element
 A[0, 0] = 10.0           # writes through the reference
@@ -519,13 +530,13 @@ binary operator accepts a `Matrix`, a `MatrixView`, or a scalar on the right,
 and always returns a **new** `Matrix` that owns its data - an operator never
 writes into an operand.
 
-| Operator                    | Meaning                                   |
-| --------------------------- | ----------------------------------------- |
-| `+` `-` `*` `/`             | Element-wise arithmetic                   |
-| `//` `%`                    | Element-wise floor division and modulo    |
-| `**`                        | Element-wise power (**not** matrix power) |
-| `@`                         | Matrix multiplication                     |
-| `<` `<=` `>` `>=` `==` `!=` | Element-wise mask, `Matrix[DType.bool]`   |
+| Operator                    | Meaning                                         |
+| --------------------------- | ----------------------------------------------- |
+| `+` `-` `*` `/`             | Element-wise arithmetic                         |
+| `//` `%`                    | Element-wise floor division and modulo          |
+| `**`                        | Element-wise power (**not** matrix power)       |
+| `@`                         | Matrix multiplication                           |
+| `<` `<=` `>` `>=` `==` `!=` | Element-wise mask, `Matrix[Scalar[DType.bool]]` |
 
 `**` follows NumPy: `A ** 2` squares each entry. Matrix exponentiation is a
 different operation and gets a named routine, not an operator.
@@ -543,9 +554,9 @@ broadcasting — stretch an operand yourself with
 
 ### Comparisons return masks
 
-`a == b` is an element-wise `Matrix[DType.bool]` of the same shape, not a single
-`Bool`. `Matrix` therefore does not conform to `EqualityComparable` on purpose.
-To ask whether two matrices are wholly identical, use
+`a == b` is an element-wise `Matrix[Scalar[DType.bool]]` of the same shape, not
+a single `Bool`. `Matrix` therefore does not conform to `EqualityComparable` on
+purpose. To ask whether two matrices are wholly identical, use
 `assert_matrices_equal` / `assert_matrices_close` from `utils/test_utils.mojo`,
 or reduce the mask with `all`:
 
@@ -592,7 +603,7 @@ An owned matrix has one write method, `set`, plus `store` for a SIMD run.
 Single elements can also be written through indexing:
 
 ```mojo
-var A = la.zeros[DType.float64](3, 3)
+var A = la.zeros[Float64](3, 3)
 
 A[0, 0] = 1.0                              # one element, by subscript
 A.set(0, 0, 1.0)                           # one element, by name
@@ -611,7 +622,7 @@ from linamo.routines.mutation import (
     view_mut, fill, assign, store, rows_mut, cols_mut,
 )
 
-var B = la.zeros[DType.float64](4, 4)
+var B = la.zeros[Float64](4, 4)
 
 var v = B.view_mut(Slice(0, 2), Slice(0, 2))    # writable 2 x 2 view
 fill(v, 5.0)                                    # the whole view
@@ -685,13 +696,13 @@ returns a `1 x ncols` result; `axis=1` collapses the columns and returns
 
 | Routine             | Module               | Whole matrix        | With `axis`                    |
 | ------------------- | -------------------- | ------------------- | ------------------------------ |
-| `sum`, `prod`       | `statistics`, `math` | `Scalar[dtype]`     | `Matrix[dtype]`                |
-| `min`, `max`        | `math`               | `Scalar[dtype]`     | `Matrix[dtype]`                |
+| `sum`, `prod`       | `statistics`, `math` | `Scalar[d]`         | `Matrix[Scalar[d]]`            |
+| `min`, `max`        | `math`               | `Scalar[d]`         | `Matrix[Scalar[d]]`            |
 | `cumsum`, `cumprod` | `statistics`, `math` | same shape, scanned | same shape, scanned            |
-| `argmin`, `argmax`  | `searching`          | `Int`, row-major    | `Matrix[DType.int64]`          |
-| `all`, `any`        | `logic`              | `Bool`              | `Matrix[DType.bool]`           |
+| `argmin`, `argmax`  | `searching`          | `Int`, row-major    | `Matrix[Int64]`                |
+| `all`, `any`        | `logic`              | `Bool`              | `Matrix[Scalar[DType.bool]]`   |
 | `sort`              | `sorting`            | —                   | axis required                  |
-| `argsort`           | `sorting`            | —                   | `Matrix[DType.int64]`          |
+| `argsort`           | `sorting`            | —                   | `Matrix[Int64]`                |
 | `sort_inplace`      | `sorting`            | —                   | axis required, writes `Matrix` |
 
 ```mojo
@@ -701,7 +712,7 @@ from linamo.routines.searching import argmax
 from linamo.routines.logic import all, any
 from linamo.routines.sorting import sort, sort_inplace
 
-var A = la.matrix[DType.float64]([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]])
+var A = la.matrix[Float64]([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]])
 
 print(sum(A))          # 21.0
 print(sum(A, 0))       # 1 x 3:  [5.0, 7.0, 9.0]
@@ -753,9 +764,9 @@ strided view — and collects one scalar per lane:
 from linamo.routines.functional import apply_along_axis
 
 def _count_positive[
-    dtype: DType, origin: Origin[mut=False]
-](v: la.MatrixView[dtype, origin]) -> Scalar[dtype]:
-    var n = Scalar[dtype](0)
+    d: DType, origin: Origin[mut=False]
+](v: la.MatrixView[Scalar[d], origin]) -> Scalar[d]:
+    var n = Scalar[d](0)
     for i in range(v.nrows()):
         for j in range(v.ncols()):
             if v[i, j] > 0:
@@ -805,10 +816,11 @@ properties, so the leading underscore is the marker and the parentheses are the
 cost of having one. Every accessor is `@always_inline`; the layer does not
 survive into the generated code.
 
-`StaticMatrix` is the exception and spells them without parentheses ---
-`m.nrows`, `m.row_stride` --- because there they are struct parameters and
-`comptime` aliases, already compile-time constants that nothing can assign
-to.
+`StaticMatrix` spells them the same way, `m.nrows()` and `m.row_stride()`,
+even though there they read a struct parameter and a `comptime` alias rather
+than a field. Naming them alike is what lets one piece of read-only code take
+any of the three; the accessors are `@always_inline` over compile-time
+constants, so the parentheses cost nothing.
 
 The last two are the weaker tests, and they are the ones the kernels use: a
 lane taken out of a larger matrix has unit stride along its own extent while
@@ -834,13 +846,13 @@ and take a slower path when they must, so only the speed changes.
 | `transpose(a)`                        | yes     | a new matrix with the axes exchanged                                |
 
 ```mojo
-var A = la.matrix[DType.float64]([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]])
+var A = la.matrix[Float64]([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]])
 
 var R = la.reshape(A, 3, 2)          # copies
 var V = la.reshape_view(A.view(), 3, 2)  # no copy, shares A's buffer
 var F = la.flatten(A)                # 1 x 6
 var C = la.contiguous(A[0:2:1, 0:3:2], "C")  # densify a strided view
-var I = la.astype[DType.int32](A)    # truncates towards zero
+var I = la.astype[Int32](A)    # truncates towards zero
 var B = la.broadcast_to(A[0:1, :], 4, 3)  # one row read as four
 ```
 
@@ -870,8 +882,8 @@ side and returns owning matrices.
 | Routine        | Returns              | Notes                                    |
 | -------------- | -------------------- | ---------------------------------------- |
 | `transpose(a)` | `Matrix`             | a new matrix, axes exchanged             |
-| `trace(a)`     | `Scalar[dtype]`      | square input required                    |
-| `det(a)`       | `Scalar[dtype]`      | via LU                                   |
+| `trace(a)`     | `Scalar[d]`          | square input required                    |
+| `det(a)`       | `Scalar[d]`          | via LU                                   |
 | `inv(a)`       | `Matrix`             | via LU; solves `A @ X = I`               |
 | `lu(a)`        | `(L, U, piv)`        | partial pivoting, `PA = LU`              |
 | `cholesky(a)`  | `Matrix` (lower `L`) | symmetric positive-definite input        |
@@ -880,10 +892,10 @@ side and returns owning matrices.
 | `lstsq(A, b)`  | `Matrix`             | via QR; overdetermined systems, `m >= n` |
 
 ```mojo
-var A = la.matrix[DType.float64](
+var A = la.matrix[Float64](
     [[4.0, 12.0, -16.0], [12.0, 37.0, -43.0], [-16.0, -43.0, 98.0]]
 )
-var b = la.matrix[DType.float64]([[1.0], [2.0], [3.0]])
+var b = la.matrix[Float64]([[1.0], [2.0], [3.0]])
 
 var x  = la.solve(A, b)
 var Ai = la.inv(A)
@@ -962,7 +974,7 @@ def main() raises:
     var np = Python.import_module("numpy")
     var arr = np.array([[1.0, 2.0], [3.0, 4.0]])
 
-    var A = from_numpy[DType.float64](arr)   # numpy -> Linamo
+    var A = from_numpy[Float64](arr)   # numpy -> Linamo
     var back = to_numpy(A)                   # Linamo -> numpy
 ```
 
@@ -993,13 +1005,13 @@ import numojo as nm
 from linamo import MatrixView
 
 def as_matrix_view[
-    dtype: DType
-](imm a: nm.NDArray[dtype]) raises -> MatrixView[dtype, origin_of(a)]:
+    d: DType
+](imm a: nm.NDArray[d]) raises -> MatrixView[Scalar[d], origin_of(a)]:
     """Read-only 2-D view of a NuMojo array. No data is copied."""
     if a.ndim != 2:
         raise Error("as_matrix_view: expected a 2-D NDArray")
-    return MatrixView[dtype, origin_of(a)](
-        buffer=Span[Scalar[dtype], origin_of(a)](
+    return MatrixView[Scalar[d], origin_of(a)](
+        buffer=Span[Scalar[d], origin_of(a)](
             unsafe_ptr=a._buf.get_ptr()
             .as_imm()
             .unsafe_origin_cast[origin_of(a)](),
@@ -1013,13 +1025,13 @@ def as_matrix_view[
     )
 
 def as_matrix_view_mut[
-    dtype: DType
-](mut a: nm.NDArray[dtype]) raises -> MatrixView[dtype, origin_of(a)]:
+    d: DType
+](mut a: nm.NDArray[d]) raises -> MatrixView[Scalar[d], origin_of(a)]:
     """Writable 2-D view of a NuMojo array. No data is copied."""
     if a.ndim != 2:
         raise Error("as_matrix_view_mut: expected a 2-D NDArray")
-    return MatrixView[dtype, origin_of(a)](
-        buffer=Span[Scalar[dtype], origin_of(a)](
+    return MatrixView[Scalar[d], origin_of(a)](
+        buffer=Span[Scalar[d], origin_of(a)](
             unsafe_ptr=a._buf.get_ptr().unsafe_origin_cast[origin_of(a)](),
             length=len(a._buf),
         ),
@@ -1033,7 +1045,7 @@ def as_matrix_view_mut[
 
 The two libraries line up field for field, which is why this is so short.
 NuMojo's strides and `offset` are counted in *elements*, exactly as Linamo's
-are, and its buffer pointer is already a `Pointer[Scalar[dtype], ...]` — the one
+are, and its buffer pointer is already a `Pointer[Scalar[d], ...]` — the one
 thing `Span`'s unsafe constructor asks for.
 
 Use them like any other view:
@@ -1162,14 +1174,63 @@ compile errors instead, and are not in this table.
 
 ---
 
+## Arbitrary-precision elements
+
+`Matrix` takes an element type, so `Matrix[BigInt]`, `Matrix[BigDecimal]` and
+`Matrix[Decimal128]` are ordinary matrices holding
+[Decimo](https://github.com/forfudan/decimo) numbers. What changes is only
+where the arithmetic comes from.
+
+```bash
+pixi run decimo    # build the decimo package into temp/
+```
+
+```mojo
+import linamo as la
+import linamo.decimo as lad
+from decimo import BigInt
+
+var a = la.matrix[BigInt]([[BigInt(1), BigInt(2)], [BigInt(3), BigInt(4)]])
+
+la.transpose(a)     # core Linamo: only moves elements
+la.sort(a, 1)       # core Linamo: only compares them
+lad.matmul(a, a)    # linamo.decimo: needs arithmetic
+```
+
+The split is not arbitrary. Every routine in `linamo.routines` is written
+against `Scalar[d]`, whose `+` the compiler lowers to a vector instruction; an
+arbitrary-precision element has no such instruction and no dtype to name, so
+its arithmetic cannot go through those kernels. It is written once instead
+against `decimo.Numeric`, in `linamo.decimo`.
+
+Anything that does *not* need arithmetic needs nothing from `linamo.decimo`:
+
+| Needs                         | Routines                                                                                                                       | Where they live              |
+| ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------ | ---------------------------- |
+| nothing but moving elements   | slicing, `transpose`, `reshape`, `reshape_view`, `flatten`, `contiguous`, `reorder_layout`, `broadcast_to`, iteration          | core Linamo, generic already |
+| the stdlib `Comparable`       | `sort`, `sort_inplace`, `argsort`, `argmin`, `argmax`                                                                          | core Linamo, generic already |
+| arithmetic (`decimo.Numeric`) | `add`, `sub`, `mul`, `neg`, `matmul`, `scalar_add`, `scalar_mul`, `total`, `trace`, `zeros`, `ones`, `eye`, `identity`, `diag` | `linamo.decimo`              |
+
+The trait lives in Decimo rather than here because Mojo's conformance is
+nominal and has to be declared where the struct is defined: only Decimo can
+say that `BigInt` is `Numeric`. Confining the dependency to a submodule does
+not remove it — Mojo has no conditional imports, so `pixi run pack` compiles
+`src/linamo/decimo` too — but it does keep core Linamo free of any mention of
+Decimo, keeps Decimo's symbols out of scope unless you import them, and leaves
+a clean seam if `linamo-decimo` ever ships as its own package.
+
+There is no SIMD and no `parallelize` on this path. A `BigInt` addition
+allocates, so these loops are memory-bound and the plain triple loop in
+`matmul` is what the operation costs.
+
 ## StaticMatrix
 
-`StaticMatrix[dtype, nrows, ncols]` carries its shape in its type and stores
+`StaticMatrix[T, num_rows, num_cols]` carries its shape in its type and stores
 its elements in a `SIMD` register buffer rather than on the heap. Nothing is
 allocated, and the shape is known to the optimiser.
 
 ```mojo
-var S = la.smatrix[2, 3, DType.float64]([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]])
+var S = la.smatrix[2, 3, Float64]([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]])
 print(S.size())            # 6
 print(S[1, 2])             # 6.0
 print(S.is_c_contiguous()) # False — see below
@@ -1179,8 +1240,8 @@ The buffer is padded to the next power of two in each dimension, so a `2 x 3`
 matrix occupies a `2 x 4` SIMD vector and a `3 x 3` occupies `4 x 4`. That is
 what makes the register storage possible, and it is why the type suits small
 fixed-size matrices — the 2×2, 3×3 and 4×4 of geometry — rather than large
-ones. It is also why `is_c_contiguous()` is False unless `ncols` is already a
-power of two: the row stride is the padded width, not `ncols`.
+ones. It is also why `is_c_contiguous()` is False unless `num_cols` is already
+a power of two: the row stride is the padded width, not `num_cols`.
 
 `StaticMatrix` is the least developed of the three types. It has the shape and
 layout queries, element reads, printing, and `+` and `@`. It does not have the
@@ -1195,14 +1256,14 @@ does not compile. `S.to_matrix()` copies it into a freshly allocated `Matrix`,
 and from there the whole library applies:
 
 ```mojo
-var S = la.smatrix[2, 2, DType.float64]([[1.0, 2.0], [3.0, 4.0]])
-var M = la.matrix[DType.float64]([[10.0, 10.0], [10.0, 10.0]])
+var S = la.smatrix[2, 2, Float64]([[1.0, 2.0], [3.0, 4.0]])
+var M = la.matrix[Float64]([[10.0, 10.0], [10.0, 10.0]])
 
 print(M + S.to_matrix())      # 11 12 / 13 14
 print(la.sum(S.to_matrix()))  # 10.0
 ```
 
-The name matches [`MatrixView.to_matrix()`](#views), which does the same job
+The name matches `MatrixView.to_matrix()`, which does the same job
 for the other non-owning type: walk a source whose layout is not dense and
 produce owned C-contiguous storage. The power-of-two padding does not survive
 the copy.
@@ -1243,10 +1304,10 @@ public routine takes `MatrixView` operands and nothing else --- one signature,
 not four:
 
 ```mojo
-def add[dtype: DType, origin_a: Origin, origin_b: Origin](
-    a: MatrixView[dtype, origin_a], b: MatrixView[dtype, origin_b]
-) raises -> Matrix[dtype]:
-    return _elementwise_view[func=Scalar[dtype].__add__](a, b)
+def add[d: DType, origin_a: Origin, origin_b: Origin](
+    a: MatrixView[Scalar[d], origin_a], b: MatrixView[Scalar[d], origin_b]
+) raises -> Matrix[Scalar[d]]:
+    return _elementwise_view[func = Scalar[d].__add__](a, b)
 ```
 
 `add(a, b)` still compiles when either operand is a `Matrix`, because
@@ -1308,8 +1369,8 @@ that works on `a` works unchanged on `a[0:8:2, 1:9:2]`.
 parameter and is specialised per operation at compile time:
 
 ```mojo
-_elementwise_view[func=Scalar[dtype].__add__](a, b)
-_elementwise_view[func=Scalar[dtype].__mul__](a, b)
+_elementwise_view[func = Scalar[d].__add__](a, b)
+_elementwise_view[func = Scalar[d].__mul__](a, b)
 ```
 
 The kernels currently in use are:

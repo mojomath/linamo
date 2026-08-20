@@ -32,16 +32,14 @@ from linamo.routines.manipulation import (
 )
 
 
-def _m() raises -> la.Matrix[DType.float64]:
+def _m() raises -> la.Matrix[Float64]:
     """A 2x3 matrix: non-square, so a transposed axis cannot hide."""
-    return la.matrix[DType.float64]([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]])
+    return la.matrix[Float64]([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]])
 
 
-def _m4() raises -> la.Matrix[DType.float64]:
+def _m4() raises -> la.Matrix[Float64]:
     """A 4x4 matrix whose entries are their own flat C index."""
-    var m = la.Matrix[DType.float64](
-        nrows=4, ncols=4, row_stride=4, col_stride=1
-    )
+    var m = la.Matrix[Float64](nrows=4, ncols=4, row_stride=4, col_stride=1)
     for i in range(4):
         for j in range(4):
             m[i, j] = Float64(i * 4 + j)
@@ -276,7 +274,7 @@ def test_reorder_layout_of_a_strided_view_raises() raises:
 
 
 def test_broadcast_row() raises:
-    var r = la.matrix[DType.float64]([[1.0, 2.0, 3.0]])
+    var r = la.matrix[Float64]([[1.0, 2.0, 3.0]])
     var b = broadcast_to(r, 3, 3)
     testing.assert_equal(b.nrows(), 3)
     testing.assert_equal(b.ncols(), 3)
@@ -287,7 +285,7 @@ def test_broadcast_row() raises:
 
 
 def test_broadcast_column() raises:
-    var c = la.matrix[DType.float64]([[1.0], [2.0], [3.0]])
+    var c = la.matrix[Float64]([[1.0], [2.0], [3.0]])
     var b = broadcast_to(c, 3, 4)
     testing.assert_equal(b.col_stride(), 0)
     for i in range(3):
@@ -296,14 +294,14 @@ def test_broadcast_column() raises:
 
 
 def test_broadcast_scalar_matrix() raises:
-    var s = la.matrix[DType.float64]([[7.0]])
+    var s = la.matrix[Float64]([[7.0]])
     var b = broadcast_to(s, 2, 5)
     testing.assert_equal(b.size(), 10)
     testing.assert_equal(b[1, 4], 7.0)
 
 
 def test_broadcast_shares_the_buffer() raises:
-    var r = la.matrix[DType.float64]([[1.0, 2.0, 3.0]])
+    var r = la.matrix[Float64]([[1.0, 2.0, 3.0]])
     var b = broadcast_to(r, 3, 3)
     r[0, 1] = 99.0
     testing.assert_equal(b[0, 1], 99.0)
@@ -312,7 +310,7 @@ def test_broadcast_shares_the_buffer() raises:
 
 def test_broadcast_result_feeds_the_routine_layer() raises:
     """A stride-0 view is a normal operand; only the fast paths are skipped."""
-    var r = la.matrix[DType.float64]([[1.0, 2.0, 3.0]])
+    var r = la.matrix[Float64]([[1.0, 2.0, 3.0]])
     var b = broadcast_to(r, 2, 3)
     testing.assert_false(b.is_c_contiguous())
     var m = _m()
@@ -335,8 +333,8 @@ def test_broadcast_incompatible_raises() raises:
 
 
 def test_astype_float_to_int_truncates() raises:
-    var m = la.matrix[DType.float64]([[1.7, -2.9], [3.2, 4.5]])
-    var i = astype[DType.int32](m)
+    var m = la.matrix[Float64]([[1.7, -2.9], [3.2, 4.5]])
+    var i = astype[Int32](m)
     testing.assert_equal(i[0, 0], 1)
     testing.assert_equal(i[0, 1], -2)
     testing.assert_equal(i[1, 0], 3)
@@ -345,9 +343,9 @@ def test_astype_float_to_int_truncates() raises:
 
 def test_astype_method_on_matrix_and_view() raises:
     var m = _m()
-    var a = m.astype[DType.float32]()
+    var a = m.astype[Float32]()
     testing.assert_equal(a[1, 2], Float32(6.0))
-    var b = m[0:1, 0:2].astype[DType.float32]()
+    var b = m[0:1, 0:2].astype[Float32]()
     testing.assert_equal(b.nrows(), 1)
     testing.assert_equal(b.ncols(), 2)
     testing.assert_equal(b[0, 1], Float32(2.0))
@@ -355,7 +353,7 @@ def test_astype_method_on_matrix_and_view() raises:
 
 def test_astype_of_a_strided_view_is_dense() raises:
     var m = _m4()
-    var i = astype[DType.int64](m[0:4:2, 0:4:2])
+    var i = astype[Int64](m[0:4:2, 0:4:2])
     testing.assert_true(i.is_c_contiguous())
     testing.assert_equal(i[1, 1], 10)
 

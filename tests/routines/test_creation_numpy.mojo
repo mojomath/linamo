@@ -33,7 +33,7 @@ def _test_round_trip(np: PythonObject, r: Int, c: Int) raises:
 
 def _test_zeros(np: PythonObject, r: Int, c: Int) raises:
     """Helper: zeros(r, c) matches np.zeros."""
-    var mat = zeros[DType.float64](r, c)
+    var mat = zeros[Float64](r, c)
     var back = to_numpy(mat)
     var expected = np.zeros(r * c).reshape(r, c)
     testing.assert_true(
@@ -44,7 +44,7 @@ def _test_zeros(np: PythonObject, r: Int, c: Int) raises:
 
 def _test_ones(np: PythonObject, r: Int, c: Int) raises:
     """Helper: ones(r, c) matches np.ones."""
-    var mat = ones[DType.float64](r, c)
+    var mat = ones[Float64](r, c)
     var back = to_numpy(mat)
     var expected = np.ones(r * c).reshape(r, c)
     testing.assert_true(
@@ -55,7 +55,7 @@ def _test_ones(np: PythonObject, r: Int, c: Int) raises:
 
 def _test_eye(np: PythonObject, n: Int) raises:
     """Helper: eye(n) matches np.eye(n)."""
-    var mat = eye[DType.float64](n)
+    var mat = eye[Float64](n)
     var back = to_numpy(mat)
     var expected = np.eye(n)
     testing.assert_true(
@@ -129,7 +129,7 @@ def test_ones_vs_numpy() raises:
 def test_full_vs_numpy() raises:
     """Full(m, n, v) matches np.full((m, n), v)."""
     var np = Python.import_module("numpy")
-    var mat = full[DType.float64](4, 6, 3.14)
+    var mat = full[Float64](4, 6, 3.14)
     var back = to_numpy(mat)
     var expected = np.zeros(24).reshape(4, 6) + 3.14
     testing.assert_true(

@@ -26,9 +26,9 @@ from linamo.routines.sorting import argsort, sort, sort_inplace
 from linamo.routines.statistics import cumsum, sum
 
 
-def _m() raises -> la.Matrix[DType.float64]:
+def _m() raises -> la.Matrix[Float64]:
     """A 2x3 matrix: non-square, so a transposed axis cannot hide."""
-    return la.matrix[DType.float64]([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]])
+    return la.matrix[Float64]([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]])
 
 
 # ===----------------------------------------------------------------------===#
@@ -64,7 +64,7 @@ def test_sum_bad_axis_raises() raises:
 
 def test_sum_of_a_strided_view() raises:
     """A view with a step in both directions must reduce correctly."""
-    var a = la.matrix[DType.float64](
+    var a = la.matrix[Float64](
         [
             [1.0, 2.0, 3.0, 4.0],
             [5.0, 6.0, 7.0, 8.0],
@@ -144,7 +144,7 @@ def test_min_max_axis() raises:
 
 
 def test_min_of_an_empty_matrix_raises() raises:
-    var e = la.zeros[DType.float64](0, 0)
+    var e = la.zeros[Float64](0, 0)
     with testing.assert_raises():
         _ = min(e)
 
@@ -155,7 +155,7 @@ def test_min_ignores_the_seed() raises:
     A matrix whose smallest element is also its first would pass even if the
     seed leaked into the result, so this one puts the minimum last.
     """
-    var a = la.matrix[DType.float64]([[9.0, 8.0], [7.0, -2.0]])
+    var a = la.matrix[Float64]([[9.0, 8.0], [7.0, -2.0]])
     testing.assert_equal(min(a), -2.0)
     testing.assert_equal(max(a), 9.0)
 
@@ -166,13 +166,13 @@ def test_min_ignores_the_seed() raises:
 
 
 def test_argmin_argmax_full() raises:
-    var a = la.matrix[DType.float64]([[3.0, 1.0, 2.0], [0.0, 5.0, 4.0]])
+    var a = la.matrix[Float64]([[3.0, 1.0, 2.0], [0.0, 5.0, 4.0]])
     testing.assert_equal(argmin(a), 3)
     testing.assert_equal(argmax(a), 4)
 
 
 def test_argmin_axis0() raises:
-    var a = la.matrix[DType.float64]([[3.0, 1.0, 2.0], [0.0, 5.0, 4.0]])
+    var a = la.matrix[Float64]([[3.0, 1.0, 2.0], [0.0, 5.0, 4.0]])
     var r = argmin(a, 0)
     testing.assert_equal(r.nrows(), 1)
     testing.assert_equal(r.ncols(), 3)
@@ -182,7 +182,7 @@ def test_argmin_axis0() raises:
 
 
 def test_argmax_axis1() raises:
-    var a = la.matrix[DType.float64]([[3.0, 1.0, 2.0], [0.0, 5.0, 4.0]])
+    var a = la.matrix[Float64]([[3.0, 1.0, 2.0], [0.0, 5.0, 4.0]])
     var r = argmax(a, 1)
     testing.assert_equal(r.nrows(), 2)
     testing.assert_equal(r.ncols(), 1)
@@ -192,7 +192,7 @@ def test_argmax_axis1() raises:
 
 def test_argmin_ties_take_the_first() raises:
     """NumPy returns the earliest extremum; so do we."""
-    var a = la.matrix[DType.float64]([[2.0, 1.0, 1.0]])
+    var a = la.matrix[Float64]([[2.0, 1.0, 1.0]])
     testing.assert_equal(argmin(a), 1)
 
 
@@ -202,19 +202,19 @@ def test_argmin_ties_take_the_first() raises:
 
 
 def test_all_any_numeric() raises:
-    var a = la.matrix[DType.float64]([[3.0, 1.0], [0.0, 5.0]])
+    var a = la.matrix[Float64]([[3.0, 1.0], [0.0, 5.0]])
     testing.assert_false(all(a))
     testing.assert_true(any(a))
 
 
 def test_all_any_all_zero() raises:
-    var z = la.zeros[DType.float64](2, 2)
+    var z = la.zeros[Float64](2, 2)
     testing.assert_false(all(z))
     testing.assert_false(any(z))
 
 
 def test_all_axis0() raises:
-    var a = la.matrix[DType.float64]([[3.0, 1.0], [0.0, 5.0]])
+    var a = la.matrix[Float64]([[3.0, 1.0], [0.0, 5.0]])
     var r = all(a, 0)
     testing.assert_equal(r[0, 0], False)
     testing.assert_equal(r[0, 1], True)
@@ -222,8 +222,8 @@ def test_all_axis0() raises:
 
 def test_any_on_a_comparison_mask() raises:
     """The common case: `all`/`any` over what a comparison produced."""
-    var a = la.matrix[DType.float64]([[1.0, 2.0], [3.0, 4.0]])
-    var b = la.matrix[DType.float64]([[1.0, 9.0], [3.0, 9.0]])
+    var a = la.matrix[Float64]([[1.0, 2.0], [3.0, 4.0]])
+    var b = la.matrix[Float64]([[1.0, 9.0], [3.0, 9.0]])
     var mask = a == b
     testing.assert_true(any(mask))
     testing.assert_false(all(mask))
@@ -235,7 +235,7 @@ def test_any_on_a_comparison_mask() raises:
 
 
 def test_sort_rows() raises:
-    var a = la.matrix[DType.float64]([[3.0, 1.0, 2.0], [0.0, 5.0, 4.0]])
+    var a = la.matrix[Float64]([[3.0, 1.0, 2.0], [0.0, 5.0, 4.0]])
     var s = sort(a, 1)
     testing.assert_equal(s[0, 0], 1.0)
     testing.assert_equal(s[0, 2], 3.0)
@@ -244,7 +244,7 @@ def test_sort_rows() raises:
 
 
 def test_sort_columns() raises:
-    var a = la.matrix[DType.float64]([[3.0, 1.0, 2.0], [0.0, 5.0, 4.0]])
+    var a = la.matrix[Float64]([[3.0, 1.0, 2.0], [0.0, 5.0, 4.0]])
     var s = sort(a, 0)
     testing.assert_equal(s[0, 0], 0.0)
     testing.assert_equal(s[1, 0], 3.0)
@@ -253,13 +253,13 @@ def test_sort_columns() raises:
 
 
 def test_sort_leaves_the_operand_alone() raises:
-    var a = la.matrix[DType.float64]([[3.0, 1.0]])
+    var a = la.matrix[Float64]([[3.0, 1.0]])
     _ = sort(a, 1)
     testing.assert_equal(a[0, 0], 3.0)
 
 
 def test_sort_inplace_rewrites_the_matrix() raises:
-    var a = la.matrix[DType.float64]([[3.0, 1.0, 2.0], [0.0, 5.0, 4.0]])
+    var a = la.matrix[Float64]([[3.0, 1.0, 2.0], [0.0, 5.0, 4.0]])
     sort_inplace(a, 1)
     testing.assert_equal(a[0, 0], 1.0)
     testing.assert_equal(a[0, 2], 3.0)
@@ -268,7 +268,7 @@ def test_sort_inplace_rewrites_the_matrix() raises:
 
 def test_sort_inplace_keeps_the_layout() raises:
     """A column-major matrix must not be silently re-laid-out."""
-    var a = la.matrix[DType.float64]([[3.0, 1.0], [0.0, 5.0]], order="F")
+    var a = la.matrix[Float64]([[3.0, 1.0], [0.0, 5.0]], order="F")
     var row_stride = a.row_stride()
     var col_stride = a.col_stride()
     sort_inplace(a, 1)
@@ -279,7 +279,7 @@ def test_sort_inplace_keeps_the_layout() raises:
 
 
 def test_argsort_matches_sort() raises:
-    var a = la.matrix[DType.float64]([[3.0, 1.0, 2.0], [0.0, 5.0, 4.0]])
+    var a = la.matrix[Float64]([[3.0, 1.0, 2.0], [0.0, 5.0, 4.0]])
     var order = argsort(a, 1)
     var sorted = sort(a, 1)
     for i in range(a.nrows()):
@@ -289,7 +289,7 @@ def test_argsort_matches_sort() raises:
 
 def test_argsort_is_stable() raises:
     """Equal elements keep their original relative order."""
-    var a = la.matrix[DType.float64]([[1.0, 0.0, 1.0, 0.0]])
+    var a = la.matrix[Float64]([[1.0, 0.0, 1.0, 0.0]])
     var order = argsort(a, 1)
     testing.assert_equal(order[0, 0], 1)
     testing.assert_equal(order[0, 1], 3)
@@ -309,7 +309,7 @@ def test_sort_bad_axis_raises() raises:
 
 def _count_positive[
     dtype: DType, origin: Origin[mut=False]
-](v: la.MatrixView[dtype, origin]) -> Scalar[dtype]:
+](v: la.MatrixView[Scalar[dtype], origin]) -> Scalar[dtype]:
     """A lane kernel that is not a fold, to show the applier is general."""
     var n = Scalar[dtype](0)
     for i in range(v.nrows()):
@@ -320,7 +320,7 @@ def _count_positive[
 
 
 def test_apply_along_axis_with_a_custom_kernel() raises:
-    var a = la.matrix[DType.float64]([[1.0, -1.0, 2.0], [-3.0, -4.0, 5.0]])
+    var a = la.matrix[Float64]([[1.0, -1.0, 2.0], [-3.0, -4.0, 5.0]])
     var r = apply_along_axis[
         axis=1, func=_count_positive[DType.float64, type_of(a.view()).origin]
     ](a.view())

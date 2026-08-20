@@ -2,7 +2,15 @@
 
 No type in the library conforms to this trait and nothing is generic over it.
 `Matrix`, `MatrixView` and `StaticMatrix` declare the methods below as ordinary
-methods instead.
+methods instead, spelled and named alike on all three.
+
+One requirement stands between that and actual conformance, and it is `__str__`
+rather than any of the accessors. `Matrix` and `MatrixView` hold an arbitrary
+element type, so their `__str__` carries `where conforms_to(Self.T, Writable)`,
+which the compiler will not accept against an unconditional trait method;
+`StaticMatrix`, whose element is always a scalar, conforms as written. Dropping
+`__str__` from the requirements below --- it is the one method here that reads
+elements rather than shape --- is what would let all three declare it.
 
 Operand genericity does not go through here: a routine that accepts either a
 `Matrix` or a `MatrixView` gets that from the `@implicit` constructor on
@@ -12,8 +20,8 @@ Operand genericity does not go through here: a routine that accepts either a
 
 What a trait could carry is the read-only algorithms that both types spell out
 separately today, `__str__` and `write_to` foremost. Mojo 1.0 supports
-associated aliases, so `comptime dtype: DType` alongside
-`def at(self, r: Int, c: Int) -> Scalar[Self.dtype]` is expressible, and that
+associated aliases, so `comptime ElementType: Copyable & Deinitable` alongside
+`def at(self, r: Int, c: Int) -> Self.ElementType` is expressible, and that
 is the shape such a trait would take.
 """
 

@@ -49,9 +49,19 @@ def main() raises:
     materialisation()
 
 
-def _grid[dtype: DType](nrows: Int, ncols: Int) raises -> la.Matrix[dtype]:
-    """Builds an `nrows x ncols` matrix whose entries read `row * 10 + col`."""
-    var m = la.zeros[dtype](nrows, ncols)
+def _grid[
+    dtype: DType, //, T: Copyable & Deinitable
+](nrows: Int, ncols: Int) raises -> la.Matrix[Scalar[dtype]] where (
+    T == Scalar[dtype]
+):
+    """Builds an `nrows x ncols` matrix whose entries read `row * 10 + col`.
+
+    `T` is what the caller writes --- `_grid[la.i64](3, 3)` --- and `dtype`
+    rides along, deduced from it. The body then works in `Scalar[dtype]`,
+    because a `where` clause decides which calls are legal without refining
+    `T` inside the body.
+    """
+    var m = la.zeros[Scalar[dtype]](nrows, ncols)
     for i in range(nrows):
         for j in range(ncols):
             m[i, j] = Scalar[dtype](i * 10 + j)
@@ -188,7 +198,7 @@ def getitem() raises:
 
     # `get_unsafe` skips the bounds check; only `-D ASSERT=all` will catch a
     # bad index.
-    print("v.get_unsafe(1, 1) =", v.get_unsafe(1, 1))
+    print("v.unsafe_get(1, 1) =", v.unsafe_get(1, 1))
 
     # SIMD loads work on views too. A strided view cannot be loaded in one
     # instruction, so `load` gathers instead - the answer is the same and only
@@ -314,7 +324,7 @@ def writing_through_a_view() raises:
     )
 
     # `store` is the SIMD write, the counterpart of `load`.
-    store[width=4](w, 0, 0, SIMD[la.int64, 4](7, 7, 7, 7))
+    store[width=4](w, 0, 0, SIMD[DType.int64, 4](7, 7, 7, 7))
     print("After store(w, 0, 0, [7, 7, 7, 7]):\n", m)
 
     # A `view_mut` of a `view_mut` keeps write access, and its coordinates are
@@ -399,7 +409,7 @@ def mutable_iteration() raises:
     # an in-place row operation wants - Gaussian elimination, normalisation,
     # scaling a row by a pivot.
     for row in rows_mut(m):
-        var total = Scalar[la.float64](0)
+        var total = la.float64(0)
         for j in range(row.ncols()):
             total += row[0, j]
         if total != 0:
@@ -464,7 +474,7 @@ def iteration() raises:
     # Reduce over rows without materialising anything.
     print("Row sums:")
     for row in v:
-        var total = Scalar[la.int64](0)
+        var total = la.int64(0)
         for j in range(row.ncols()):
             total += row[0, j]
         print("  ", total)

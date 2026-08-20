@@ -1,7 +1,7 @@
 """
 A tour of `StaticMatrix`, the fixed-shape matrix.
 
-`StaticMatrix[dtype, nrows, ncols]` carries its shape in the type, and holds
+`StaticMatrix[T, num_rows, num_cols]` carries its shape in the type, and holds
 its elements in a single SIMD register rather than a heap `List`. Nothing is
 allocated, every index is a compile-time-known stride away, and the whole
 matrix can move through registers - which is what makes it worth having for
@@ -38,10 +38,10 @@ def creation() raises:
     print("CREATION")
     print("=" * 80)
 
-    # The shape comes first, as compile-time parameters, then the dtype. Note
-    # that the *type* spells them the other way round - `StaticMatrix[dtype,
-    # nrows, ncols]` - so `smatrix[3, 4, la.float64]` builds a
-    # `StaticMatrix[la.float64, 3, 4]`.
+    # The shape comes first, as compile-time parameters, then the element
+    # type. Note that the *type* spells them the other way round -
+    # `StaticMatrix[T, num_rows, num_cols]` - so `smatrix[3, 4, la.float64]` builds a
+    # `StaticMatrix[Float64, 3, 4]`.
     var m1 = la.smatrix[3, 4, la.float64](
         [
             [1.1, 1.2, 1.3, 1.4],
@@ -52,7 +52,7 @@ def creation() raises:
     print("From a nested list:\n", m1)
 
     # From a flat list, read row by row. The list length must match
-    # `nrows * ncols` exactly; the padding is filled in for you.
+    # `num_rows * num_cols` exactly; the padding is filled in for you.
     var m2 = la.smatrix[3, 4, la.int64](
         flat_list=[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
     )
@@ -81,14 +81,14 @@ def padding() raises:
         flat_list=[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15],
     )
 
-    print("Logical shape:", m.nrows, "x", m.ncols)
+    print("Logical shape:", m.nrows(), "x", m.ncols())
     print(
         "Buffer shape: ",
-        la.StaticMatrix[la.int64, 3, 5].BUFFER_ROW_LEN,
+        la.StaticMatrix[Int64, 3, 5].BUFFER_ROW_LEN,
         "x",
-        la.StaticMatrix[la.int64, 3, 5].BUFFER_COL_LEN,
+        la.StaticMatrix[Int64, 3, 5].BUFFER_COL_LEN,
     )
-    print("Strides: row =", m.row_stride, " col =", m.col_stride)
+    print("Strides: row =", m.row_stride(), " col =", m.col_stride())
 
     # The raw register, padding and all: three zeros after each row of five,
     # then a whole unused fourth row. That is the price of a stride that is a

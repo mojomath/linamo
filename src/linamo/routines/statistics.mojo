@@ -25,14 +25,14 @@ def _add_op[dtype: DType](a: Scalar[dtype], b: Scalar[dtype]) -> Scalar[dtype]:
 
 def _sum_lane[
     dtype: DType, origin: Origin[mut=False]
-](v: MatrixView[dtype, origin]) -> Scalar[dtype]:
+](v: MatrixView[Scalar[dtype], origin]) -> Scalar[dtype]:
     """Sums one lane. This is the kernel `apply_along_axis` calls per lane."""
     return fold[func=_add_op[dtype]](v, Scalar[dtype](0))
 
 
 def sum[
     dtype: DType, origin: Origin[mut=False]
-](m: MatrixView[dtype, origin]) -> Scalar[dtype]:
+](m: MatrixView[Scalar[dtype], origin]) -> Scalar[dtype]:
     """Sums every element of a matrix or view.
 
     Parameters:
@@ -50,7 +50,9 @@ def sum[
 
 def sum[
     dtype: DType, origin: Origin[mut=False]
-](m: MatrixView[dtype, origin], axis: Int) raises -> Matrix[dtype]:
+](m: MatrixView[Scalar[dtype], origin], axis: Int) raises -> Matrix[
+    Scalar[dtype]
+]:
     """Sums along one axis.
 
     Parameters:
@@ -87,7 +89,7 @@ def sum[
 
 def cumsum[
     dtype: DType, origin: Origin[mut=False]
-](m: MatrixView[dtype, origin]) raises -> Matrix[dtype]:
+](m: MatrixView[Scalar[dtype], origin]) raises -> Matrix[Scalar[dtype]]:
     """Returns the running sum over every element, in row-major order.
 
     Mirrors NumPy's `cumsum` with no axis: the matrix is read as if flattened
@@ -104,7 +106,7 @@ def cumsum[
     Returns:
         A new C-contiguous matrix of running sums.
     """
-    var result = Matrix[dtype](m.nrows(), m.ncols(), m.ncols(), 1)
+    var result = Matrix[Scalar[dtype]](m.nrows(), m.ncols(), m.ncols(), 1)
     var acc = Scalar[dtype](0)
     var k = 0
     for i in range(m.nrows()):
@@ -117,7 +119,9 @@ def cumsum[
 
 def cumsum[
     dtype: DType, origin: Origin[mut=False]
-](m: MatrixView[dtype, origin], axis: Int) raises -> Matrix[dtype]:
+](m: MatrixView[Scalar[dtype], origin], axis: Int) raises -> Matrix[
+    Scalar[dtype]
+]:
     """Returns the running sum along one axis.
 
     Parameters:
@@ -141,7 +145,7 @@ def cumsum[
             message="Axis must be 0 or 1.",
         )
 
-    var result = Matrix[dtype](m.nrows(), m.ncols(), m.ncols(), 1)
+    var result = Matrix[Scalar[dtype]](m.nrows(), m.ncols(), m.ncols(), 1)
     if axis == 0:
         for j in range(m.ncols()):
             var acc = Scalar[dtype](0)

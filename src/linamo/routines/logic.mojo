@@ -2,7 +2,7 @@
 Defines logical and comparison routines for matrices.
 
 Element-wise comparisons take two operands of the same `dtype` and return a
-`Matrix[DType.bool]` of the same shape — the NumPy convention, where `a > b`
+`Matrix[Scalar[DType.bool]]` of the same shape — the NumPy convention, where `a > b`
 is a mask rather than a single verdict. `Matrix` therefore does not conform to
 `EqualityComparable`: `a == b` is an element-wise mask, and asking whether two
 matrices are wholly identical is a separate question (see
@@ -30,9 +30,9 @@ def _compare_view[
     origin_a: Origin,
     origin_b: Origin,
 ](
-    a: MatrixView[dtype, origin_a],
-    b: MatrixView[dtype, origin_b],
-) raises -> Matrix[DType.bool]:
+    a: MatrixView[Scalar[dtype], origin_a],
+    b: MatrixView[Scalar[dtype], origin_b],
+) raises -> Matrix[Scalar[DType.bool]]:
     """Core element-wise comparison of two MatrixView operands.
 
     When both operands are C-contiguous, a SIMD-vectorised fast path is taken.
@@ -53,7 +53,7 @@ def _compare_view[
     var M = a.nrows()
     var N = a.ncols()
     var total = M * N
-    var result = Matrix[DType.bool](M, N, N, 1)
+    var result = Matrix[Scalar[DType.bool]](M, N, N, 1)
 
     if a.is_c_contiguous() and b.is_c_contiguous():
         comptime simd_w = simd_width_of[dtype]()
@@ -91,7 +91,9 @@ def _scalar_compare_view[
     dtype: DType,
     func: def(Scalar[dtype], Scalar[dtype]) thin -> Scalar[DType.bool],
     origin: Origin,
-](mat: MatrixView[dtype, origin], scalar: Scalar[dtype]) -> Matrix[DType.bool]:
+](mat: MatrixView[Scalar[dtype], origin], scalar: Scalar[dtype]) -> Matrix[
+    Scalar[DType.bool]
+]:
     """Core element-wise comparison of a MatrixView against a scalar.
 
     The result is always a freshly allocated, C-contiguous `Matrix[bool]`.
@@ -99,7 +101,7 @@ def _scalar_compare_view[
     var M = mat.nrows()
     var N = mat.ncols()
     var total = M * N
-    var result = Matrix[DType.bool](M, N, N, 1)
+    var result = Matrix[Scalar[DType.bool]](M, N, N, 1)
 
     if mat.is_c_contiguous():
         comptime simd_w = simd_width_of[dtype]()
@@ -130,7 +132,7 @@ def _scalar_compare_view[
 # ===---------------------------------------------------------------------- ===#
 # One signature per comparison, plus one scalar form. A `Matrix` operand
 # converts implicitly to a read-only `MatrixView`, mirroring the layout of
-# `routines/math.mojo`. All return `Matrix[DType.bool]`.
+# `routines/math.mojo`. All return `Matrix[Scalar[DType.bool]]`.
 
 
 # --------------------------------------------------------------------------- #
@@ -141,15 +143,18 @@ def _scalar_compare_view[
 def greater[
     dtype: DType, origin_a: Origin, origin_b: Origin
 ](
-    a: MatrixView[dtype, origin_a], b: MatrixView[dtype, origin_b]
-) raises -> Matrix[DType.bool]:
+    a: MatrixView[Scalar[dtype], origin_a],
+    b: MatrixView[Scalar[dtype], origin_b],
+) raises -> Matrix[Scalar[DType.bool]]:
     """Element-wise greater-than comparison, `a > b`."""
     return _compare_view[func=Scalar[dtype].__gt__](a, b)
 
 
 def scalar_greater[
     dtype: DType, origin: Origin
-](mat: MatrixView[dtype, origin], scalar: Scalar[dtype]) -> Matrix[DType.bool]:
+](mat: MatrixView[Scalar[dtype], origin], scalar: Scalar[dtype]) -> Matrix[
+    Scalar[DType.bool]
+]:
     """Element-wise greater-than comparison of a matrix view against a scalar.
     """
     return _scalar_compare_view[func=Scalar[dtype].__gt__](mat, scalar)
@@ -163,15 +168,18 @@ def scalar_greater[
 def greater_equal[
     dtype: DType, origin_a: Origin, origin_b: Origin
 ](
-    a: MatrixView[dtype, origin_a], b: MatrixView[dtype, origin_b]
-) raises -> Matrix[DType.bool]:
+    a: MatrixView[Scalar[dtype], origin_a],
+    b: MatrixView[Scalar[dtype], origin_b],
+) raises -> Matrix[Scalar[DType.bool]]:
     """Element-wise greater-than-or-equal comparison, `a >= b`."""
     return _compare_view[func=Scalar[dtype].__ge__](a, b)
 
 
 def scalar_greater_equal[
     dtype: DType, origin: Origin
-](mat: MatrixView[dtype, origin], scalar: Scalar[dtype]) -> Matrix[DType.bool]:
+](mat: MatrixView[Scalar[dtype], origin], scalar: Scalar[dtype]) -> Matrix[
+    Scalar[DType.bool]
+]:
     """Element-wise greater-than-or-equal comparison of a matrix view against a scalar.
     """
     return _scalar_compare_view[func=Scalar[dtype].__ge__](mat, scalar)
@@ -185,15 +193,18 @@ def scalar_greater_equal[
 def less[
     dtype: DType, origin_a: Origin, origin_b: Origin
 ](
-    a: MatrixView[dtype, origin_a], b: MatrixView[dtype, origin_b]
-) raises -> Matrix[DType.bool]:
+    a: MatrixView[Scalar[dtype], origin_a],
+    b: MatrixView[Scalar[dtype], origin_b],
+) raises -> Matrix[Scalar[DType.bool]]:
     """Element-wise less-than comparison, `a < b`."""
     return _compare_view[func=Scalar[dtype].__lt__](a, b)
 
 
 def scalar_less[
     dtype: DType, origin: Origin
-](mat: MatrixView[dtype, origin], scalar: Scalar[dtype]) -> Matrix[DType.bool]:
+](mat: MatrixView[Scalar[dtype], origin], scalar: Scalar[dtype]) -> Matrix[
+    Scalar[DType.bool]
+]:
     """Element-wise less-than comparison of a matrix view against a scalar."""
     return _scalar_compare_view[func=Scalar[dtype].__lt__](mat, scalar)
 
@@ -206,15 +217,18 @@ def scalar_less[
 def less_equal[
     dtype: DType, origin_a: Origin, origin_b: Origin
 ](
-    a: MatrixView[dtype, origin_a], b: MatrixView[dtype, origin_b]
-) raises -> Matrix[DType.bool]:
+    a: MatrixView[Scalar[dtype], origin_a],
+    b: MatrixView[Scalar[dtype], origin_b],
+) raises -> Matrix[Scalar[DType.bool]]:
     """Element-wise less-than-or-equal comparison, `a <= b`."""
     return _compare_view[func=Scalar[dtype].__le__](a, b)
 
 
 def scalar_less_equal[
     dtype: DType, origin: Origin
-](mat: MatrixView[dtype, origin], scalar: Scalar[dtype]) -> Matrix[DType.bool]:
+](mat: MatrixView[Scalar[dtype], origin], scalar: Scalar[dtype]) -> Matrix[
+    Scalar[DType.bool]
+]:
     """Element-wise less-than-or-equal comparison of a matrix view against a scalar.
     """
     return _scalar_compare_view[func=Scalar[dtype].__le__](mat, scalar)
@@ -228,15 +242,18 @@ def scalar_less_equal[
 def equal[
     dtype: DType, origin_a: Origin, origin_b: Origin
 ](
-    a: MatrixView[dtype, origin_a], b: MatrixView[dtype, origin_b]
-) raises -> Matrix[DType.bool]:
+    a: MatrixView[Scalar[dtype], origin_a],
+    b: MatrixView[Scalar[dtype], origin_b],
+) raises -> Matrix[Scalar[DType.bool]]:
     """Element-wise equality comparison, `a == b`."""
     return _compare_view[func=Scalar[dtype].__eq__](a, b)
 
 
 def scalar_equal[
     dtype: DType, origin: Origin
-](mat: MatrixView[dtype, origin], scalar: Scalar[dtype]) -> Matrix[DType.bool]:
+](mat: MatrixView[Scalar[dtype], origin], scalar: Scalar[dtype]) -> Matrix[
+    Scalar[DType.bool]
+]:
     """Element-wise equality comparison of a matrix view against a scalar."""
     return _scalar_compare_view[func=Scalar[dtype].__eq__](mat, scalar)
 
@@ -249,15 +266,18 @@ def scalar_equal[
 def not_equal[
     dtype: DType, origin_a: Origin, origin_b: Origin
 ](
-    a: MatrixView[dtype, origin_a], b: MatrixView[dtype, origin_b]
-) raises -> Matrix[DType.bool]:
+    a: MatrixView[Scalar[dtype], origin_a],
+    b: MatrixView[Scalar[dtype], origin_b],
+) raises -> Matrix[Scalar[DType.bool]]:
     """Element-wise inequality comparison, `a != b`."""
     return _compare_view[func=Scalar[dtype].__ne__](a, b)
 
 
 def scalar_not_equal[
     dtype: DType, origin: Origin
-](mat: MatrixView[dtype, origin], scalar: Scalar[dtype]) -> Matrix[DType.bool]:
+](mat: MatrixView[Scalar[dtype], origin], scalar: Scalar[dtype]) -> Matrix[
+    Scalar[DType.bool]
+]:
     """Element-wise inequality comparison of a matrix view against a scalar."""
     return _scalar_compare_view[func=Scalar[dtype].__ne__](mat, scalar)
 
@@ -302,12 +322,12 @@ def _isclose_element[
 def _isclose_view[
     dtype: DType, origin_a: Origin, origin_b: Origin
 ](
-    a: MatrixView[dtype, origin_a],
-    b: MatrixView[dtype, origin_b],
+    a: MatrixView[Scalar[dtype], origin_a],
+    b: MatrixView[Scalar[dtype], origin_b],
     rtol: Scalar[dtype],
     atol: Scalar[dtype],
     equal_nan: Bool,
-) raises -> Matrix[DType.bool]:
+) raises -> Matrix[Scalar[DType.bool]]:
     """Core element-wise closeness test of two MatrixView operands.
 
     Laid out like `_compare_view`: a SIMD-vectorised fast path when both
@@ -325,7 +345,7 @@ def _isclose_view[
     var M = a.nrows()
     var N = a.ncols()
     var total = M * N
-    var result = Matrix[DType.bool](M, N, N, 1)
+    var result = Matrix[Scalar[DType.bool]](M, N, N, 1)
 
     if a.is_c_contiguous() and b.is_c_contiguous():
         comptime simd_w = simd_width_of[dtype]()
@@ -370,12 +390,12 @@ def _isclose_view[
 def _scalar_isclose_view[
     dtype: DType, origin: Origin
 ](
-    mat: MatrixView[dtype, origin],
+    mat: MatrixView[Scalar[dtype], origin],
     scalar: Scalar[dtype],
     rtol: Scalar[dtype],
     atol: Scalar[dtype],
     equal_nan: Bool,
-) -> Matrix[DType.bool]:
+) -> Matrix[Scalar[DType.bool]]:
     """Core element-wise closeness test of a MatrixView against a scalar.
 
     The scalar is the reference operand, so the test is
@@ -386,7 +406,7 @@ def _scalar_isclose_view[
     var M = mat.nrows()
     var N = mat.ncols()
     var total = M * N
-    var result = Matrix[DType.bool](M, N, N, 1)
+    var result = Matrix[Scalar[DType.bool]](M, N, N, 1)
 
     if mat.is_c_contiguous():
         comptime simd_w = simd_width_of[dtype]()
@@ -427,12 +447,12 @@ def _scalar_isclose_view[
 def isclose[
     dtype: DType, origin_a: Origin, origin_b: Origin
 ](
-    a: MatrixView[dtype, origin_a],
-    b: MatrixView[dtype, origin_b],
+    a: MatrixView[Scalar[dtype], origin_a],
+    b: MatrixView[Scalar[dtype], origin_b],
     rtol: Scalar[dtype] = 1e-5,
     atol: Scalar[dtype] = 1e-8,
     equal_nan: Bool = False,
-) raises -> Matrix[DType.bool]:
+) raises -> Matrix[Scalar[DType.bool]]:
     """Returns an element-wise mask of `|a - b| <= atol + rtol * |b|`.
 
     Parameters:
@@ -464,12 +484,12 @@ def isclose[
 def scalar_isclose[
     dtype: DType, origin: Origin
 ](
-    mat: MatrixView[dtype, origin],
+    mat: MatrixView[Scalar[dtype], origin],
     scalar: Scalar[dtype],
     rtol: Scalar[dtype] = 1e-5,
     atol: Scalar[dtype] = 1e-8,
     equal_nan: Bool = False,
-) -> Matrix[DType.bool]:
+) -> Matrix[Scalar[DType.bool]]:
     """Returns an element-wise mask of closeness to a single value.
 
     Parameters:
@@ -497,8 +517,8 @@ def scalar_isclose[
 def allclose[
     dtype: DType, origin_a: Origin, origin_b: Origin
 ](
-    a: MatrixView[dtype, origin_a],
-    b: MatrixView[dtype, origin_b],
+    a: MatrixView[Scalar[dtype], origin_a],
+    b: MatrixView[Scalar[dtype], origin_b],
     rtol: Scalar[dtype] = 1e-5,
     atol: Scalar[dtype] = 1e-8,
     equal_nan: Bool = False,
@@ -544,7 +564,7 @@ def allclose[
 def scalar_allclose[
     dtype: DType, origin: Origin
 ](
-    mat: MatrixView[dtype, origin],
+    mat: MatrixView[Scalar[dtype], origin],
     scalar: Scalar[dtype],
     rtol: Scalar[dtype] = 1e-5,
     atol: Scalar[dtype] = 1e-8,
@@ -618,15 +638,18 @@ def _logical_xor_element[
 def logical_and[
     dtype: DType, origin_a: Origin, origin_b: Origin
 ](
-    a: MatrixView[dtype, origin_a], b: MatrixView[dtype, origin_b]
-) raises -> Matrix[DType.bool]:
+    a: MatrixView[Scalar[dtype], origin_a],
+    b: MatrixView[Scalar[dtype], origin_b],
+) raises -> Matrix[Scalar[DType.bool]]:
     """Element-wise conjunction: True where both operands are non-zero."""
     return _compare_view[func=_logical_and_element[dtype]](a, b)
 
 
 def scalar_logical_and[
     dtype: DType, origin: Origin
-](mat: MatrixView[dtype, origin], scalar: Scalar[dtype]) -> Matrix[DType.bool]:
+](mat: MatrixView[Scalar[dtype], origin], scalar: Scalar[dtype]) -> Matrix[
+    Scalar[DType.bool]
+]:
     """Element-wise conjunction of a matrix view with a single value."""
     return _scalar_compare_view[func=_logical_and_element[dtype]](mat, scalar)
 
@@ -634,15 +657,18 @@ def scalar_logical_and[
 def logical_or[
     dtype: DType, origin_a: Origin, origin_b: Origin
 ](
-    a: MatrixView[dtype, origin_a], b: MatrixView[dtype, origin_b]
-) raises -> Matrix[DType.bool]:
+    a: MatrixView[Scalar[dtype], origin_a],
+    b: MatrixView[Scalar[dtype], origin_b],
+) raises -> Matrix[Scalar[DType.bool]]:
     """Element-wise disjunction: True where either operand is non-zero."""
     return _compare_view[func=_logical_or_element[dtype]](a, b)
 
 
 def scalar_logical_or[
     dtype: DType, origin: Origin
-](mat: MatrixView[dtype, origin], scalar: Scalar[dtype]) -> Matrix[DType.bool]:
+](mat: MatrixView[Scalar[dtype], origin], scalar: Scalar[dtype]) -> Matrix[
+    Scalar[DType.bool]
+]:
     """Element-wise disjunction of a matrix view with a single value."""
     return _scalar_compare_view[func=_logical_or_element[dtype]](mat, scalar)
 
@@ -650,8 +676,9 @@ def scalar_logical_or[
 def logical_xor[
     dtype: DType, origin_a: Origin, origin_b: Origin
 ](
-    a: MatrixView[dtype, origin_a], b: MatrixView[dtype, origin_b]
-) raises -> Matrix[DType.bool]:
+    a: MatrixView[Scalar[dtype], origin_a],
+    b: MatrixView[Scalar[dtype], origin_b],
+) raises -> Matrix[Scalar[DType.bool]]:
     """Element-wise exclusive disjunction: True where exactly one is non-zero.
     """
     return _compare_view[func=_logical_xor_element[dtype]](a, b)
@@ -659,14 +686,16 @@ def logical_xor[
 
 def scalar_logical_xor[
     dtype: DType, origin: Origin
-](mat: MatrixView[dtype, origin], scalar: Scalar[dtype]) -> Matrix[DType.bool]:
+](mat: MatrixView[Scalar[dtype], origin], scalar: Scalar[dtype]) -> Matrix[
+    Scalar[DType.bool]
+]:
     """Element-wise exclusive disjunction with a single value."""
     return _scalar_compare_view[func=_logical_xor_element[dtype]](mat, scalar)
 
 
 def logical_not[
     dtype: DType, origin: Origin
-](mat: MatrixView[dtype, origin]) -> Matrix[DType.bool]:
+](mat: MatrixView[Scalar[dtype], origin]) -> Matrix[Scalar[DType.bool]]:
     """Element-wise negation: True where the operand is zero.
 
     Negating truthiness is testing against zero, so this is the scalar
@@ -692,7 +721,7 @@ def logical_not[
 # ===---------------------------------------------------------------------- ===#
 # `all` and `any` accept any dtype, not just `DType.bool`, and test each
 # element against zero the way NumPy and Python do. That matters because the
-# comparisons above produce `Matrix[DType.bool]` but the operand is just as
+# comparisons above produce `Matrix[Scalar[DType.bool]]` but the operand is just as
 # often a numeric matrix straight from arithmetic.
 #
 # They are written as direct walks rather than through `fold`, because a fold
@@ -703,7 +732,7 @@ def logical_not[
 
 def all[
     dtype: DType, origin: Origin[mut=False]
-](m: MatrixView[dtype, origin]) -> Bool:
+](m: MatrixView[Scalar[dtype], origin]) -> Bool:
     """Returns True if every element is non-zero.
 
     True for an empty operand, as in NumPy and Python: there is no element
@@ -728,7 +757,9 @@ def all[
 
 def all[
     dtype: DType, origin: Origin[mut=False]
-](m: MatrixView[dtype, origin], axis: Int) raises -> Matrix[DType.bool]:
+](m: MatrixView[Scalar[dtype], origin], axis: Int) raises -> Matrix[
+    Scalar[DType.bool]
+]:
     """Returns, per lane, whether every element is non-zero.
 
     Parameters:
@@ -747,12 +778,12 @@ def all[
         ValueError: If `axis` is neither 0 nor 1.
     """
     if axis == 0:
-        var result = Matrix[DType.bool](1, m.ncols(), m.ncols(), 1)
+        var result = Matrix[Scalar[DType.bool]](1, m.ncols(), m.ncols(), 1)
         for j in range(m.ncols()):
             result._data[j] = all(m[:, j : j + 1])
         return result^
     elif axis == 1:
-        var result = Matrix[DType.bool](m.nrows(), 1, 1, 1)
+        var result = Matrix[Scalar[DType.bool]](m.nrows(), 1, 1, 1)
         for i in range(m.nrows()):
             result._data[i] = all(m[i : i + 1, :])
         return result^
@@ -761,7 +792,7 @@ def all[
 
 def any[
     dtype: DType, origin: Origin[mut=False]
-](m: MatrixView[dtype, origin]) -> Bool:
+](m: MatrixView[Scalar[dtype], origin]) -> Bool:
     """Returns True if at least one element is non-zero.
 
     False for an empty operand, as in NumPy and Python.
@@ -785,7 +816,9 @@ def any[
 
 def any[
     dtype: DType, origin: Origin[mut=False]
-](m: MatrixView[dtype, origin], axis: Int) raises -> Matrix[DType.bool]:
+](m: MatrixView[Scalar[dtype], origin], axis: Int) raises -> Matrix[
+    Scalar[DType.bool]
+]:
     """Returns, per lane, whether at least one element is non-zero.
 
     Parameters:
@@ -804,12 +837,12 @@ def any[
         ValueError: If `axis` is neither 0 nor 1.
     """
     if axis == 0:
-        var result = Matrix[DType.bool](1, m.ncols(), m.ncols(), 1)
+        var result = Matrix[Scalar[DType.bool]](1, m.ncols(), m.ncols(), 1)
         for j in range(m.ncols()):
             result._data[j] = any(m[:, j : j + 1])
         return result^
     elif axis == 1:
-        var result = Matrix[DType.bool](m.nrows(), 1, 1, 1)
+        var result = Matrix[Scalar[DType.bool]](m.nrows(), 1, 1, 1)
         for i in range(m.nrows()):
             result._data[i] = any(m[i : i + 1, :])
         return result^

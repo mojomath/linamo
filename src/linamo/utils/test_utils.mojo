@@ -14,7 +14,7 @@ from linamo.types.matrix import Matrix
 
 def assert_matrices_equal[
     dtype: DType = DType.float64
-](a: Matrix[dtype], b: Matrix[dtype], msg: String = "") raises:
+](a: Matrix[Scalar[dtype]], b: Matrix[Scalar[dtype]], msg: String = "") raises:
     """Assert two C-contiguous matrices are exactly equal element-by-element.
 
     Both matrices must be C-contiguous. This performs a flat buffer comparison
@@ -71,8 +71,8 @@ def assert_matrices_equal[
 def assert_matrices_close[
     dtype: DType = DType.float64
 ](
-    a: Matrix[dtype],
-    b: Matrix[dtype],
+    a: Matrix[Scalar[dtype]],
+    b: Matrix[Scalar[dtype]],
     msg: String = "",
     rtol: Float64 = 1e-7,
     atol: Float64 = 1e-10,

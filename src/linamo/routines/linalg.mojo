@@ -15,20 +15,36 @@ from linamo.utils.indexing import get_offset
 
 
 def transpose[
-    dtype: DType, origin: Origin
-](view: MatrixView[dtype, origin]) -> Matrix[dtype]:
+    T: Copyable & Deinitable, origin: Origin
+](view: MatrixView[T, origin]) -> Matrix[T]:
     """Returns the transpose of a matrix view.
 
     The result is always stored in row-major (C) order regardless of the
     input layout.
+
+    Transposing only moves elements, so this is generic over the element type
+    and works for a `Matrix[BigInt]` as readily as a `Matrix[Float64]`. The
+    loop walks the *result* in buffer order rather than scattering into
+    uninitialised storage, which is what makes it safe for an element that
+    owns a heap allocation.
+
+    Parameters:
+        T: The type of the matrix elements.
+        origin: The origin of the input view.
+
+    Args:
+        view: The matrix or view to transpose.
+
+    Returns:
+        A new C-contiguous matrix with the rows and columns exchanged.
     """
     var nrows = view.ncols()  # transposed
     var ncols = view.nrows()  # transposed
-    var data = List[Scalar[dtype]](unsafe_uninit_length=nrows * ncols)
-    for i in range(view.nrows()):
-        for j in range(view.ncols()):
-            data[j * ncols + i] = view[i, j]
-    return Matrix[dtype](
+    var data = List[T](capacity=nrows * ncols)
+    for i in range(nrows):
+        for j in range(ncols):
+            data.append(view[j, i].copy())
+    return Matrix[T](
         buffer=data^,
         nrows=nrows,
         ncols=ncols,
@@ -39,7 +55,7 @@ def transpose[
 
 def trace[
     dtype: DType, origin: Origin
-](view: MatrixView[dtype, origin]) raises -> Scalar[dtype]:
+](view: MatrixView[Scalar[dtype], origin]) raises -> Scalar[dtype]:
     """Computes the trace (sum of diagonal elements) of a square matrix view."""
     if view.nrows() != view.ncols():
         raise ValueError(
@@ -55,9 +71,9 @@ def trace[
 def lu[
     dtype: DType, origin: Origin
 ](
-    view: MatrixView[dtype, origin],
+    view: MatrixView[Scalar[dtype], origin],
 ) raises -> Tuple[
-    Matrix[dtype], Matrix[dtype], List[Int]
+    Matrix[Scalar[dtype]], Matrix[Scalar[dtype]], List[Int]
 ]:
     """Computes the LU decomposition with partial pivoting: PA = LU.
 
@@ -132,10 +148,10 @@ def lu[
         for j in range(i):
             u_data[i * n + j] = 0
 
-    var L = Matrix[dtype](
+    var L = Matrix[Scalar[dtype]](
         buffer=l_data^, nrows=n, ncols=n, row_stride=n, col_stride=1
     )
-    var U = Matrix[dtype](
+    var U = Matrix[Scalar[dtype]](
         buffer=u_data^, nrows=n, ncols=n, row_stride=n, col_stride=1
     )
     return (L^, U^, piv^)
@@ -143,7 +159,7 @@ def lu[
 
 def cholesky[
     dtype: DType, origin: Origin
-](view: MatrixView[dtype, origin]) raises -> Matrix[dtype]:
+](view: MatrixView[Scalar[dtype], origin]) raises -> Matrix[Scalar[dtype]]:
     """Computes the Cholesky decomposition: A = L L^T.
 
     The input must be a symmetric positive-definite matrix view. The result is
@@ -177,15 +193,15 @@ def cholesky[
             else:
                 l_data[i * n + j] = (view[i, j] - s) / l_data[j * n + j]
 
-    return Matrix[dtype](
+    return Matrix[Scalar[dtype]](
         buffer=l_data^, nrows=n, ncols=n, row_stride=n, col_stride=1
     )
 
 
 def qr[
     dtype: DType, origin: Origin
-](view: MatrixView[dtype, origin]) raises -> Tuple[
-    Matrix[dtype], Matrix[dtype]
+](view: MatrixView[Scalar[dtype], origin]) raises -> Tuple[
+    Matrix[Scalar[dtype]], Matrix[Scalar[dtype]]
 ]:
     """Computes the QR decomposition: A = Q R (Householder reflections).
 
@@ -261,10 +277,10 @@ def qr[
                     q_data[i * m + (k + j2)] - tau * dot * v[j2]
                 )
 
-    var Q = Matrix[dtype](
+    var Q = Matrix[Scalar[dtype]](
         buffer=q_data^, nrows=m, ncols=m, row_stride=m, col_stride=1
     )
-    var R = Matrix[dtype](
+    var R = Matrix[Scalar[dtype]](
         buffer=r_data^, nrows=m, ncols=n, row_stride=n, col_stride=1
     )
     return (Q^, R^)
@@ -272,7 +288,7 @@ def qr[
 
 def det[
     dtype: DType, origin: Origin
-](view: MatrixView[dtype, origin]) raises -> Scalar[dtype]:
+](view: MatrixView[Scalar[dtype], origin]) raises -> Scalar[dtype]:
     """Computes the determinant of a square matrix view via LU decomposition."""
     if view.nrows() != view.ncols():
         raise ValueError(
@@ -309,9 +325,9 @@ def det[
 def solve[
     dtype: DType, origin_a: Origin, origin_b: Origin
 ](
-    A: MatrixView[dtype, origin_a],
-    b: MatrixView[dtype, origin_b],
-) raises -> Matrix[dtype]:
+    A: MatrixView[Scalar[dtype], origin_a],
+    b: MatrixView[Scalar[dtype], origin_b],
+) raises -> Matrix[Scalar[dtype]]:
     """Solves the linear system Ax = b for x, using LU decomposition.
 
     Both A and b can be matrix views. The right-hand side b can be a
@@ -370,7 +386,7 @@ def solve[
                 s -= U._data[i * n + j2] * x_data[j2 * k + col]
             x_data[i * k + col] = s / U._data[i * n + i]
 
-    return Matrix[dtype](
+    return Matrix[Scalar[dtype]](
         buffer=x_data^,
         nrows=n,
         ncols=k,
@@ -381,7 +397,7 @@ def solve[
 
 def inv[
     dtype: DType, origin: Origin
-](view: MatrixView[dtype, origin]) raises -> Matrix[dtype]:
+](view: MatrixView[Scalar[dtype], origin]) raises -> Matrix[Scalar[dtype]]:
     """Computes the inverse of a square matrix view using LU decomposition.
 
     Solves A @ X = I for X.
@@ -397,7 +413,7 @@ def inv[
     var eye_data = List[Scalar[dtype]](length=n * n, fill=0)
     for i in range(n):
         eye_data[i * n + i] = 1
-    var I = Matrix[dtype](
+    var I = Matrix[Scalar[dtype]](
         buffer=eye_data^,
         nrows=n,
         ncols=n,
@@ -411,9 +427,9 @@ def inv[
 def lstsq[
     dtype: DType, origin_a: Origin, origin_b: Origin
 ](
-    A: MatrixView[dtype, origin_a],
-    b: MatrixView[dtype, origin_b],
-) raises -> Matrix[dtype]:
+    A: MatrixView[Scalar[dtype], origin_a],
+    b: MatrixView[Scalar[dtype], origin_b],
+) raises -> Matrix[Scalar[dtype]]:
     """Solves the least squares problem min ||Ax - b||₂ via QR decomposition.
 
     Works for overdetermined systems (m >= n). For multiple right-hand
@@ -463,7 +479,7 @@ def lstsq[
                 s -= R._data[i * n + j2] * x_data[j2 * k + col]
             x_data[i * k + col] = s / R._data[i * n + i]
 
-    return Matrix[dtype](
+    return Matrix[Scalar[dtype]](
         buffer=x_data^,
         nrows=n,
         ncols=k,

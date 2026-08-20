@@ -18,6 +18,9 @@ kgen.trace.*
 *.mojopkg
 *.mojoc
 
+# Precompiled dependencies fetched or built by tools/ensure_decimo.sh
+temp/
+
 # Local files
 local
 /test*.mojo

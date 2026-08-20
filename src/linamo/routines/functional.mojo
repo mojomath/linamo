@@ -34,7 +34,7 @@ def fold[
     dtype: DType,
     origin: Origin[mut=False],
     func: def(Scalar[dtype], Scalar[dtype]) thin -> Scalar[dtype],
-](v: MatrixView[dtype, origin], init: Scalar[dtype]) -> Scalar[dtype]:
+](v: MatrixView[Scalar[dtype], origin], init: Scalar[dtype]) -> Scalar[dtype]:
     """Reduces every element of a view to a single scalar.
 
     The accumulator is threaded left to right in memory order, so `func` should
@@ -93,8 +93,8 @@ def apply_along_axis[
     dtype: DType,
     origin: Origin[mut=False],
     axis: Int,
-    func: def(MatrixView[dtype, origin]) thin -> Scalar[dtype],
-](m: MatrixView[dtype, origin]) raises -> Matrix[dtype] where (
+    func: def(MatrixView[Scalar[dtype], origin]) thin -> Scalar[dtype],
+](m: MatrixView[Scalar[dtype], origin]) raises -> Matrix[Scalar[dtype]] where (
     axis == 0 or axis == 1
 ):
     """Applies a lane kernel along one axis, collecting the results.
@@ -127,14 +127,14 @@ def apply_along_axis[
     comptime lane_axis = 1 - axis
 
     comptime if axis == 0:
-        var result = Matrix[dtype](1, m.ncols(), m.ncols(), 1)
+        var result = Matrix[Scalar[dtype]](1, m.ncols(), m.ncols(), 1)
         var k = 0
         for lane in MatrixAxisIter[axis=lane_axis](m):
             result._data[k] = func(lane)
             k += 1
         return result^
     else:
-        var result = Matrix[dtype](m.nrows(), 1, 1, 1)
+        var result = Matrix[Scalar[dtype]](m.nrows(), 1, 1, 1)
         var k = 0
         for lane in MatrixAxisIter[axis=lane_axis](m):
             result._data[k] = func(lane)

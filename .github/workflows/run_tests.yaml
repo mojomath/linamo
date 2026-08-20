@@ -2,7 +2,7 @@ name: Linamo Unit Tests
 
 on:
   push:
-    branches: [main]
+    branches: [main, dev]
   pull_request:
   workflow_dispatch:
 
@@ -44,9 +44,22 @@ jobs:
         run: |
           pixi install
 
+      # `linamo.decimo` needs the decimo package on the include path, and
+      # `tests/decimo` and `examples/decimo_examples.mojo` do not compile
+      # without it. With no conda build carrying `decimo.Numeric` yet, this
+      # falls through to the commit pinned in the script and precompiles it
+      # with this workspace's own `mojo`.
+      - name: Provision decimo
+        run: |
+          pixi run decimo
+
       - name: Run tests
         run: |
           bash ./tests/test_all.sh
+
+      - name: Run examples
+        run: |
+          bash ./examples/run_all.sh
 
       - name: Run pre-commit
         run: |

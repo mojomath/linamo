@@ -19,8 +19,8 @@ from linamo.types.matrix import Matrix
 
 
 def from_numpy[
-    dtype: DType = DType.float64
-](data: PythonObject) raises -> Matrix[dtype]:
+    dtype: DType = DType.float64, //, T: Copyable & Deinitable = Scalar[dtype]
+](data: PythonObject) raises -> Matrix[Scalar[dtype]] where T == Scalar[dtype]:
     """Create a Matrix from a numpy ndarray.
 
     The numpy array must be 2D. Data is copied from numpy memory into
@@ -37,7 +37,7 @@ def from_numpy[
         Error: If the array is not 2D or is empty.
 
     Returns:
-        A Matrix[dtype] with the same shape and data as the numpy array.
+        A Matrix[Scalar[dtype]] with the same shape and data as the numpy array.
 
     Example:
         ```mojo
@@ -91,7 +91,7 @@ def from_numpy[
     var mat_data = List[Scalar[dtype]](length=nrows * ncols, fill=0)
     unsafe_memcpy(dest=mat_data._data, src=pointer, count=nrows * ncols)
 
-    return Matrix[dtype](
+    return Matrix[Scalar[dtype]](
         buffer=mat_data^,
         nrows=nrows,
         ncols=ncols,
@@ -105,7 +105,7 @@ def from_numpy[
 # ===----------------------------------------------------------------------===#
 
 
-def to_numpy[dtype: DType](mat: Matrix[dtype]) raises -> PythonObject:
+def to_numpy[dtype: DType](mat: Matrix[Scalar[dtype]]) raises -> PythonObject:
     """Export a Matrix to a numpy ndarray.
 
     Data is always copied. The resulting numpy array is C-contiguous.

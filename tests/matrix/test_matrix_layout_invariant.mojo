@@ -131,7 +131,7 @@ def test_library_matrices_satisfy_the_invariant() raises:
     any routine ever produced a padded or aliasing owning matrix, the whole
     suite would abort under `-D ASSERT=all` rather than fail here.
     """
-    var c = la.matrix[DType.float64]([[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]])
+    var c = la.matrix[Float64]([[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]])
     testing.assert_true(
         layout_is_dense(c.nrows(), c.ncols(), c.row_stride(), c.col_stride())
     )
@@ -141,9 +141,7 @@ def test_library_matrices_satisfy_the_invariant() raises:
         )
     )
 
-    var f = la.matrix[DType.float64](
-        [[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]], order="F"
-    )
+    var f = la.matrix[Float64]([[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]], order="F")
     testing.assert_true(
         layout_is_dense(f.nrows(), f.ncols(), f.row_stride(), f.col_stride())
     )

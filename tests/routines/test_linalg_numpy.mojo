@@ -62,9 +62,9 @@ def _test_trace(np: PythonObject, n: Int) raises:
 
 
 def _permute_rows_mm(
-    mat: Matrix[DType.float64],
+    mat: Matrix[Float64],
     piv: List[Int],
-) raises -> Matrix[DType.float64]:
+) raises -> Matrix[Float64]:
     """Reorder rows of mat according to piv."""
     var n = mat.nrows()
     var data = List[Float64](unsafe_uninit_length=n * mat.ncols())
@@ -72,7 +72,7 @@ def _permute_rows_mm(
         var src = piv[i]
         for j in range(mat.ncols()):
             data[i * mat.ncols() + j] = mat[src, j]
-    return Matrix[DType.float64](
+    return Matrix[Float64](
         buffer=data^,
         nrows=n,
         ncols=mat.ncols(),
@@ -136,7 +136,7 @@ def _test_qr_orthogonality(np: PythonObject, n: Int) raises:
     ref Q = result[0]
     var Qt = transpose(Q)
     var QtQ = matmul(Qt, Q)
-    var I = eye[DType.float64](n)
+    var I = eye[Float64](n)
     assert_matrices_close(
         QtQ,
         I,

@@ -31,20 +31,21 @@ def seed(value: Int):
 
 
 def rand[
-    dtype: DType = DType.float64
+    dtype: DType = DType.float64, //, T: Copyable & Deinitable = Scalar[dtype]
 ](
     nrows: Int,
     ncols: Int,
-    low: Scalar[dtype] = 0,
-    high: Scalar[dtype] = 1,
-) raises -> Matrix[dtype]:
+    low: T = rebind[T](Scalar[dtype](0)),
+    high: T = rebind[T](Scalar[dtype](1)),
+) raises -> Matrix[Scalar[dtype]] where (T == Scalar[dtype]):
     """Creates a matrix of uniformly distributed random values in `[low, high]`.
 
     Draws from the Mojo standard library's global generator, so `seed(n)` makes
     the result reproducible.
 
     Parameters:
-        dtype: The data type of the matrix elements. Defaults to `DType.float64`.
+        dtype: The dtype behind `T`, deduced rather than written.
+        T: The type of the matrix elements. Defaults to `Float64`.
 
     Args:
         nrows: The number of rows in the matrix.
@@ -59,29 +60,36 @@ def rand[
         ValueError: If `low` is greater than `high`.
     """
     comptime fn_name = "rand(nrows, ncols, low, high)"
-    if low > high:
+    # `T` is `Scalar[dtype]`, but the compiler does not refine it inside the
+    # body, so the two bounds are restated once.
+    var low_ = rebind[Scalar[dtype]](low)
+    var high_ = rebind[Scalar[dtype]](high)
+    if low_ > high_:
         raise ValueError(
             function=fn_name,
             message=String(
-                "`low` must not exceed `high`, got low=", low, ", high=", high
+                "`low` must not exceed `high`, got low=",
+                low_,
+                ", high=",
+                high_,
             ),
         )
 
     var size = nrows * ncols
     var data = List[Scalar[dtype]](unsafe_uninit_length=size)
     comptime if dtype.is_floating_point():
-        var lo = Float64(low)
-        var hi = Float64(high)
+        var lo = Float64(low_)
+        var hi = Float64(high_)
         for k in range(size):
             data[k] = Scalar[dtype](random_float64(lo, hi))
     else:
         # `random_si64` treats both bounds as inclusive, which matches the
         # closed interval this routine documents.
-        var lo = Int64(low)
-        var hi = Int64(high)
+        var lo = Int64(low_)
+        var hi = Int64(high_)
         for k in range(size):
             data[k] = Scalar[dtype](random_si64(lo, hi))
-    return Matrix[dtype](
+    return Matrix[Scalar[dtype]](
         buffer=data^,
         nrows=nrows,
         ncols=ncols,

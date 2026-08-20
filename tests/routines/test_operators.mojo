@@ -5,7 +5,7 @@ Tests for the Phase 5.2 operator surface on `Matrix`.
 - `__floordiv__`, `__mod__`, `__pow__`
 - reflected scalar operators (`__radd__`, `__rsub__`, `__rmul__`,
   `__rtruediv__`)
-- comparison operators returning `Matrix[DType.bool]`
+- comparison operators returning `Matrix[Scalar[DType.bool]]`
 
 Each group is exercised against a matrix, a view, and a scalar right-hand
 side where the operator accepts one, and the non-contiguous (strided) path is
@@ -24,8 +24,8 @@ from linamo.types.matrix import Matrix
 
 def test_iadd_matrix() raises:
     """`+=` with another matrix."""
-    var a = la.matrix[DType.float64]([[1.0, 2.0], [3.0, 4.0]])
-    var b = la.matrix[DType.float64]([[10.0, 20.0], [30.0, 40.0]])
+    var a = la.matrix[Float64]([[1.0, 2.0], [3.0, 4.0]])
+    var b = la.matrix[Float64]([[10.0, 20.0], [30.0, 40.0]])
     a += b
     testing.assert_equal(a[0, 0], 11.0)
     testing.assert_equal(a[0, 1], 22.0)
@@ -35,8 +35,8 @@ def test_iadd_matrix() raises:
 
 def test_isub_matrix() raises:
     """`-=` with another matrix."""
-    var a = la.matrix[DType.float64]([[10.0, 20.0], [30.0, 40.0]])
-    var b = la.matrix[DType.float64]([[1.0, 2.0], [3.0, 4.0]])
+    var a = la.matrix[Float64]([[10.0, 20.0], [30.0, 40.0]])
+    var b = la.matrix[Float64]([[1.0, 2.0], [3.0, 4.0]])
     a -= b
     testing.assert_equal(a[0, 0], 9.0)
     testing.assert_equal(a[1, 1], 36.0)
@@ -44,8 +44,8 @@ def test_isub_matrix() raises:
 
 def test_imul_matrix() raises:
     """`*=` with another matrix (element-wise, not matmul)."""
-    var a = la.matrix[DType.float64]([[1.0, 2.0], [3.0, 4.0]])
-    var b = la.matrix[DType.float64]([[2.0, 3.0], [4.0, 5.0]])
+    var a = la.matrix[Float64]([[1.0, 2.0], [3.0, 4.0]])
+    var b = la.matrix[Float64]([[2.0, 3.0], [4.0, 5.0]])
     a *= b
     testing.assert_equal(a[0, 0], 2.0)
     testing.assert_equal(a[1, 1], 20.0)
@@ -53,8 +53,8 @@ def test_imul_matrix() raises:
 
 def test_itruediv_matrix() raises:
     """`/=` with another matrix."""
-    var a = la.matrix[DType.float64]([[10.0, 20.0], [30.0, 40.0]])
-    var b = la.matrix[DType.float64]([[2.0, 4.0], [5.0, 8.0]])
+    var a = la.matrix[Float64]([[10.0, 20.0], [30.0, 40.0]])
+    var b = la.matrix[Float64]([[2.0, 4.0], [5.0, 8.0]])
     a /= b
     testing.assert_equal(a[0, 0], 5.0)
     testing.assert_equal(a[1, 1], 5.0)
@@ -62,8 +62,8 @@ def test_itruediv_matrix() raises:
 
 def test_ifloordiv_matrix() raises:
     """`//=` with another matrix."""
-    var a = la.matrix[DType.float64]([[7.0, 9.0], [11.0, 13.0]])
-    var b = la.matrix[DType.float64]([[2.0, 2.0], [3.0, 5.0]])
+    var a = la.matrix[Float64]([[7.0, 9.0], [11.0, 13.0]])
+    var b = la.matrix[Float64]([[2.0, 2.0], [3.0, 5.0]])
     a //= b
     testing.assert_equal(a[0, 0], 3.0)
     testing.assert_equal(a[0, 1], 4.0)
@@ -73,8 +73,8 @@ def test_ifloordiv_matrix() raises:
 
 def test_imod_matrix() raises:
     """`%=` with another matrix."""
-    var a = la.matrix[DType.float64]([[7.0, 9.0], [11.0, 13.0]])
-    var b = la.matrix[DType.float64]([[2.0, 2.0], [3.0, 5.0]])
+    var a = la.matrix[Float64]([[7.0, 9.0], [11.0, 13.0]])
+    var b = la.matrix[Float64]([[2.0, 2.0], [3.0, 5.0]])
     a %= b
     testing.assert_equal(a[0, 0], 1.0)
     testing.assert_equal(a[0, 1], 1.0)
@@ -84,7 +84,7 @@ def test_imod_matrix() raises:
 
 def test_iadd_scalar() raises:
     """`+=` with a scalar."""
-    var a = la.matrix[DType.float64]([[1.0, 2.0], [3.0, 4.0]])
+    var a = la.matrix[Float64]([[1.0, 2.0], [3.0, 4.0]])
     a += 10.0
     testing.assert_equal(a[0, 0], 11.0)
     testing.assert_equal(a[1, 1], 14.0)
@@ -92,7 +92,7 @@ def test_iadd_scalar() raises:
 
 def test_imul_scalar() raises:
     """`*=` with a scalar."""
-    var a = la.matrix[DType.float64]([[1.0, 2.0], [3.0, 4.0]])
+    var a = la.matrix[Float64]([[1.0, 2.0], [3.0, 4.0]])
     a *= 3.0
     testing.assert_equal(a[0, 0], 3.0)
     testing.assert_equal(a[1, 1], 12.0)
@@ -100,8 +100,8 @@ def test_imul_scalar() raises:
 
 def test_iadd_view() raises:
     """`+=` with a matrix view."""
-    var a = la.matrix[DType.float64]([[1.0, 2.0], [3.0, 4.0]])
-    var big = la.matrix[DType.float64](
+    var a = la.matrix[Float64]([[1.0, 2.0], [3.0, 4.0]])
+    var big = la.matrix[Float64](
         [[10.0, 20.0, 99.0], [30.0, 40.0, 99.0], [99.0, 99.0, 99.0]]
     )
     a += big[0:2, 0:2]
@@ -111,8 +111,8 @@ def test_iadd_view() raises:
 
 def test_iadd_preserves_shape_mismatch_raises() raises:
     """`+=` on mismatched shapes raises rather than truncating."""
-    var a = la.matrix[DType.float64]([[1.0, 2.0], [3.0, 4.0]])
-    var b = la.matrix[DType.float64]([[1.0, 2.0, 3.0]])
+    var a = la.matrix[Float64]([[1.0, 2.0], [3.0, 4.0]])
+    var b = la.matrix[Float64]([[1.0, 2.0, 3.0]])
     var raised = False
     try:
         a += b
@@ -129,7 +129,7 @@ def test_inplace_on_strided_matrix() raises:
     survive the operation.
     """
     # Column-major 2x2: row_stride 1, col_stride 2.
-    var a = Matrix[DType.float64](2, 2, 1, 2)
+    var a = Matrix[Float64](2, 2, 1, 2)
     a[0, 0] = 1.0
     a[0, 1] = 2.0
     a[1, 0] = 3.0
@@ -154,12 +154,12 @@ def test_inplace_matrix_operand_on_strided_target() raises:
     Covers the stride-aware branch of the binary in-place core, which is a
     different path from the scalar one above.
     """
-    var a = Matrix[DType.float64](2, 2, 1, 2)  # column-major
+    var a = Matrix[Float64](2, 2, 1, 2)  # column-major
     a[0, 0] = 1.0
     a[0, 1] = 2.0
     a[1, 0] = 3.0
     a[1, 1] = 4.0
-    var b = la.matrix[DType.float64]([[10.0, 20.0], [30.0, 40.0]])
+    var b = la.matrix[Float64]([[10.0, 20.0], [30.0, 40.0]])
     a += b
     testing.assert_equal(a[0, 0], 11.0)
     testing.assert_equal(a[0, 1], 22.0)
@@ -175,8 +175,8 @@ def test_inplace_matrix_operand_on_strided_target() raises:
 
 def test_floordiv_matrix() raises:
     """`//` between two matrices."""
-    var a = la.matrix[DType.float64]([[7.0, 9.0], [11.0, 13.0]])
-    var b = la.matrix[DType.float64]([[2.0, 2.0], [3.0, 5.0]])
+    var a = la.matrix[Float64]([[7.0, 9.0], [11.0, 13.0]])
+    var b = la.matrix[Float64]([[2.0, 2.0], [3.0, 5.0]])
     var c = a // b
     testing.assert_equal(c[0, 0], 3.0)
     testing.assert_equal(c[1, 1], 2.0)
@@ -184,8 +184,8 @@ def test_floordiv_matrix() raises:
 
 def test_mod_matrix() raises:
     """`%` between two matrices."""
-    var a = la.matrix[DType.float64]([[7.0, 9.0], [11.0, 13.0]])
-    var b = la.matrix[DType.float64]([[2.0, 2.0], [3.0, 5.0]])
+    var a = la.matrix[Float64]([[7.0, 9.0], [11.0, 13.0]])
+    var b = la.matrix[Float64]([[2.0, 2.0], [3.0, 5.0]])
     var c = a % b
     testing.assert_equal(c[0, 0], 1.0)
     testing.assert_equal(c[1, 1], 3.0)
@@ -193,8 +193,8 @@ def test_mod_matrix() raises:
 
 def test_pow_matrix() raises:
     """`**` between two matrices is element-wise, not matrix power."""
-    var a = la.matrix[DType.float64]([[2.0, 3.0], [4.0, 5.0]])
-    var b = la.matrix[DType.float64]([[2.0, 2.0], [3.0, 0.0]])
+    var a = la.matrix[Float64]([[2.0, 3.0], [4.0, 5.0]])
+    var b = la.matrix[Float64]([[2.0, 2.0], [3.0, 0.0]])
     var c = a**b
     testing.assert_equal(c[0, 0], 4.0)
     testing.assert_equal(c[0, 1], 9.0)
@@ -204,7 +204,7 @@ def test_pow_matrix() raises:
 
 def test_pow_scalar() raises:
     """`**` with a scalar exponent."""
-    var a = la.matrix[DType.float64]([[2.0, 3.0], [4.0, 5.0]])
+    var a = la.matrix[Float64]([[2.0, 3.0], [4.0, 5.0]])
     var c = a**2.0
     testing.assert_equal(c[0, 0], 4.0)
     testing.assert_equal(c[1, 1], 25.0)
@@ -212,8 +212,8 @@ def test_pow_scalar() raises:
 
 def test_floordiv_view() raises:
     """`//` with a matrix view on the right."""
-    var a = la.matrix[DType.float64]([[7.0, 9.0], [11.0, 13.0]])
-    var big = la.matrix[DType.float64](
+    var a = la.matrix[Float64]([[7.0, 9.0], [11.0, 13.0]])
+    var big = la.matrix[Float64](
         [[2.0, 2.0, 99.0], [3.0, 5.0, 99.0], [99.0, 99.0, 99.0]]
     )
     var c = a // big[0:2, 0:2]
@@ -223,7 +223,7 @@ def test_floordiv_view() raises:
 
 def test_mod_scalar() raises:
     """`%` with a scalar."""
-    var a = la.matrix[DType.float64]([[7.0, 9.0], [11.0, 13.0]])
+    var a = la.matrix[Float64]([[7.0, 9.0], [11.0, 13.0]])
     var c = a % 5.0
     testing.assert_equal(c[0, 0], 2.0)
     testing.assert_equal(c[1, 1], 3.0)
@@ -236,7 +236,7 @@ def test_mod_scalar() raises:
 
 def test_radd() raises:
     """`scalar + matrix`."""
-    var a = la.matrix[DType.float64]([[1.0, 2.0], [3.0, 4.0]])
+    var a = la.matrix[Float64]([[1.0, 2.0], [3.0, 4.0]])
     var c = 10.0 + a
     testing.assert_equal(c[0, 0], 11.0)
     testing.assert_equal(c[1, 1], 14.0)
@@ -244,7 +244,7 @@ def test_radd() raises:
 
 def test_rmul() raises:
     """`scalar * matrix`."""
-    var a = la.matrix[DType.float64]([[1.0, 2.0], [3.0, 4.0]])
+    var a = la.matrix[Float64]([[1.0, 2.0], [3.0, 4.0]])
     var c = 3.0 * a
     testing.assert_equal(c[0, 0], 3.0)
     testing.assert_equal(c[1, 1], 12.0)
@@ -252,7 +252,7 @@ def test_rmul() raises:
 
 def test_rsub_is_not_commutative() raises:
     """`scalar - matrix` subtracts the matrix, not the other way round."""
-    var a = la.matrix[DType.float64]([[1.0, 2.0], [3.0, 4.0]])
+    var a = la.matrix[Float64]([[1.0, 2.0], [3.0, 4.0]])
     var c = 10.0 - a
     testing.assert_equal(c[0, 0], 9.0)
     testing.assert_equal(c[0, 1], 8.0)
@@ -262,7 +262,7 @@ def test_rsub_is_not_commutative() raises:
 
 def test_rtruediv_is_not_commutative() raises:
     """`scalar / matrix` divides the scalar by each element."""
-    var a = la.matrix[DType.float64]([[1.0, 2.0], [4.0, 5.0]])
+    var a = la.matrix[Float64]([[1.0, 2.0], [4.0, 5.0]])
     var c = 20.0 / a
     testing.assert_equal(c[0, 0], 20.0)
     testing.assert_equal(c[0, 1], 10.0)
@@ -277,8 +277,8 @@ def test_rtruediv_is_not_commutative() raises:
 
 def test_greater_matrix() raises:
     """`>` returns an element-wise bool mask."""
-    var a = la.matrix[DType.float64]([[1.0, 5.0], [3.0, 4.0]])
-    var b = la.matrix[DType.float64]([[2.0, 2.0], [3.0, 9.0]])
+    var a = la.matrix[Float64]([[1.0, 5.0], [3.0, 4.0]])
+    var b = la.matrix[Float64]([[2.0, 2.0], [3.0, 9.0]])
     var m = a > b
     testing.assert_equal(m[0, 0], False)
     testing.assert_equal(m[0, 1], True)
@@ -288,8 +288,8 @@ def test_greater_matrix() raises:
 
 def test_greater_equal_matrix() raises:
     """`>=` includes the equal case."""
-    var a = la.matrix[DType.float64]([[1.0, 5.0], [3.0, 4.0]])
-    var b = la.matrix[DType.float64]([[2.0, 2.0], [3.0, 9.0]])
+    var a = la.matrix[Float64]([[1.0, 5.0], [3.0, 4.0]])
+    var b = la.matrix[Float64]([[2.0, 2.0], [3.0, 9.0]])
     var m = a >= b
     testing.assert_equal(m[0, 0], False)
     testing.assert_equal(m[1, 0], True)
@@ -297,8 +297,8 @@ def test_greater_equal_matrix() raises:
 
 def test_less_and_less_equal() raises:
     """`<` and `<=`."""
-    var a = la.matrix[DType.float64]([[1.0, 5.0], [3.0, 4.0]])
-    var b = la.matrix[DType.float64]([[2.0, 2.0], [3.0, 9.0]])
+    var a = la.matrix[Float64]([[1.0, 5.0], [3.0, 4.0]])
+    var b = la.matrix[Float64]([[2.0, 2.0], [3.0, 9.0]])
     var lt = a < b
     testing.assert_equal(lt[0, 0], True)
     testing.assert_equal(lt[1, 0], False)
@@ -308,8 +308,8 @@ def test_less_and_less_equal() raises:
 
 def test_equal_returns_mask_not_bool() raises:
     """`==` is element-wise, matching NumPy rather than returning one Bool."""
-    var a = la.matrix[DType.float64]([[1.0, 2.0], [3.0, 4.0]])
-    var b = la.matrix[DType.float64]([[1.0, 9.0], [3.0, 9.0]])
+    var a = la.matrix[Float64]([[1.0, 2.0], [3.0, 4.0]])
+    var b = la.matrix[Float64]([[1.0, 9.0], [3.0, 9.0]])
     var m = a == b
     testing.assert_equal(m[0, 0], True)
     testing.assert_equal(m[0, 1], False)
@@ -322,8 +322,8 @@ def test_equal_returns_mask_not_bool() raises:
 
 def test_not_equal() raises:
     """`!=` is the complement of `==`."""
-    var a = la.matrix[DType.float64]([[1.0, 2.0], [3.0, 4.0]])
-    var b = la.matrix[DType.float64]([[1.0, 9.0], [3.0, 9.0]])
+    var a = la.matrix[Float64]([[1.0, 2.0], [3.0, 4.0]])
+    var b = la.matrix[Float64]([[1.0, 9.0], [3.0, 9.0]])
     var m = a != b
     testing.assert_equal(m[0, 0], False)
     testing.assert_equal(m[0, 1], True)
@@ -331,7 +331,7 @@ def test_not_equal() raises:
 
 def test_compare_scalar() raises:
     """Comparison against a scalar right-hand side."""
-    var a = la.matrix[DType.float64]([[1.0, 2.0], [3.0, 4.0]])
+    var a = la.matrix[Float64]([[1.0, 2.0], [3.0, 4.0]])
     var m = a > 2.0
     testing.assert_equal(m[0, 0], False)
     testing.assert_equal(m[0, 1], False)
@@ -341,8 +341,8 @@ def test_compare_scalar() raises:
 
 def test_compare_view() raises:
     """Comparison against a matrix view."""
-    var a = la.matrix[DType.float64]([[1.0, 5.0], [3.0, 4.0]])
-    var big = la.matrix[DType.float64](
+    var a = la.matrix[Float64]([[1.0, 5.0], [3.0, 4.0]])
+    var big = la.matrix[Float64](
         [[2.0, 2.0, 99.0], [3.0, 9.0, 99.0], [99.0, 99.0, 99.0]]
     )
     var m = a > big[0:2, 0:2]
@@ -353,7 +353,7 @@ def test_compare_view() raises:
 def test_compare_strided_operand() raises:
     """Comparison falls back to the stride-aware path for non-contiguous data.
     """
-    var a = Matrix[DType.float64](2, 2, 1, 2)  # column-major
+    var a = Matrix[Float64](2, 2, 1, 2)  # column-major
     a[0, 0] = 1.0
     a[0, 1] = 5.0
     a[1, 0] = 3.0
@@ -368,8 +368,8 @@ def test_compare_strided_operand() raises:
 
 def test_compare_shape_mismatch_raises() raises:
     """Comparing mismatched shapes raises."""
-    var a = la.matrix[DType.float64]([[1.0, 2.0], [3.0, 4.0]])
-    var b = la.matrix[DType.float64]([[1.0, 2.0, 3.0]])
+    var a = la.matrix[Float64]([[1.0, 2.0], [3.0, 4.0]])
+    var b = la.matrix[Float64]([[1.0, 2.0, 3.0]])
     var raised = False
     try:
         var _m = a > b
@@ -387,7 +387,7 @@ def test_compare_shape_mismatch_raises() raises:
 
 def test_view_scalar_arithmetic() raises:
     """Scalar right-hand side on a view."""
-    var big = la.matrix[DType.float64](
+    var big = la.matrix[Float64](
         [[1.0, 2.0, 99.0], [3.0, 4.0, 99.0], [99.0, 99.0, 99.0]]
     )
     var v = big[0:2, 0:2]
@@ -398,7 +398,7 @@ def test_view_scalar_arithmetic() raises:
 
 def test_view_floordiv_and_pow() raises:
     """`//` and `**` on a view."""
-    var big = la.matrix[DType.float64](
+    var big = la.matrix[Float64](
         [[7.0, 9.0, 99.0], [11.0, 13.0, 99.0], [99.0, 99.0, 99.0]]
     )
     var v = big[0:2, 0:2]
@@ -411,7 +411,7 @@ def test_view_floordiv_and_pow() raises:
 
 def test_view_reflected_scalar() raises:
     """`scalar - view` on a view."""
-    var big = la.matrix[DType.float64](
+    var big = la.matrix[Float64](
         [[1.0, 2.0, 99.0], [3.0, 4.0, 99.0], [99.0, 99.0, 99.0]]
     )
     var v = big[0:2, 0:2]
@@ -422,7 +422,7 @@ def test_view_reflected_scalar() raises:
 
 def test_view_comparison() raises:
     """Comparison operators on a view, including the strided path."""
-    var big = la.matrix[DType.float64](
+    var big = la.matrix[Float64](
         [[1.0, 2.0, 3.0], [4.0, 5.0, 6.0], [7.0, 8.0, 9.0]]
     )
     # Strided view: every other column.
@@ -438,11 +438,11 @@ def test_view_comparison() raises:
 
 def test_view_equality_mask_against_matrix() raises:
     """`view == matrix` returns a mask."""
-    var big = la.matrix[DType.float64](
+    var big = la.matrix[Float64](
         [[1.0, 2.0, 99.0], [3.0, 4.0, 99.0], [99.0, 99.0, 99.0]]
     )
     var v = big[0:2, 0:2]
-    var b = la.matrix[DType.float64]([[1.0, 9.0], [3.0, 9.0]])
+    var b = la.matrix[Float64]([[1.0, 9.0], [3.0, 9.0]])
     var m = v == b
     testing.assert_equal(m[0, 0], True)
     testing.assert_equal(m[0, 1], False)

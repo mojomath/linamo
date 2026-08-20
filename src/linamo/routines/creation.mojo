@@ -20,12 +20,12 @@ from linamo.utils.indexing import get_offset
 
 
 def matrix[
-    dtype: DType = DType.float64
-](list: List[List[Scalar[dtype]]], order: String = "C") raises -> Matrix[dtype]:
+    T: Copyable & Deinitable = Float64
+](list: List[List[T]], order: String = "C") raises -> Matrix[T]:
     """Initializes the matrix with a list of lists.
 
     Parameters:
-        dtype: The data type of the matrix elements.
+        T: The type of the matrix elements. Defaults to `Float64`.
 
     Args:
         list: A list of lists where each inner list represents a row of the matrix.
@@ -67,15 +67,18 @@ def matrix[
                 message="All rows must have the same length.",
             )
 
-    var data = List[Scalar[dtype]](unsafe_uninit_length=nrows * ncols)
-    var row_index = 0
-    for row in list:
-        var col_index = 0
-        for element in row:
-            data[row_index * row_stride + col_index * col_stride] = element
-            col_index += 1
-        row_index += 1
-    return Matrix[dtype](
+    # The buffer is filled front to back rather than allocated
+    # `unsafe_uninit_length` and written into at a computed offset. For a
+    # scalar element the two are the same; for an element that owns a heap
+    # allocation they are not, because assigning into an uninitialised slot
+    # runs a destructor over whatever happened to be there.
+    var c_order = row_stride == ncols
+    var data = List[T](capacity=nrows * ncols)
+    for p in range(nrows * ncols):
+        var row = p // ncols if c_order else p % nrows
+        var col = p % ncols if c_order else p // nrows
+        data.append(list[row][col].copy())
+    return Matrix[T](
         buffer=data^,
         nrows=nrows,
         ncols=ncols,
@@ -85,18 +88,18 @@ def matrix[
 
 
 def matrix[
-    dtype: DType = DType.float64
+    T: Copyable & Deinitable = Float64
 ](
     *,
-    var flat_list: List[Scalar[dtype]],
+    var flat_list: List[T],
     nrows: Int,
     ncols: Int,
     order: String = "C",
-) raises -> Matrix[dtype]:
+) raises -> Matrix[T]:
     """Initializes the matrix with a list and shape.
 
     Parameters:
-        dtype: The data type of the matrix elements.
+        T: The type of the matrix elements. Defaults to `Float64`.
 
     Args:
         flat_list: A list of elements to initialize the matrix.
@@ -132,7 +135,7 @@ def matrix[
             function="matrix()",
             message="Invalid order. Must be 'C' or 'F'.",
         )
-    return Matrix[dtype](
+    return Matrix[T](
         buffer=flat_list^,
         nrows=nrows,
         ncols=ncols,
@@ -142,16 +145,21 @@ def matrix[
 
 
 def smatrix[
-    nrows: Int, ncols: Int, dtype: DType = DType.float64
-](var list: List[List[Scalar[dtype]]]) raises -> StaticMatrix[
-    dtype, nrows, ncols
-]:
+    dtype: DType = DType.float64,
+    //,
+    nrows: Int,
+    ncols: Int,
+    T: Copyable & Deinitable = Scalar[dtype],
+](var list: List[List[T]]) raises -> StaticMatrix[
+    Scalar[dtype], nrows, ncols
+] where (T == Scalar[dtype]):
     """Initializes the static matrix with a list of lists.
 
     Parameters:
         nrows: The number of rows in the matrix.
         ncols: The number of columns in the matrix.
-        dtype: The data type of the matrix elements. Defaults to `DType.float64`.
+        dtype: The dtype behind `T`, deduced rather than written.
+        T: The type of the matrix elements. Defaults to `Float64`.
 
     Args:
         list: A list of lists representing the rows of the matrix.
@@ -162,7 +170,9 @@ def smatrix[
             function="matrix()",
             message="Number of rows in list does not match nrows.",
         )
-    var result = StaticMatrix[dtype, nrows, ncols]()  # Initialize with zeros
+    var result = StaticMatrix[
+        Scalar[dtype], nrows, ncols
+    ]()  # Initialize with zeros
     for row_index in range(len(list)):
         if len(list[row_index]) != ncols:
             raise ValueError(
@@ -170,23 +180,30 @@ def smatrix[
                 message="All rows must have the same length as ncols.",
             )
         for col_index in range(ncols):
-            result._data[
-                row_index * result.row_stride + col_index * result.col_stride
-            ] = list[row_index][col_index]
+            result._set_flat(
+                row_index * result.row_stride()
+                + col_index * result.col_stride(),
+                rebind[Scalar[dtype]](list[row_index][col_index]),
+            )
     return result^
 
 
 def smatrix[
-    nrows: Int, ncols: Int, dtype: DType = DType.float64
-](*, var flat_list: List[Scalar[dtype]]) raises -> StaticMatrix[
-    dtype, nrows, ncols
-]:
+    dtype: DType = DType.float64,
+    //,
+    nrows: Int,
+    ncols: Int,
+    T: Copyable & Deinitable = Scalar[dtype],
+](*, var flat_list: List[T]) raises -> StaticMatrix[
+    Scalar[dtype], nrows, ncols
+] where (T == Scalar[dtype]):
     """Initializes the static matrix with a list of values.
 
     Parameters:
         nrows: The number of rows in the matrix.
         ncols: The number of columns in the matrix.
-        dtype: The data type of the matrix elements.
+        dtype: The dtype behind `T`, deduced rather than written.
+        T: The type of the matrix elements. Defaults to `Float64`.
 
     Args:
         flat_list: A list of values.
@@ -196,13 +213,16 @@ def smatrix[
             function="matrix()",
             message="Number of rows in list does not match nrows.",
         )
-    var result = StaticMatrix[dtype, nrows, ncols]()  # Initialize with zeros
+    var result = StaticMatrix[
+        Scalar[dtype], nrows, ncols
+    ]()  # Initialize with zeros
     var offset = 0
     for i in range(nrows):
         for j in range(ncols):
-            result._data[
-                i * result.row_stride + j * result.col_stride
-            ] = flat_list[offset]
+            result._set_flat(
+                i * result.row_stride() + j * result.col_stride(),
+                rebind[Scalar[dtype]](flat_list[offset]),
+            )
             offset += 1
     return result^
 
@@ -216,12 +236,13 @@ def smatrix[
 
 
 def zeros[
-    dtype: DType = DType.float64
-](nrows: Int, ncols: Int) -> Matrix[dtype]:
+    dtype: DType = DType.float64, //, T: Copyable & Deinitable = Scalar[dtype]
+](nrows: Int, ncols: Int) -> Matrix[Scalar[dtype]] where T == Scalar[dtype]:
     """Creates a matrix filled with zeros.
 
     Parameters:
-        dtype: The data type of the matrix elements. Defaults to `DType.float64`.
+        dtype: The dtype behind `T`, deduced rather than written.
+        T: The type of the matrix elements. Defaults to `Float64`.
 
     Args:
         nrows: The number of rows in the matrix.
@@ -230,7 +251,7 @@ def zeros[
     Returns:
         A new matrix of shape (nrows, ncols) filled with zeros.
     """
-    return Matrix[dtype](
+    return Matrix[Scalar[dtype]](
         buffer=List[Scalar[dtype]](length=nrows * ncols, fill=0),
         nrows=nrows,
         ncols=ncols,
@@ -239,11 +260,14 @@ def zeros[
     )
 
 
-def ones[dtype: DType = DType.float64](nrows: Int, ncols: Int) -> Matrix[dtype]:
+def ones[
+    dtype: DType = DType.float64, //, T: Copyable & Deinitable = Scalar[dtype]
+](nrows: Int, ncols: Int) -> Matrix[Scalar[dtype]] where T == Scalar[dtype]:
     """Creates a matrix filled with ones.
 
     Parameters:
-        dtype: The data type of the matrix elements. Defaults to `DType.float64`.
+        dtype: The dtype behind `T`, deduced rather than written.
+        T: The type of the matrix elements. Defaults to `Float64`.
 
     Args:
         nrows: The number of rows in the matrix.
@@ -252,7 +276,7 @@ def ones[dtype: DType = DType.float64](nrows: Int, ncols: Int) -> Matrix[dtype]:
     Returns:
         A new matrix of shape (nrows, ncols) filled with ones.
     """
-    return Matrix[dtype](
+    return Matrix[Scalar[dtype]](
         buffer=List[Scalar[dtype]](length=nrows * ncols, fill=1),
         nrows=nrows,
         ncols=ncols,
@@ -262,12 +286,12 @@ def ones[dtype: DType = DType.float64](nrows: Int, ncols: Int) -> Matrix[dtype]:
 
 
 def full[
-    dtype: DType = DType.float64
-](nrows: Int, ncols: Int, fill_value: Scalar[dtype]) -> Matrix[dtype]:
+    T: Copyable & Deinitable = Float64
+](nrows: Int, ncols: Int, fill_value: T) -> Matrix[T]:
     """Creates a matrix filled with a specified value.
 
     Parameters:
-        dtype: The data type of the matrix elements. Defaults to `DType.float64`.
+        T: The type of the matrix elements. Defaults to `Float64`.
 
     Args:
         nrows: The number of rows in the matrix.
@@ -277,8 +301,8 @@ def full[
     Returns:
         A new matrix of shape (nrows, ncols) filled with fill_value.
     """
-    return Matrix[dtype](
-        buffer=List[Scalar[dtype]](length=nrows * ncols, fill=fill_value),
+    return Matrix[T](
+        buffer=List[T](length=nrows * ncols, fill=fill_value),
         nrows=nrows,
         ncols=ncols,
         row_stride=ncols,
@@ -286,11 +310,14 @@ def full[
     )
 
 
-def eye[dtype: DType = DType.float64](n: Int) -> Matrix[dtype]:
+def eye[
+    dtype: DType = DType.float64, //, T: Copyable & Deinitable = Scalar[dtype]
+](n: Int) -> Matrix[Scalar[dtype]] where T == Scalar[dtype]:
     """Creates an n×n identity matrix.
 
     Parameters:
-        dtype: The data type of the matrix elements. Defaults to `DType.float64`.
+        dtype: The dtype behind `T`, deduced rather than written.
+        T: The type of the matrix elements. Defaults to `Float64`.
 
     Args:
         n: The number of rows and columns in the identity matrix.
@@ -301,7 +328,7 @@ def eye[dtype: DType = DType.float64](n: Int) -> Matrix[dtype]:
     var data = List[Scalar[dtype]](length=n * n, fill=0)
     for i in range(n):
         data[i * n + i] = 1
-    return Matrix[dtype](
+    return Matrix[Scalar[dtype]](
         buffer=data^,
         nrows=n,
         ncols=n,
@@ -310,11 +337,14 @@ def eye[dtype: DType = DType.float64](n: Int) -> Matrix[dtype]:
     )
 
 
-def identity[dtype: DType = DType.float64](n: Int) -> Matrix[dtype]:
+def identity[
+    dtype: DType = DType.float64, //, T: Copyable & Deinitable = Scalar[dtype]
+](n: Int) -> Matrix[Scalar[dtype]] where T == Scalar[dtype]:
     """Creates an n×n identity matrix. Alias for `eye()`.
 
     Parameters:
-        dtype: The data type of the matrix elements. Defaults to `DType.float64`.
+        dtype: The dtype behind `T`, deduced rather than written.
+        T: The type of the matrix elements. Defaults to `Float64`.
 
     Args:
         n: The number of rows and columns in the identity matrix.
@@ -322,14 +352,22 @@ def identity[dtype: DType = DType.float64](n: Int) -> Matrix[dtype]:
     Returns:
         A new n×n identity matrix with ones on the diagonal and zeros elsewhere.
     """
-    return eye[dtype](n)
+    return eye[Scalar[dtype]](n)
 
 
-def diag[dtype: DType](var values: List[Scalar[dtype]]) -> Matrix[dtype]:
+def diag[
+    dtype: DType = DType.float64, //, T: Copyable & Deinitable = Scalar[dtype]
+](var values: List[T]) -> Matrix[T] where T == Scalar[dtype] where (
+    T == Scalar[dtype]
+):
     """Creates a square diagonal matrix from a list of values.
 
+    The off-diagonal elements are zeros, so this asks its element type for a
+    zero and is available for the scalar types only.
+
     Parameters:
-        dtype: The data type of the matrix elements.
+        dtype: The dtype behind `T`, deduced rather than written.
+        T: The type of the matrix elements. Defaults to `Float64`.
 
     Args:
         values: A list of diagonal values.
@@ -339,10 +377,10 @@ def diag[dtype: DType](var values: List[Scalar[dtype]]) -> Matrix[dtype]:
         elsewhere, where n is the length of `values`.
     """
     var n = len(values)
-    var data = List[Scalar[dtype]](length=n * n, fill=0)
+    var data = List[T](length=n * n, fill=rebind[T](Scalar[dtype](0)))
     for i in range(n):
-        data[i * n + i] = values[i]
-    return Matrix[dtype](
+        data[i * n + i] = values[i].copy()
+    return Matrix[T](
         buffer=data^,
         nrows=n,
         ncols=n,
@@ -351,7 +389,9 @@ def diag[dtype: DType](var values: List[Scalar[dtype]]) -> Matrix[dtype]:
     )
 
 
-def diag[dtype: DType](mat: Matrix[dtype]) raises -> List[Scalar[dtype]]:
+def diag[
+    dtype: DType
+](mat: Matrix[Scalar[dtype]]) raises -> List[Scalar[dtype]]:
     """Extracts the diagonal elements from a matrix.
 
     Parameters:
@@ -386,8 +426,8 @@ def diag[dtype: DType](mat: Matrix[dtype]) raises -> List[Scalar[dtype]]:
 
 
 def empty[
-    dtype: DType = DType.float64
-](nrows: Int, ncols: Int) -> Matrix[dtype]:
+    dtype: DType = DType.float64, //, T: Copyable & Deinitable = Scalar[dtype]
+](nrows: Int, ncols: Int) -> Matrix[Scalar[dtype]] where T == Scalar[dtype]:
     """Creates a matrix of the given shape whose elements are **unspecified**.
 
     This is `zeros()` without the zero-fill. Use it when every element is
@@ -396,7 +436,8 @@ def empty[
     a crash, since matrix elements are plain scalars.
 
     Parameters:
-        dtype: The data type of the matrix elements. Defaults to `DType.float64`.
+        dtype: The dtype behind `T`, deduced rather than written.
+        T: The type of the matrix elements. Defaults to `Float64`.
 
     Args:
         nrows: The number of rows in the matrix.
@@ -406,7 +447,7 @@ def empty[
         A new C-contiguous matrix of shape (nrows, ncols) with unspecified
         contents.
     """
-    return Matrix[dtype](
+    return Matrix[Scalar[dtype]](
         buffer=List[Scalar[dtype]](unsafe_uninit_length=nrows * ncols),
         nrows=nrows,
         ncols=ncols,
@@ -427,7 +468,7 @@ def empty[
 
 def zeros_like[
     dtype: DType, origin: Origin
-](a: MatrixView[dtype, origin]) -> Matrix[dtype]:
+](a: MatrixView[Scalar[dtype], origin]) -> Matrix[Scalar[dtype]]:
     """Creates a matrix of zeros with the same shape and dtype as `a`.
 
     Parameters:
@@ -440,12 +481,12 @@ def zeros_like[
     Returns:
         A new C-contiguous matrix shaped like `a`, filled with zeros.
     """
-    return zeros[dtype](a.nrows(), a.ncols())
+    return zeros[Scalar[dtype]](a.nrows(), a.ncols())
 
 
 def ones_like[
     dtype: DType, origin: Origin
-](a: MatrixView[dtype, origin]) -> Matrix[dtype]:
+](a: MatrixView[Scalar[dtype], origin]) -> Matrix[Scalar[dtype]]:
     """Creates a matrix of ones with the same shape and dtype as `a`.
 
     Parameters:
@@ -458,12 +499,14 @@ def ones_like[
     Returns:
         A new C-contiguous matrix shaped like `a`, filled with ones.
     """
-    return ones[dtype](a.nrows(), a.ncols())
+    return ones[Scalar[dtype]](a.nrows(), a.ncols())
 
 
 def full_like[
     dtype: DType, origin: Origin
-](a: MatrixView[dtype, origin], fill_value: Scalar[dtype]) -> Matrix[dtype]:
+](a: MatrixView[Scalar[dtype], origin], fill_value: Scalar[dtype]) -> Matrix[
+    Scalar[dtype]
+]:
     """Creates a matrix filled with `fill_value`, shaped and typed like `a`.
 
     Parameters:
@@ -477,12 +520,12 @@ def full_like[
     Returns:
         A new C-contiguous matrix shaped like `a`, filled with `fill_value`.
     """
-    return full[dtype](a.nrows(), a.ncols(), fill_value)
+    return full[Scalar[dtype]](a.nrows(), a.ncols(), fill_value)
 
 
 def empty_like[
     dtype: DType, origin: Origin
-](a: MatrixView[dtype, origin]) -> Matrix[dtype]:
+](a: MatrixView[Scalar[dtype], origin]) -> Matrix[Scalar[dtype]]:
     """Creates a matrix shaped and typed like `a`, with unspecified contents.
 
     Parameters:
@@ -495,7 +538,7 @@ def empty_like[
     Returns:
         A new C-contiguous matrix shaped like `a`, with unspecified contents.
     """
-    return empty[dtype](a.nrows(), a.ncols())
+    return empty[Scalar[dtype]](a.nrows(), a.ncols())
 
 
 # ===---------------------------------------------------------------------- ===#
@@ -511,17 +554,18 @@ def empty_like[
 
 
 def arange[
-    dtype: DType = DType.float64
-](
-    start: Scalar[dtype], stop: Scalar[dtype], step: Scalar[dtype] = 1
-) raises -> Matrix[dtype]:
+    dtype: DType = DType.float64, //, T: Copyable & Deinitable = Scalar[dtype]
+](start: T, stop: T, step: T = rebind[T](Scalar[dtype](1))) raises -> Matrix[
+    Scalar[dtype]
+] where (T == Scalar[dtype]):
     """Creates a row matrix of evenly spaced values over `[start, stop)`.
 
     `stop` is excluded, as in NumPy and in Python's `range`. The element count
     is `ceil((stop - start) / step)`, and `step` may be negative.
 
     Parameters:
-        dtype: The data type of the matrix elements. Defaults to `DType.float64`.
+        dtype: The dtype behind `T`, deduced rather than written.
+        T: The type of the matrix elements. Defaults to `Float64`.
 
     Args:
         start: The first value.
@@ -535,31 +579,36 @@ def arange[
         ValueError: If `step` is zero, or if the range is empty.
     """
     comptime fn_name = "arange(start, stop, step)"
-    if step == 0:
+    # `T` is `Scalar[dtype]`, but the compiler does not refine it inside the
+    # body, so the three bounds are restated once and used as scalars below.
+    var lo = rebind[Scalar[dtype]](start)
+    var hi = rebind[Scalar[dtype]](stop)
+    var by = rebind[Scalar[dtype]](step)
+    if by == 0:
         raise ValueError(
             function=fn_name,
             message="`step` cannot be zero.",
         )
 
-    var count = Int(ceil((Float64(stop) - Float64(start)) / Float64(step)))
+    var count = Int(ceil((Float64(hi) - Float64(lo)) / Float64(by)))
     if count <= 0:
         raise ValueError(
             function=fn_name,
             message=String(
                 "The range from ",
-                start,
+                lo,
                 " to ",
-                stop,
+                hi,
                 " with step ",
-                step,
+                by,
                 " contains no values. Linamo has no zero-size matrices.",
             ),
         )
 
     var data = List[Scalar[dtype]](unsafe_uninit_length=count)
     for k in range(count):
-        data[k] = start + Scalar[dtype](k) * step
-    return Matrix[dtype](
+        data[k] = lo + Scalar[dtype](k) * by
+    return Matrix[Scalar[dtype]](
         buffer=data^,
         nrows=1,
         ncols=count,
@@ -569,12 +618,13 @@ def arange[
 
 
 def arange[
-    dtype: DType = DType.float64
-](stop: Scalar[dtype]) raises -> Matrix[dtype]:
+    dtype: DType = DType.float64, //, T: Copyable & Deinitable = Scalar[dtype]
+](stop: T) raises -> Matrix[Scalar[dtype]] where T == Scalar[dtype]:
     """Creates a row matrix of evenly spaced values over `[0, stop)`, step 1.
 
     Parameters:
-        dtype: The data type of the matrix elements. Defaults to `DType.float64`.
+        dtype: The dtype behind `T`, deduced rather than written.
+        T: The type of the matrix elements. Defaults to `Float64`.
 
     Args:
         stop: The exclusive upper bound.
@@ -585,17 +635,19 @@ def arange[
     Raises:
         ValueError: If `stop` is not positive.
     """
-    return arange[dtype](0, stop, 1)
+    return arange[Scalar[dtype]](0, rebind[Scalar[dtype]](stop), 1)
 
 
 def linspace[
-    dtype: DType = DType.float64
+    dtype: DType = DType.float64, //, T: Copyable & Deinitable = Scalar[dtype]
 ](
-    start: Scalar[dtype],
-    stop: Scalar[dtype],
+    start: T,
+    stop: T,
     num: Int = 50,
     endpoint: Bool = True,
-) raises -> Matrix[dtype]:
+) raises -> Matrix[
+    Scalar[dtype]
+] where (T == Scalar[dtype]):
     """Creates a row matrix of `num` evenly spaced values from `start` to `stop`.
 
     Unlike `arange`, the count is given and the spacing is derived, so the
@@ -604,7 +656,8 @@ def linspace[
     half-open and the spacing is `(stop - start) / num`.
 
     Parameters:
-        dtype: The data type of the matrix elements. Defaults to `DType.float64`.
+        dtype: The dtype behind `T`, deduced rather than written.
+        T: The type of the matrix elements. Defaults to `Float64`.
 
     Args:
         start: The first value.
@@ -629,8 +682,8 @@ def linspace[
             ),
         )
 
-    var first = Float64(start)
-    var last = Float64(stop)
+    var first = Float64(rebind[Scalar[dtype]](start))
+    var last = Float64(rebind[Scalar[dtype]](stop))
     var step = 0.0
     if num > 1:
         var divisor = Float64(num - 1) if endpoint else Float64(num)
@@ -642,8 +695,8 @@ def linspace[
     if endpoint and num > 1:
         # Pin the last element instead of trusting `first + (num - 1) * step`,
         # which lands a rounding error short of `stop`. NumPy does the same.
-        data[num - 1] = stop
-    return Matrix[dtype](
+        data[num - 1] = rebind[Scalar[dtype]](stop)
+    return Matrix[Scalar[dtype]](
         buffer=data^,
         nrows=1,
         ncols=num,
@@ -658,20 +711,20 @@ def linspace[
 
 
 def from_list[
-    dtype: DType = DType.float64
+    T: Copyable & Deinitable = Float64
 ](
-    var flat_list: List[Scalar[dtype]],
+    var flat_list: List[T],
     nrows: Int,
     ncols: Int,
     order: String = "C",
-) raises -> Matrix[dtype]:
+) raises -> Matrix[T]:
     """Creates a matrix of the given shape from a flat list of elements.
 
     A positional spelling of `matrix(flat_list=..., nrows=..., ncols=...)`,
     named for the NuMojo routine it replaces.
 
     Parameters:
-        dtype: The data type of the matrix elements. Defaults to `DType.float64`.
+        T: The type of the matrix elements. Defaults to `Float64`.
 
     Args:
         flat_list: The elements, in `order`.
@@ -687,7 +740,7 @@ def from_list[
         ValueError: If the list is empty, if its length is not `nrows * ncols`,
             or if `order` is neither "C" nor "F".
     """
-    return matrix[dtype](
+    return matrix[T](
         flat_list=flat_list^, nrows=nrows, ncols=ncols, order=order
     )
 
@@ -824,8 +877,10 @@ def _tokenize_rows[
 
 
 def from_string[
-    dtype: DType = DType.float64
-](text: String, order: String = "C") raises -> Matrix[dtype]:
+    dtype: DType = DType.float64, //, T: Copyable & Deinitable = Scalar[dtype]
+](text: String, order: String = "C") raises -> Matrix[Scalar[dtype]] where (
+    T == Scalar[dtype]
+):
     """Creates a matrix from a bracketed literal, deducing its shape.
 
     Rows are written as nested brackets and elements are separated by commas
@@ -833,7 +888,8 @@ def from_string[
     with no nesting, such as `"[1, 2, 3]"` or `"1 2 3"`, is a single row.
 
     Parameters:
-        dtype: The data type of the matrix elements. Defaults to `DType.float64`.
+        dtype: The dtype behind `T`, deduced rather than written.
+        T: The type of the matrix elements. Defaults to `Float64`.
 
     Args:
         text: The literal to parse.
@@ -848,14 +904,14 @@ def from_string[
             neither "C" nor "F".
     """
     comptime fn_name = "from_string(text, order)"
-    return matrix[dtype](_tokenize_rows[dtype](text, fn_name), order)
+    return matrix[Scalar[dtype]](_tokenize_rows[dtype](text, fn_name), order)
 
 
 def from_string[
-    dtype: DType = DType.float64
+    dtype: DType = DType.float64, //, T: Copyable & Deinitable = Scalar[dtype]
 ](text: String, nrows: Int, ncols: Int, order: String = "C") raises -> Matrix[
-    dtype
-]:
+    Scalar[dtype]
+] where (T == Scalar[dtype]):
     """Creates a matrix of the given shape from a literal of `nrows * ncols`
     elements.
 
@@ -864,7 +920,8 @@ def from_string[
     give the same 2x2 result.
 
     Parameters:
-        dtype: The data type of the matrix elements. Defaults to `DType.float64`.
+        dtype: The dtype behind `T`, deduced rather than written.
+        T: The type of the matrix elements. Defaults to `Float64`.
 
     Args:
         text: The literal to parse.
@@ -886,4 +943,6 @@ def from_string[
     for row in rows:
         for element in row:
             flat.append(element)
-    return matrix[dtype](flat_list=flat^, nrows=nrows, ncols=ncols, order=order)
+    return matrix[Scalar[dtype]](
+        flat_list=flat^, nrows=nrows, ncols=ncols, order=order
+    )

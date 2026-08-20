@@ -16,10 +16,10 @@ from linamo.routines.math import scalar_add, scalar_sub, scalar_mul, scalar_div
 
 def test_add_view_view() raises:
     """Test add on two views (sub-matrices)."""
-    var a = la.matrix[DType.float64](
+    var a = la.matrix[Float64](
         [[1.0, 2.0, 3.0], [4.0, 5.0, 6.0], [7.0, 8.0, 9.0]]
     )
-    var b = la.matrix[DType.float64](
+    var b = la.matrix[Float64](
         [[10.0, 20.0, 30.0], [40.0, 50.0, 60.0], [70.0, 80.0, 90.0]]
     )
     # Take 2x2 sub-views from top-left
@@ -34,8 +34,8 @@ def test_add_view_view() raises:
 
 def test_sub_view_view() raises:
     """Test sub on two views."""
-    var a = la.matrix[DType.float64]([[10.0, 20.0], [30.0, 40.0]])
-    var b = la.matrix[DType.float64]([[1.0, 2.0], [3.0, 4.0]])
+    var a = la.matrix[Float64]([[10.0, 20.0], [30.0, 40.0]])
+    var b = la.matrix[Float64]([[1.0, 2.0], [3.0, 4.0]])
     var c = sub(a[0:2, 0:2], b[0:2, 0:2])
     testing.assert_equal(c[0, 0], 9.0)
     testing.assert_equal(c[1, 1], 36.0)
@@ -43,8 +43,8 @@ def test_sub_view_view() raises:
 
 def test_mul_view_view() raises:
     """Test mul on two views."""
-    var a = la.matrix[DType.float64]([[2.0, 3.0], [4.0, 5.0]])
-    var b = la.matrix[DType.float64]([[10.0, 20.0], [30.0, 40.0]])
+    var a = la.matrix[Float64]([[2.0, 3.0], [4.0, 5.0]])
+    var b = la.matrix[Float64]([[10.0, 20.0], [30.0, 40.0]])
     var c = mul(a[0:2, 0:2], b[0:2, 0:2])
     testing.assert_equal(c[0, 0], 20.0)
     testing.assert_equal(c[0, 1], 60.0)
@@ -54,8 +54,8 @@ def test_mul_view_view() raises:
 
 def test_div_view_view() raises:
     """Test div on two views."""
-    var a = la.matrix[DType.float64]([[10.0, 20.0], [30.0, 40.0]])
-    var b = la.matrix[DType.float64]([[2.0, 4.0], [5.0, 8.0]])
+    var a = la.matrix[Float64]([[10.0, 20.0], [30.0, 40.0]])
+    var b = la.matrix[Float64]([[2.0, 4.0], [5.0, 8.0]])
     var c = div(a[0:2, 0:2], b[0:2, 0:2])
     testing.assert_equal(c[0, 0], 5.0)
     testing.assert_equal(c[1, 1], 5.0)
@@ -68,8 +68,8 @@ def test_div_view_view() raises:
 
 def test_add_mat_view() raises:
     """Test add: Matrix + MatrixView."""
-    var a = la.matrix[DType.float64]([[1.0, 2.0], [3.0, 4.0]])
-    var big = la.matrix[DType.float64](
+    var a = la.matrix[Float64]([[1.0, 2.0], [3.0, 4.0]])
+    var big = la.matrix[Float64](
         [[10.0, 20.0, 30.0], [40.0, 50.0, 60.0], [70.0, 80.0, 90.0]]
     )
     var vb = big[0:2, 0:2]  # [[10, 20], [40, 50]]
@@ -82,8 +82,8 @@ def test_add_mat_view() raises:
 
 def test_sub_mat_view() raises:
     """Test sub: Matrix - MatrixView."""
-    var a = la.matrix[DType.float64]([[100.0, 200.0], [300.0, 400.0]])
-    var big = la.matrix[DType.float64](
+    var a = la.matrix[Float64]([[100.0, 200.0], [300.0, 400.0]])
+    var big = la.matrix[Float64](
         [[1.0, 2.0, 3.0], [4.0, 5.0, 6.0], [7.0, 8.0, 9.0]]
     )
     var vb = big[0:2, 0:2]
@@ -99,11 +99,11 @@ def test_sub_mat_view() raises:
 
 def test_add_view_mat() raises:
     """Test add: MatrixView + Matrix."""
-    var big = la.matrix[DType.float64](
+    var big = la.matrix[Float64](
         [[1.0, 2.0, 3.0], [4.0, 5.0, 6.0], [7.0, 8.0, 9.0]]
     )
     var va = big[0:2, 0:2]  # [[1, 2], [4, 5]]
-    var b = la.matrix[DType.float64]([[10.0, 20.0], [30.0, 40.0]])
+    var b = la.matrix[Float64]([[10.0, 20.0], [30.0, 40.0]])
     var c = add(va, b)
     testing.assert_equal(c[0, 0], 11.0)
     testing.assert_equal(c[0, 1], 22.0)
@@ -113,9 +113,9 @@ def test_add_view_mat() raises:
 
 def test_mul_view_mat() raises:
     """Test mul: MatrixView * Matrix."""
-    var big = la.matrix[DType.float64]([[2.0, 3.0, 99.0], [4.0, 5.0, 99.0]])
+    var big = la.matrix[Float64]([[2.0, 3.0, 99.0], [4.0, 5.0, 99.0]])
     var va = big[0:2, 0:2]  # [[2, 3], [4, 5]]
-    var b = la.matrix[DType.float64]([[10.0, 10.0], [10.0, 10.0]])
+    var b = la.matrix[Float64]([[10.0, 10.0], [10.0, 10.0]])
     var c = mul(va, b)
     testing.assert_equal(c[0, 0], 20.0)
     testing.assert_equal(c[0, 1], 30.0)
@@ -130,7 +130,7 @@ def test_mul_view_mat() raises:
 
 def test_add_strided_views() raises:
     """Test add on views with step > 1 (non-contiguous)."""
-    var a = la.matrix[DType.float64](
+    var a = la.matrix[Float64](
         [
             [1.0, 2.0, 3.0, 4.0],
             [5.0, 6.0, 7.0, 8.0],
@@ -138,7 +138,7 @@ def test_add_strided_views() raises:
             [13.0, 14.0, 15.0, 16.0],
         ]
     )
-    var b = la.matrix[DType.float64](
+    var b = la.matrix[Float64](
         [
             [10.0, 20.0, 30.0, 40.0],
             [50.0, 60.0, 70.0, 80.0],
@@ -163,7 +163,7 @@ def test_add_strided_views() raises:
 
 def test_scalar_add_view() raises:
     """Test scalar_add on a MatrixView."""
-    var big = la.matrix[DType.float64](
+    var big = la.matrix[Float64](
         [[1.0, 2.0, 3.0], [4.0, 5.0, 6.0], [7.0, 8.0, 9.0]]
     )
     var v = big[0:2, 0:2]  # [[1, 2], [4, 5]]
@@ -176,7 +176,7 @@ def test_scalar_add_view() raises:
 
 def test_scalar_mul_view() raises:
     """Test scalar_mul on a MatrixView."""
-    var big = la.matrix[DType.float64](
+    var big = la.matrix[Float64](
         [[1.0, 2.0, 3.0], [4.0, 5.0, 6.0], [7.0, 8.0, 9.0]]
     )
     var v = big[0:2, 0:2]
@@ -189,7 +189,7 @@ def test_scalar_mul_view() raises:
 
 def test_scalar_sub_view() raises:
     """Test scalar_sub on a MatrixView."""
-    var big = la.matrix[DType.float64]([[10.0, 20.0], [30.0, 40.0]])
+    var big = la.matrix[Float64]([[10.0, 20.0], [30.0, 40.0]])
     var v = big[0:2, 0:2]
     var c = scalar_sub(v, 5.0)
     testing.assert_equal(c[0, 0], 5.0)
@@ -198,7 +198,7 @@ def test_scalar_sub_view() raises:
 
 def test_scalar_div_view() raises:
     """Test scalar_div on a MatrixView."""
-    var big = la.matrix[DType.float64]([[10.0, 20.0], [30.0, 40.0]])
+    var big = la.matrix[Float64]([[10.0, 20.0], [30.0, 40.0]])
     var v = big[0:2, 0:2]
     var c = scalar_div(v, 10.0)
     testing.assert_equal(c[0, 0], 1.0)

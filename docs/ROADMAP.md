@@ -1027,3 +1027,61 @@ call site keeps it.
 |            | `to_numpy`. The underscore replaces NuMojo's spelling so the  |
 |            | three read as one family. No alias kept: pre-1.0, and every   |
 |            | call site is in-tree.                                         |
+| 2026-08-20 | The matrix types now take an element **type** rather than a   |
+|            | `DType`: `Matrix[Float64]` beside `List[Float64]`, and        |
+|            | `Matrix[BigInt]` becomes expressible at all. `Float64` *is*   |
+|            | `Scalar[DType.float64]`, so nothing about the scalar case is  |
+|            | lost --- routines match `Matrix[Scalar[d]]` and `d` is        |
+|            | inferred --- while the two-parameter alternative would have   |
+|            | carried a vestigial dtype (`Matrix[DType.float64, BigInt]`)   |
+|            | that lies in every introspection path. Methods needing the    |
+|            | dtype are gated with `where Self.T == Scalar[d]`; because a   |
+|            | `where` clause decides availability without refining `T` in   |
+|            | the body, each type has one `_simd_view`/`_as_simd` bridge    |
+|            | and no `rebind` anywhere else. `la.f64` and friends now name  |
+|            | types, and `la.bool_` is the mask element the stdlib has no   |
+|            | name for. `StaticMatrix[Float64, 2, 3]` is spelled the same   |
+|            | way but still accepts scalars only: its buffer is one SIMD    |
+|            | register, so `utils/element.dtype_of` recovers the dtype at   |
+|            | compile time and rejects anything else. 464 tests, unchanged. |
+| 2026-08-20 | `Matrix[BigInt]` works. Decimo gained a `Numeric` trait ---   |
+|            | `zero`, `one`, `+`, `-`, `*`, `/`, unary `-` --- which        |
+|            | `BigInt`, `BigDecimal` and `Decimal128` declare, plus         |
+|            | `BigInt.__truediv__`, which truncates toward zero exactly as  |
+|            | Mojo's own `Int` does (`-7 / 2 == -3`, `-7 // 2 == -4`), so   |
+|            | integer division is closed and one trait covers all three.    |
+|            | The arithmetic over it lives in `linamo.decimo`, because      |
+|            | every kernel in `routines/` is written against `Scalar[d]`    |
+|            | and an arbitrary-precision element has no vector instruction  |
+|            | to lower to. Everything structural stayed in core Linamo and  |
+|            | is now generic: slicing, `transpose`, `reshape`, `flatten`,   |
+|            | `contiguous`, `reorder_layout`, `broadcast_to` need only to   |
+|            | move elements, and `sort`, `argsort`, `argmin`, `argmax` ride |
+|            | the *stdlib* `Comparable`. Generalising them surfaced a real  |
+|            | bug class: routines allocated `unsafe_uninit_length` and      |
+|            | wrote at computed offsets, which for a heap-owning element    |
+|            | runs a destructor over uninitialised memory. Those buffers    |
+|            | are now filled front to back. `tools/ensure_decimo.sh`        |
+|            | resolves the dependency (local path, conda, or a pinned       |
+|            | commit) and must precompile it with this workspace's own      |
+|            | `mojo`: a `.mojoc` from another toolchain crashes the         |
+|            | compiler rather than failing to load. 20 new tests, 484       |
+|            | total, plus `examples/decimo_examples.mojo`.                  |
+| 2026-08-20 | `StaticMatrix` shape parameters renamed `nrows`/`ncols` ->    |
+|            | `num_rows`/`num_cols`, and the stride aliases                 |
+|            | `row_stride`/`col_stride` -> `ROW_STRIDE`/`COL_STRIDE`, to    |
+|            | free the names for `nrows()`, `ncols()`, `row_stride()` and   |
+|            | `col_stride()` methods: a Mojo parameter and a method cannot  |
+|            | share a name. All three matrix types now spell their shape    |
+|            | and stride queries alike, which is what `MatrixLike` would    |
+|            | need. Verified that `StaticMatrix` conforms to that trait as  |
+|            | written and that `Matrix` and `MatrixView` do not, blocked    |
+|            | solely by the trait's `__str__`, which on those two carries   |
+|            | `where conforms_to(Self.T, Writable)`. Conformance is still   |
+|            | not declared.                                                 |
+| 2026-08-20 | `tools/ensure_decimo.sh` pins the upstream commit carrying    |
+|            | `decimo.Numeric`, so the fallback resolves with no local      |
+|            | checkout, and the clone is blobless. CI provisions decimo     |
+|            | before the suite and now also runs `examples/run_all.sh`:     |
+|            | without the include path, `tests/decimo` and the decimo       |
+|            | example fail to compile rather than skip.                     |

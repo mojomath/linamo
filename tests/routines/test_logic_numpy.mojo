@@ -24,7 +24,7 @@ from std.python import Python, PythonObject
 
 
 def _assert_same_mask(
-    mask: Matrix[DType.bool], np_mask: PythonObject, msg: String
+    mask: Matrix[Scalar[DType.bool]], np_mask: PythonObject, msg: String
 ) raises:
     """Assert a Linamo mask matches a numpy boolean array element for element.
 
@@ -81,12 +81,8 @@ def test_isclose_matches_numpy_on_non_finite_values() raises:
     var np = Python.import_module("numpy")
     var inf = Float64("inf")
     var nan = Float64("nan")
-    var a = la.matrix[DType.float64](
-        [[inf, inf, inf, nan], [nan, -inf, 1.0, -inf]]
-    )
-    var b = la.matrix[DType.float64](
-        [[inf, -inf, 1e308, nan], [1.0, -inf, inf, inf]]
-    )
+    var a = la.matrix[Float64]([[inf, inf, inf, nan], [nan, -inf, 1.0, -inf]])
+    var b = la.matrix[Float64]([[inf, -inf, 1e308, nan], [1.0, -inf, inf, inf]])
     var a_np = np.array([[inf, inf, inf, nan], [nan, -inf, 1.0, -inf]])
     var b_np = np.array([[inf, -inf, 1e308, nan], [1.0, -inf, inf, inf]])
     _assert_same_mask(

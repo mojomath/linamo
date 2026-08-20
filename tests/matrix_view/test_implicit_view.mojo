@@ -36,8 +36,8 @@ from linamo.routines.logic import greater
 
 def test_add_accepts_all_four_combinations() raises:
     """`add` has a single view x view signature; all four shapes call it."""
-    var a = la.matrix[DType.float64]([[1.0, 2.0], [3.0, 4.0]])
-    var b = la.matrix[DType.float64]([[10.0, 20.0], [30.0, 40.0]])
+    var a = la.matrix[Float64]([[1.0, 2.0], [3.0, 4.0]])
+    var b = la.matrix[Float64]([[10.0, 20.0], [30.0, 40.0]])
 
     var mm = add(a, b)
     var mv = add(a, b.view())
@@ -51,8 +51,8 @@ def test_add_accepts_all_four_combinations() raises:
 
 def test_matmul_accepts_all_four_combinations() raises:
     """The same holds for the SIMD matmul entry point."""
-    var a = la.matrix[DType.float64]([[1.0, 2.0], [3.0, 4.0]])
-    var b = la.matrix[DType.float64]([[5.0, 6.0], [7.0, 8.0]])
+    var a = la.matrix[Float64]([[1.0, 2.0], [3.0, 4.0]])
+    var b = la.matrix[Float64]([[5.0, 6.0], [7.0, 8.0]])
 
     var mm = matmul(a, b)
     var mv = matmul(a, b.view())
@@ -66,8 +66,8 @@ def test_matmul_accepts_all_four_combinations() raises:
 
 def test_comparison_accepts_a_matrix() raises:
     """Comparisons in `routines.logic` collapsed the same way."""
-    var a = la.matrix[DType.float64]([[1.0, 5.0], [3.0, 4.0]])
-    var b = la.matrix[DType.float64]([[2.0, 2.0], [3.0, 9.0]])
+    var a = la.matrix[Float64]([[1.0, 5.0], [3.0, 4.0]])
+    var b = la.matrix[Float64]([[2.0, 2.0], [3.0, 9.0]])
     var m = greater(a, b)
     testing.assert_equal(m[0, 0], False)
     testing.assert_equal(m[0, 1], True)
@@ -76,7 +76,7 @@ def test_comparison_accepts_a_matrix() raises:
 
 def test_scalar_routine_accepts_a_matrix() raises:
     """Scalar forms dropped their `Matrix` overload too."""
-    var a = la.matrix[DType.float64]([[1.0, 2.0], [3.0, 4.0]])
+    var a = la.matrix[Float64]([[1.0, 2.0], [3.0, 4.0]])
     var c = scalar_add(a, 10.0)
     testing.assert_equal(c[0, 0], 11.0)
     testing.assert_equal(c[1, 1], 14.0)
@@ -95,7 +95,7 @@ def test_conversion_is_read_only() raises:
     conversion, so `fill(m, ...)` is a compile error rather than a silent
     write.
     """
-    var a = la.matrix[DType.float64]([[1.0, 2.0], [3.0, 4.0]])
+    var a = la.matrix[Float64]([[1.0, 2.0], [3.0, 4.0]])
     var v = la.MatrixView(a)
     testing.assert_false(v.mut)
     testing.assert_equal(v[0, 0], 1.0)
@@ -107,7 +107,7 @@ def test_same_matrix_twice() raises:
     Two immutable borrows of the same buffer are fine. Were the conversion
     mutable, this call would be two exclusive borrows and would be rejected.
     """
-    var a = la.matrix[DType.float64]([[1.0, 2.0], [3.0, 4.0]])
+    var a = la.matrix[Float64]([[1.0, 2.0], [3.0, 4.0]])
     var c = add(a, a)
     testing.assert_equal(c[0, 0], 2.0)
     testing.assert_equal(c[1, 1], 8.0)
@@ -115,7 +115,7 @@ def test_same_matrix_twice() raises:
 
 def test_mixed_matrix_and_own_slice() raises:
     """A matrix and a slice of itself in one call, after the collapse."""
-    var a = la.matrix[DType.float64]([[1.0, 2.0], [3.0, 4.0]])
+    var a = la.matrix[Float64]([[1.0, 2.0], [3.0, 4.0]])
     var c = add(a[0:2, 0:2], a)
     testing.assert_equal(c[0, 0], 2.0)
     testing.assert_equal(c[1, 1], 8.0)
@@ -131,8 +131,8 @@ def test_mixed_matrix_and_own_slice() raises:
 
 def test_arithmetic_operators_accept_all_four_combinations() raises:
     """`+ - * / @` resolve for every mix of `Matrix` and `MatrixView`."""
-    var a = la.matrix[DType.float64]([[1.0, 2.0], [3.0, 4.0]])
-    var b = la.matrix[DType.float64]([[10.0, 20.0], [30.0, 40.0]])
+    var a = la.matrix[Float64]([[1.0, 2.0], [3.0, 4.0]])
+    var b = la.matrix[Float64]([[10.0, 20.0], [30.0, 40.0]])
 
     for c in [a + b, a + b.view(), a.view() + b, a.view() + b.view()]:
         testing.assert_equal(c[0, 0], 11.0)
@@ -148,8 +148,8 @@ def test_arithmetic_operators_accept_all_four_combinations() raises:
 
 def test_floordiv_mod_pow_operators_accept_all_four_combinations() raises:
     """`// % **` resolve for every mix of `Matrix` and `MatrixView`."""
-    var a = la.matrix[DType.float64]([[2.0, 2.0], [2.0, 2.0]])
-    var b = la.matrix[DType.float64]([[7.0, 7.0], [7.0, 7.0]])
+    var a = la.matrix[Float64]([[2.0, 2.0], [2.0, 2.0]])
+    var b = la.matrix[Float64]([[7.0, 7.0], [7.0, 7.0]])
 
     for c in [b // a, b // a.view(), b.view() // a, b.view() // a.view()]:
         testing.assert_equal(c[0, 0], 3.0)
@@ -161,8 +161,8 @@ def test_floordiv_mod_pow_operators_accept_all_four_combinations() raises:
 
 def test_comparison_operators_accept_all_four_combinations() raises:
     """The six comparisons resolve for every mix, returning a bool mask."""
-    var a = la.matrix[DType.float64]([[1.0, 2.0], [3.0, 4.0]])
-    var b = la.matrix[DType.float64]([[10.0, 20.0], [30.0, 40.0]])
+    var a = la.matrix[Float64]([[1.0, 2.0], [3.0, 4.0]])
+    var b = la.matrix[Float64]([[10.0, 20.0], [30.0, 40.0]])
 
     for c in [a < b, a < b.view(), a.view() < b, a.view() < b.view()]:
         testing.assert_equal(c[0, 0], True)
@@ -180,9 +180,9 @@ def test_comparison_operators_accept_all_four_combinations() raises:
 
 def test_inplace_operators_accept_a_matrix_and_a_view() raises:
     """The in-place operators take either operand type on the right."""
-    var b = la.matrix[DType.float64]([[10.0, 20.0], [30.0, 40.0]])
+    var b = la.matrix[Float64]([[10.0, 20.0], [30.0, 40.0]])
 
-    var c = la.matrix[DType.float64]([[1.0, 2.0], [3.0, 4.0]])
+    var c = la.matrix[Float64]([[1.0, 2.0], [3.0, 4.0]])
     c += b
     c += b.view()
     testing.assert_equal(c[0, 0], 21.0)
@@ -195,8 +195,8 @@ def test_inplace_operators_accept_a_matrix_and_a_view() raises:
     c /= b.view()
     testing.assert_equal(c[0, 0], 1.0)
 
-    var d = la.matrix[DType.float64]([[7.0, 7.0], [7.0, 7.0]])
-    var two = la.matrix[DType.float64]([[2.0, 2.0], [2.0, 2.0]])
+    var d = la.matrix[Float64]([[7.0, 7.0], [7.0, 7.0]])
+    var two = la.matrix[Float64]([[2.0, 2.0], [2.0, 2.0]])
     d //= two.view()
     testing.assert_equal(d[0, 0], 3.0)
     d %= two
@@ -209,7 +209,7 @@ def test_scalar_operators_are_not_shadowed() raises:
     Collapsing the matrix-operand forms must not disturb these, nor the
     reflected forms that put the scalar on the left.
     """
-    var a = la.matrix[DType.float64]([[1.0, 2.0], [3.0, 4.0]])
+    var a = la.matrix[Float64]([[1.0, 2.0], [3.0, 4.0]])
 
     testing.assert_equal((a + 1.0)[0, 0], 2.0)
     testing.assert_equal((a.view() + 1.0)[0, 0], 2.0)
@@ -222,7 +222,7 @@ def test_scalar_operators_are_not_shadowed() raises:
 
 def test_operator_with_the_same_matrix_on_both_sides() raises:
     """`a + a` stays legal: the conversion yields a read-only view."""
-    var a = la.matrix[DType.float64]([[1.0, 2.0], [3.0, 4.0]])
+    var a = la.matrix[Float64]([[1.0, 2.0], [3.0, 4.0]])
     testing.assert_equal((a + a)[0, 0], 2.0)
     testing.assert_equal((a + a[0:2, 0:2])[1, 1], 8.0)
 

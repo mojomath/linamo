@@ -102,7 +102,7 @@ def memory_layout() raises:
     print("MEMORY LAYOUT")
     print("=" * 80)
 
-    var rows: List[List[Scalar[la.float64]]] = [
+    var rows: List[List[la.float64]] = [
         [1.1, 1.2, 1.3],
         [2.1, 2.2, 2.3],
     ]
@@ -184,11 +184,11 @@ def element_access() raises:
     # `get_unsafe` skips the check. Only the `-D ASSERT=all` build catches a
     # bad index here, so reach for it only in code that has already bounded
     # the indices itself.
-    print("m.get_unsafe(2, 3) =", m.get_unsafe(2, 3))
+    print("m.unsafe_get(2, 3) =", m.unsafe_get(2, 3))
 
     # SIMD access: a whole run of a row at once.
     print("m.load[4](0, 0) =", m.load[4](0, 0))
-    m.store[4](2, 0, SIMD[la.int64, 4](70, 80, 90, 100))
+    m.store[4](2, 0, SIMD[DType.int64, 4](70, 80, 90, 100))
     print("After m.store[4](2, 0, [70, 80, 90, 100]):\n", m)
 
 

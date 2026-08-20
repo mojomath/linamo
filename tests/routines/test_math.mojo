@@ -14,10 +14,8 @@ from linamo.routines.math import add, sub, mul, div, matmul
 
 def test_static_add() raises:
     """Test element-wise addition of two static matrices."""
-    var a = la.smatrix[2, 3, DType.float64]([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]])
-    var b = la.smatrix[2, 3, DType.float64](
-        [[10.0, 20.0, 30.0], [40.0, 50.0, 60.0]]
-    )
+    var a = la.smatrix[2, 3, Float64]([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]])
+    var b = la.smatrix[2, 3, Float64]([[10.0, 20.0, 30.0], [40.0, 50.0, 60.0]])
     var c = add(a, b)
     testing.assert_equal(c[0, 0], 11.0)
     testing.assert_equal(c[0, 1], 22.0)
@@ -29,8 +27,8 @@ def test_static_add() raises:
 
 def test_static_add_dunder() raises:
     """Test element-wise addition using __add__ operator."""
-    var a = la.smatrix[2, 2, DType.float64]([[1.0, 2.0], [3.0, 4.0]])
-    var b = la.smatrix[2, 2, DType.float64]([[5.0, 6.0], [7.0, 8.0]])
+    var a = la.smatrix[2, 2, Float64]([[1.0, 2.0], [3.0, 4.0]])
+    var b = la.smatrix[2, 2, Float64]([[5.0, 6.0], [7.0, 8.0]])
     var c = a + b
     testing.assert_equal(c[0, 0], 6.0)
     testing.assert_equal(c[0, 1], 8.0)
@@ -40,8 +38,8 @@ def test_static_add_dunder() raises:
 
 def test_static_sub() raises:
     """Test element-wise subtraction of two static matrices."""
-    var a = la.smatrix[2, 2, DType.float64]([[10.0, 20.0], [30.0, 40.0]])
-    var b = la.smatrix[2, 2, DType.float64]([[1.0, 2.0], [3.0, 4.0]])
+    var a = la.smatrix[2, 2, Float64]([[10.0, 20.0], [30.0, 40.0]])
+    var b = la.smatrix[2, 2, Float64]([[1.0, 2.0], [3.0, 4.0]])
     var c = sub(a, b)
     testing.assert_equal(c[0, 0], 9.0)
     testing.assert_equal(c[0, 1], 18.0)
@@ -51,8 +49,8 @@ def test_static_sub() raises:
 
 def test_static_mul() raises:
     """Test element-wise multiplication of two static matrices."""
-    var a = la.smatrix[2, 2, DType.float64]([[2.0, 3.0], [4.0, 5.0]])
-    var b = la.smatrix[2, 2, DType.float64]([[10.0, 20.0], [30.0, 40.0]])
+    var a = la.smatrix[2, 2, Float64]([[2.0, 3.0], [4.0, 5.0]])
+    var b = la.smatrix[2, 2, Float64]([[10.0, 20.0], [30.0, 40.0]])
     var c = mul(a, b)
     testing.assert_equal(c[0, 0], 20.0)
     testing.assert_equal(c[0, 1], 60.0)
@@ -62,8 +60,8 @@ def test_static_mul() raises:
 
 def test_static_div() raises:
     """Test element-wise division of two static matrices."""
-    var a = la.smatrix[2, 2, DType.float64]([[10.0, 20.0], [30.0, 40.0]])
-    var b = la.smatrix[2, 2, DType.float64]([[2.0, 4.0], [5.0, 8.0]])
+    var a = la.smatrix[2, 2, Float64]([[10.0, 20.0], [30.0, 40.0]])
+    var b = la.smatrix[2, 2, Float64]([[2.0, 4.0], [5.0, 8.0]])
     var c = div(a, b)
     testing.assert_equal(c[0, 0], 5.0)
     testing.assert_equal(c[0, 1], 5.0)
@@ -73,10 +71,8 @@ def test_static_div() raises:
 
 def test_static_matmul() raises:
     """Test static matrix multiplication."""
-    var a = la.smatrix[2, 3, DType.float64]([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]])
-    var b = la.smatrix[3, 2, DType.float64](
-        [[7.0, 8.0], [9.0, 10.0], [11.0, 12.0]]
-    )
+    var a = la.smatrix[2, 3, Float64]([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]])
+    var b = la.smatrix[3, 2, Float64]([[7.0, 8.0], [9.0, 10.0], [11.0, 12.0]])
     var c = matmul(a, b)
     # c[0,0] = 1*7 + 2*9 + 3*11 = 7+18+33 = 58
     # c[0,1] = 1*8 + 2*10 + 3*12 = 8+20+36 = 64
@@ -90,8 +86,8 @@ def test_static_matmul() raises:
 
 def test_static_matmul_dunder() raises:
     """Test static matrix multiplication using @ operator."""
-    var a = la.smatrix[2, 2, DType.float64]([[1.0, 0.0], [0.0, 1.0]])
-    var b = la.smatrix[2, 2, DType.float64]([[5.0, 6.0], [7.0, 8.0]])
+    var a = la.smatrix[2, 2, Float64]([[1.0, 0.0], [0.0, 1.0]])
+    var b = la.smatrix[2, 2, Float64]([[5.0, 6.0], [7.0, 8.0]])
     var c = a @ b
     # Identity @ B = B
     testing.assert_equal(c[0, 0], 5.0)
@@ -107,8 +103,8 @@ def test_static_matmul_dunder() raises:
 
 def test_dynamic_matmul() raises:
     """Test dynamic matrix multiplication."""
-    var a = la.matrix[DType.float64]([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]])
-    var b = la.matrix[DType.float64]([[7.0, 8.0], [9.0, 10.0], [11.0, 12.0]])
+    var a = la.matrix[Float64]([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]])
+    var b = la.matrix[Float64]([[7.0, 8.0], [9.0, 10.0], [11.0, 12.0]])
     var c = matmul(a, b)
     testing.assert_equal(c[0, 0], 58.0)
     testing.assert_equal(c[0, 1], 64.0)
@@ -118,8 +114,8 @@ def test_dynamic_matmul() raises:
 
 def test_dynamic_matmul_dunder() raises:
     """Test dynamic matrix multiplication using @ operator."""
-    var a = la.matrix[DType.float64]([[1.0, 0.0], [0.0, 1.0]])
-    var b = la.matrix[DType.float64]([[5.0, 6.0], [7.0, 8.0]])
+    var a = la.matrix[Float64]([[1.0, 0.0], [0.0, 1.0]])
+    var b = la.matrix[Float64]([[5.0, 6.0], [7.0, 8.0]])
     var c = a @ b
     testing.assert_equal(c[0, 0], 5.0)
     testing.assert_equal(c[0, 1], 6.0)
@@ -129,8 +125,8 @@ def test_dynamic_matmul_dunder() raises:
 
 def test_dynamic_matmul_dimension_mismatch_raises() raises:
     """Test that matmul with incompatible shapes raises ValueError."""
-    var a = la.matrix[DType.float64]([[1.0, 2.0], [3.0, 4.0]])
-    var b = la.matrix[DType.float64](
+    var a = la.matrix[Float64]([[1.0, 2.0], [3.0, 4.0]])
+    var b = la.matrix[Float64](
         [[1.0, 2.0, 3.0], [4.0, 5.0, 6.0], [7.0, 8.0, 9.0]]
     )
     var raised = False
@@ -145,10 +141,10 @@ def test_dynamic_matmul_dimension_mismatch_raises() raises:
 
 def test_dynamic_matmul_identity() raises:
     """Test multiplying by identity matrix."""
-    var a = la.matrix[DType.float64](
+    var a = la.matrix[Float64](
         [[1.0, 2.0, 3.0], [4.0, 5.0, 6.0], [7.0, 8.0, 9.0]]
     )
-    var identity = la.matrix[DType.float64](
+    var identity = la.matrix[Float64](
         [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]]
     )
     var c = a @ identity

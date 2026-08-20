@@ -6,8 +6,15 @@ platforms = ["osx-arm64", "linux-64"]
 version = "0.1.0"
 
 [tasks]
-# Build the package into the test directory
-pack = "pixi run mojo precompile -o tests/linamo.mojoc src/linamo"
+# Make `decimo` available to `src/linamo/decimo`, which is the only part of
+# the library that needs it. Set DECIMO_PATH to build from a local checkout;
+# see the header of the script for the other sources.
+decimo = "bash ./tools/ensure_decimo.sh"
+
+# Build the package into the test directory. `-I temp` resolves `decimo` for
+# `linamo.decimo`; Mojo has no conditional imports, so the whole tree compiles
+# together and decimo has to be there.
+pack = "pixi run mojo precompile -I temp -o tests/linamo.mojoc src/linamo"
 
 # Run the test files (uses -I src to import directly, no package build needed)
 test = "bash ./tests/test_all.sh"

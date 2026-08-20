@@ -59,7 +59,7 @@ from linamo.utils.indexing import get_offset, indices_within_bounds
 def store[
     dtype: DType, origin: Origin[mut=True], //, width: Int = 1
 ](
-    view: MatrixView[dtype, origin],
+    view: MatrixView[Scalar[dtype], origin],
     row: Int,
     col: Int,
     value: SIMD[dtype, width],
@@ -101,15 +101,15 @@ def store[
 
 
 def fill[
-    dtype: DType, origin: Origin[mut=True], //
-](view: MatrixView[dtype, origin], value: Scalar[dtype]):
+    T: Copyable & Deinitable, origin: Origin[mut=True], //
+](view: MatrixView[T, origin], value: T):
     """Writes one scalar into every element of the view.
 
     The whole-view write is total - every index it visits is in range by
     construction - so it is declared non-raising, like `Matrix.set(value)`.
 
     Parameters:
-        dtype: The data type of the matrix elements.
+        T: The type of the matrix elements.
         origin: The origin of the target view, which must be mutable.
 
     Args:
@@ -118,21 +118,16 @@ def fill[
     """
     for i in range(view.nrows()):
         for j in range(view.ncols()):
-            view[i, j] = value
+            view[i, j] = value.copy()
 
 
 def fill[
-    dtype: DType, origin: Origin[mut=True], //
-](
-    view: MatrixView[dtype, origin],
-    rows: Slice,
-    cols: Slice,
-    value: Scalar[dtype],
-) raises:
+    T: Copyable & Deinitable, origin: Origin[mut=True], //
+](view: MatrixView[T, origin], rows: Slice, cols: Slice, value: T,) raises:
     """Writes one scalar into every element of the selected sub-view.
 
     Parameters:
-        dtype: The data type of the matrix elements.
+        T: The type of the matrix elements.
         origin: The origin of the target view, which must be mutable.
 
     Args:
@@ -144,20 +139,20 @@ def fill[
     var target = view_mut(view, rows, cols)
     for i in range(target.nrows()):
         for j in range(target.ncols()):
-            target[i, j] = value
+            target[i, j] = value.copy()
 
 
 def assign[
-    dtype: DType,
+    T: Copyable & Deinitable,
     origin: Origin[mut=True],
     mut_b: Bool,
     //,
     origin_b: Origin[mut=mut_b],
-](view: MatrixView[dtype, origin], src: MatrixView[dtype, origin_b],) raises:
+](view: MatrixView[T, origin], src: MatrixView[T, origin_b],) raises:
     """Copies `src` into the whole view.
 
     Parameters:
-        dtype: The data type of the matrix elements.
+        T: The type of the matrix elements.
         origin: The origin of the target view, which must be mutable.
         mut_b: Whether the source view is mutable.
         origin_b: The origin of the source view.
@@ -176,25 +171,25 @@ def assign[
         )
     for i in range(view.nrows()):
         for j in range(view.ncols()):
-            view[i, j] = src[i, j]
+            view[i, j] = src[i, j].copy()
 
 
 def assign[
-    dtype: DType,
+    T: Copyable & Deinitable,
     origin: Origin[mut=True],
     mut_b: Bool,
     //,
     origin_b: Origin[mut=mut_b],
 ](
-    view: MatrixView[dtype, origin],
+    view: MatrixView[T, origin],
     rows: Slice,
     cols: Slice,
-    src: MatrixView[dtype, origin_b],
+    src: MatrixView[T, origin_b],
 ) raises:
     """Copies `src` into the sub-view selected by `rows` and `cols`.
 
     Parameters:
-        dtype: The data type of the matrix elements.
+        T: The type of the matrix elements.
         origin: The origin of the target view, which must be mutable.
         mut_b: Whether the source view is mutable.
         origin_b: The origin of the source view.
@@ -216,7 +211,7 @@ def assign[
         )
     for i in range(target.nrows()):
         for j in range(target.ncols()):
-            target[i, j] = src[i, j]
+            target[i, j] = src[i, j].copy()
 
 
 # ===----------------------------------------------------------------------===#
@@ -225,9 +220,9 @@ def assign[
 
 
 def view_mut[
-    dtype: DType
-](ref m: Matrix[dtype], x: Slice, y: Slice) raises -> MatrixView[
-    dtype, origin_of(m._data)
+    T: Copyable & Deinitable
+](ref m: Matrix[T], x: Slice, y: Slice) raises -> MatrixView[
+    T, origin_of(m._data)
 ]:
     """Gets a writable view of a region of a matrix.
 
@@ -261,9 +256,9 @@ def view_mut[
 
 
 def view_mut[
-    dtype: DType, origin: Origin[mut=True], //
-](view: MatrixView[dtype, origin], x: Slice, y: Slice) raises -> MatrixView[
-    dtype, origin
+    T: Copyable & Deinitable, origin: Origin[mut=True], //
+](view: MatrixView[T, origin], x: Slice, y: Slice) raises -> MatrixView[
+    T, origin
 ]:
     """Gets a writable sub-view of an already-writable view.
 
@@ -279,7 +274,7 @@ def view_mut[
     Returns:
         A writable view of the region.
     """
-    return MatrixView[dtype, origin](
+    return MatrixView[T, origin](
         buffer=view._data,
         slice_x=x,
         slice_y=y,
@@ -292,10 +287,8 @@ def view_mut[
 
 
 def rows_mut[
-    dtype: DType, //, forward: Bool = True
-](ref m: Matrix[dtype]) -> MatrixAxisIter[
-    dtype, origin_of(m._data), 0, forward
-]:
+    T: Copyable & Deinitable, //, forward: Bool = True
+](ref m: Matrix[T]) -> MatrixAxisIter[T, origin_of(m._data), 0, forward]:
     """Walks the rows of a matrix, yielding each as a writable view.
 
     `m.rows()` is read-only because iteration is an implicit path. This is the
@@ -323,10 +316,8 @@ def rows_mut[
 
 
 def cols_mut[
-    dtype: DType, //, forward: Bool = True
-](ref m: Matrix[dtype]) -> MatrixAxisIter[
-    dtype, origin_of(m._data), 1, forward
-]:
+    T: Copyable & Deinitable, //, forward: Bool = True
+](ref m: Matrix[T]) -> MatrixAxisIter[T, origin_of(m._data), 1, forward]:
     """Walks the columns of a matrix, yielding each as a writable view.
 
     Parameters:

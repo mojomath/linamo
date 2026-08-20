@@ -65,16 +65,37 @@ def _unravel(k: Int, nrows: Int, ncols: Int, c_order: Bool) -> Tuple[Int, Int]:
     return (k % nrows, k // nrows)
 
 
+@always_inline
+def _ravel(row: Int, col: Int, nrows: Int, ncols: Int, c_order: Bool) -> Int:
+    """Turns `(row, col)` back into a flat position under the given order."""
+    if c_order:
+        return row * ncols + col
+    return col * nrows + row
+
+
+# [Mojo Miji]
+# The routines below fill their result buffer front to back with `append`
+# rather than allocating `unsafe_uninit_length` and writing into it at a
+# computed offset. For a scalar element the two are the same thing; for an
+# element that owns a heap allocation they are not, because assigning into an
+# uninitialised slot runs a destructor over whatever was there. Filling in
+# buffer order costs an index computation per element and is correct for every
+# element type.
+
+
 # ===---------------------------------------------------------------------- ===#
 # Reshaping
 # ===---------------------------------------------------------------------- ===#
 
 
 def reshape[
-    dtype: DType, origin: Origin
+    T: Copyable & Deinitable, origin: Origin
 ](
-    a: MatrixView[dtype, origin], nrows: Int, ncols: Int, order: String = "C"
-) raises -> Matrix[dtype]:
+    a: MatrixView[T, origin],
+    nrows: Int,
+    ncols: Int,
+    order: String = "C",
+) raises -> Matrix[T]:
     """Returns a new matrix with the given shape holding the same elements.
 
     The elements of `a` are read in `order` and written into the result in the
@@ -87,7 +108,7 @@ def reshape[
     is restricted to dense inputs, see `reshape_view`.
 
     Parameters:
-        dtype: The data type of the matrix elements.
+        T: The type of the matrix elements.
         origin: The origin of the input view.
 
     Args:
@@ -121,20 +142,23 @@ def reshape[
         )
 
     var c_order = order == "C"
-    var data = List[Scalar[dtype]](unsafe_uninit_length=size)
-    for k in range(size):
+    var data = List[T](capacity=size)
+    for p in range(size):
+        # `p` walks the result buffer, which is C-contiguous, so it names the
+        # destination cell directly; that cell's position in `order` is what
+        # picks the source element.
+        var k = _ravel(p // ncols, p % ncols, nrows, ncols, c_order)
         var src_row, src_col = _unravel(k, a.nrows(), a.ncols(), c_order)
-        var dst_row, dst_col = _unravel(k, nrows, ncols, c_order)
-        data[dst_row * ncols + dst_col] = a[src_row, src_col]
-    return Matrix[dtype](
+        data.append(a[src_row, src_col].copy())
+    return Matrix[T](
         buffer=data^, nrows=nrows, ncols=ncols, row_stride=ncols, col_stride=1
     )
 
 
 def reshape_view[
-    mut: Bool, //, dtype: DType, origin: Origin[mut=mut]
-](a: MatrixView[dtype, origin], nrows: Int, ncols: Int) raises -> MatrixView[
-    dtype, ImmOrigin(origin)
+    mut: Bool, //, T: Copyable & Deinitable, origin: Origin[mut=mut]
+](a: MatrixView[T, origin], nrows: Int, ncols: Int) raises -> MatrixView[
+    T, ImmOrigin(origin)
 ]:
     """Reinterprets a dense matrix under a new shape, without copying.
 
@@ -154,7 +178,7 @@ def reshape_view[
 
     Parameters:
         mut: Whether the input view is mutable (inferred).
-        dtype: The data type of the matrix elements.
+        T: The type of the matrix elements.
         origin: The origin of the input view.
 
     Args:
@@ -202,7 +226,7 @@ def reshape_view[
             ),
         )
 
-    return MatrixView[dtype, ImmOrigin(origin)](
+    return MatrixView[T, ImmOrigin(origin)](
         buffer=a._data.as_imm(),
         nrows=nrows,
         ncols=ncols,
@@ -213,15 +237,15 @@ def reshape_view[
 
 
 def flatten[
-    dtype: DType, origin: Origin
-](a: MatrixView[dtype, origin], order: String = "C") raises -> Matrix[dtype]:
+    T: Copyable & Deinitable, origin: Origin
+](a: MatrixView[T, origin], order: String = "C") raises -> Matrix[T]:
     """Returns the elements of `a` as a new `1 x size` matrix.
 
     The row is filled in `order`: "C" reads `a` row by row, "F" column by
     column.
 
     Parameters:
-        dtype: The data type of the matrix elements.
+        T: The type of the matrix elements.
         origin: The origin of the input view.
 
     Args:
@@ -240,7 +264,9 @@ def flatten[
 
 def resize[
     dtype: DType, origin: Origin
-](a: MatrixView[dtype, origin], nrows: Int, ncols: Int) raises -> Matrix[dtype]:
+](
+    a: MatrixView[Scalar[dtype], origin], nrows: Int, ncols: Int
+) raises -> Matrix[Scalar[dtype]]:
     """Returns a new matrix of the given shape, truncating or zero-padding.
 
     Elements are taken from `a` in C order and laid down in C order. If the new
@@ -285,7 +311,7 @@ def resize[
         data[k] = a[k // a.ncols(), k % a.ncols()]
     for k in range(kept, size):
         data[k] = 0
-    return Matrix[dtype](
+    return Matrix[Scalar[dtype]](
         buffer=data^, nrows=nrows, ncols=ncols, row_stride=ncols, col_stride=1
     )
 
@@ -296,8 +322,8 @@ def resize[
 
 
 def contiguous[
-    dtype: DType, origin: Origin
-](a: MatrixView[dtype, origin], order: String = "C") raises -> Matrix[dtype]:
+    T: Copyable & Deinitable, origin: Origin
+](a: MatrixView[T, origin], order: String = "C") raises -> Matrix[T]:
     """Returns a dense copy of `a` in the requested memory layout.
 
     The shape and the element at every `(i, j)` are unchanged; only where the
@@ -310,7 +336,7 @@ def contiguous[
     speed.
 
     Parameters:
-        dtype: The data type of the matrix elements.
+        T: The type of the matrix elements.
         origin: The origin of the input view.
 
     Args:
@@ -326,13 +352,14 @@ def contiguous[
     _check_order(order, "contiguous(a, order)")
     var nrows = a.nrows()
     var ncols = a.ncols()
-    var row_stride = ncols if order == "C" else 1
-    var col_stride = 1 if order == "C" else nrows
-    var data = List[Scalar[dtype]](unsafe_uninit_length=nrows * ncols)
-    for i in range(nrows):
-        for j in range(ncols):
-            data[i * row_stride + j * col_stride] = a[i, j]
-    return Matrix[dtype](
+    var c_order = order == "C"
+    var row_stride = ncols if c_order else 1
+    var col_stride = 1 if c_order else nrows
+    var data = List[T](capacity=nrows * ncols)
+    for p in range(nrows * ncols):
+        var i, j = _unravel(p, nrows, ncols, c_order)
+        data.append(a[i, j].copy())
+    return Matrix[T](
         buffer=data^,
         nrows=nrows,
         ncols=ncols,
@@ -342,8 +369,8 @@ def contiguous[
 
 
 def reorder_layout[
-    dtype: DType, origin: Origin
-](a: MatrixView[dtype, origin]) raises -> Matrix[dtype]:
+    T: Copyable & Deinitable, origin: Origin
+](a: MatrixView[T, origin]) raises -> Matrix[T]:
     """Returns a copy of `a` in the opposite memory layout.
 
     C-contiguous in, F-contiguous out, and the other way round. The shape and
@@ -351,7 +378,7 @@ def reorder_layout[
     memory.
 
     Parameters:
-        dtype: The data type of the matrix elements.
+        T: The type of the matrix elements.
         origin: The origin of the input view.
 
     Args:
@@ -379,9 +406,9 @@ def reorder_layout[
 
 
 def broadcast_to[
-    mut: Bool, //, dtype: DType, origin: Origin[mut=mut]
-](a: MatrixView[dtype, origin], nrows: Int, ncols: Int) raises -> MatrixView[
-    dtype, ImmOrigin(origin)
+    mut: Bool, //, T: Copyable & Deinitable, origin: Origin[mut=mut]
+](a: MatrixView[T, origin], nrows: Int, ncols: Int) raises -> MatrixView[
+    T, ImmOrigin(origin)
 ]:
     """Stretches size-1 dimensions of `a` to the given shape, without copying.
 
@@ -401,7 +428,7 @@ def broadcast_to[
 
     Parameters:
         mut: Whether the input view is mutable (inferred).
-        dtype: The data type of the matrix elements.
+        T: The type of the matrix elements.
         origin: The origin of the input view.
 
     Args:
@@ -451,7 +478,7 @@ def broadcast_to[
             ),
         )
 
-    return MatrixView[dtype, ImmOrigin(origin)](
+    return MatrixView[T, ImmOrigin(origin)](
         buffer=a._data.as_imm(),
         nrows=nrows,
         ncols=ncols,
@@ -467,8 +494,14 @@ def broadcast_to[
 
 
 def astype[
-    dtype: DType, origin: Origin, //, target: DType
-](a: MatrixView[dtype, origin]) raises -> Matrix[target]:
+    dtype: DType,
+    origin: Origin,
+    target: DType,
+    //,
+    Target: Copyable & Deinitable,
+](a: MatrixView[Scalar[dtype], origin]) raises -> Matrix[Scalar[target]] where (
+    Target == Scalar[target]
+):
     """Returns a C-contiguous copy of `a` with its elements cast to `target`.
 
     The cast is Mojo's `SIMD.cast`, so the usual rules apply: a float to an
@@ -477,13 +510,14 @@ def astype[
     Parameters:
         dtype: The data type of the input elements.
         origin: The origin of the input view.
-        target: The data type of the result elements.
+        target: The dtype behind `Target`, deduced rather than written.
+        Target: The type of the result elements.
 
     Args:
         a: The matrix or view to cast.
 
     Returns:
-        A new `Matrix[target]` with the same shape.
+        A new `Matrix[Scalar[target]]` with the same shape.
     """
     var nrows = a.nrows()
     var ncols = a.ncols()
@@ -491,6 +525,6 @@ def astype[
     for i in range(nrows):
         for j in range(ncols):
             data[i * ncols + j] = a[i, j].cast[target]()
-    return Matrix[target](
+    return Matrix[Scalar[target]](
         buffer=data^, nrows=nrows, ncols=ncols, row_stride=ncols, col_stride=1
     )

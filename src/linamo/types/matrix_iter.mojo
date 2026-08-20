@@ -9,7 +9,7 @@ from linamo.types.matrix_view import MatrixView
 struct MatrixAxisIter[
     mut: Bool,
     //,
-    dtype: DType,
+    T: Copyable & Deinitable,
     origin: Origin[mut=mut],
     axis: Int = 0,
     forward: Bool = True,
@@ -29,16 +29,16 @@ struct MatrixAxisIter[
 
     Parameters:
         mut: Whether the underlying reference is mutable.
-        dtype: The data type of the matrix elements.
+        T: The type of the matrix elements.
         origin: The origin of the matrix being iterated.
         axis: 0 to walk rows, 1 to walk columns.
         forward: True to walk from the first lane to the last, False to reverse.
     """
 
-    comptime Element = MatrixView[Self.dtype, Self.origin]
+    comptime Element = MatrixView[Self.T, Self.origin]
     """Each step yields a view: a `1 x ncols` row or an `nrows x 1` column."""
 
-    var _data: Span[Scalar[Self.dtype], Self.origin]
+    var _data: Span[Self.T, Self.origin]
     """The parent buffer that every yielded view points into."""
     var _nrows: Int
     """The number of rows in the matrix being iterated."""
@@ -53,7 +53,7 @@ struct MatrixAxisIter[
     var _index: Int
     """How many lanes have been consumed so far."""
 
-    def __init__(out self, src: MatrixView[Self.dtype, Self.origin]):
+    def __init__(out self, src: MatrixView[Self.T, Self.origin]):
         """Builds an iterator over `src`.
 
         Args:
