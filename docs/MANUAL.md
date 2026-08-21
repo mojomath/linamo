@@ -41,6 +41,12 @@ manual is the prose half: the shape of the API, not an enumeration of it.
     - [Comparisons return masks](#comparisons-return-masks)
     - [Reflected operators](#reflected-operators)
     - [In-place operators](#in-place-operators)
+  - [Comparing matrices](#comparing-matrices)
+    - [Exact comparison](#exact-comparison)
+    - [Approximate comparison](#approximate-comparison)
+    - [Combining masks](#combining-masks)
+    - [Reducing a mask to a verdict](#reducing-a-mask-to-a-verdict)
+    - [The `scalar_*` forms](#the-scalar_-forms)
   - [Mutating a matrix](#mutating-a-matrix)
   - [Iteration](#iteration)
   - [Reductions, searches and sorts](#reductions-searches-and-sorts)
@@ -69,19 +75,29 @@ manual is the prose half: the shape of the API, not an enumeration of it.
 
 ## Getting started
 
-Linamo targets Mojo `1.0.0` and MAX `>=26.5.0`. The repository uses pixi:
+Linamo targets Mojo `1.0.0` and MAX `>=26.5.0`, and is published to the
+[modular-community](https://prefix.dev/channels/modular-community/packages/linamo)
+channel. In a project that has that channel in its `pixi.toml`:
 
 ```bash
-pixi install
+pixi add linamo
+```
+
+Mojo, MAX and [Decimo](https://github.com/forfudan/decimo) come with it, and
+nothing needs to be added to the import path. Until the v0.1.0 tag reaches the
+channel, take the package from source instead --- clone the repository and put
+the source directory and the precompiled Decimo on the import path:
+
+```bash
+pixi install                # in the linamo checkout
 pixi run test
+pixi run mojo run -I src -I temp my_program.mojo
 ```
 
-There is no published package yet, so a program outside the repository is
-compiled with the source directory on the import path:
-
-```bash
-pixi run mojo run -I src my_program.mojo
-```
+`temp/` is where `pixi run decimo` leaves `decimo.mojoc`, and every pixi task
+depends on that step. See [Install](../README.md#install) for the `.mojoc`
+route, which precompiles Linamo itself rather than recompiling the source on
+every build.
 
 One import gets you the library:
 
@@ -91,9 +107,25 @@ import linamo as la          # la.matrix, la.zeros, la.transpose, ...
 
 Everything a program reaches for is re-exported from
 `src/linamo/__init__.mojo`, so `la.<name>` is the only spelling needed --- the
-types, every routine, the mutating routines in `linamo.routines.mutation`, and
+types, the routines, the mutating routines in `linamo.routines.mutation`, and
 the arbitrary-precision element types from Decimo. Anything not there is
 reached by its module path.
+
+The one family that line leaves out is deliberate: **a routine an operator
+already spells is reached by its module path**, not as `la.<name>`. So `la.mul`,
+`la.div` and `la.pow` are there --- `*` is the matrix product, which leaves the
+element-wise three without a symbol of their own --- while `add`, `sub`,
+`floordiv`, `mod`, `neg` and the six comparisons are not, since `+`, `-`, `//`,
+`%`, unary `-`, `<` and `==` say them:
+
+```mojo
+la.mul(a, b)                              # no operator spells this
+from linamo.routines.math import add      # `a + b` does spell this
+```
+
+`isclose`, `allclose` and the `logical_*` connectives have no operator at all,
+so both their matrix and their `scalar_*` forms are on `la.` --- see
+[Comparing matrices](#comparing-matrices).
 
 Scalar element types are spelled with the stdlib's own names:
 
@@ -735,7 +767,9 @@ Every operator has a named routine behind it in `routines.math` and
 `routines.logic` — `add`, `sub`, `mul`, `div`, `matmul`, `matrix_power`,
 `floordiv`, `mod`, `pow`, `greater`, `equal`, and so on, plus a `scalar_*` form
 of each for the matrix-and-scalar case. Use them when you want to be explicit,
-or when the operator syntax will not fit.
+or when the operator syntax will not fit. A routine an operator already spells
+is reached by its module path rather than as `la.<name>`; see
+[Getting started](#getting-started).
 
 Element-wise binary operations require identical shapes and raise `ValueError`
 otherwise; `*`, `@` and `**` are the linear-algebra operations and check what
@@ -767,15 +801,19 @@ the SIMD element types only.
 
 `a == b` is an element-wise `Matrix[Scalar[DType.bool]]` of the same shape, not
 a single `Bool`. `Matrix` therefore does not conform to `EqualityComparable` on
-purpose. To ask whether two matrices are wholly identical, use
-`assert_matrices_equal` / `assert_matrices_close` from `utils/test_utils.mojo`,
-or reduce the mask with `all`:
+purpose. To ask whether two matrices are wholly identical, reduce the mask with
+`all`, or use `assert_matrices_equal` / `assert_matrices_close` from
+`utils/test_utils.mojo`:
 
 ```mojo
-from linamo.routines.logic import all
-if all(a == b):
+if la.all(a == b):
     ...
 ```
+
+On floating-point elements the reduction you usually want is `la.allclose(a, b)`
+rather than `la.all(a == b)`. [Comparing matrices](#comparing-matrices) is the
+whole chapter: exact and approximate comparison, the `logical_*` connectives
+that combine masks, and how a mask collapses to a verdict.
 
 ### Reflected operators
 
@@ -810,6 +848,135 @@ a += a[:, :]   # does not compile
 The borrow checker will not produce a mutable reference to `a` while a view
 borrowing `a` is still alive. This is the same mechanism that makes views safe
 in general - no runtime flag, no defensive copy.
+
+---
+
+## Comparing matrices
+
+Every comparison here is element-wise: it answers the question once per
+position and returns a `Matrix[Scalar[DType.bool]]` of the same shape. Nothing
+collapses that mask for you, because which collapse you want --- *all* of them,
+*any* of them, *where* are they --- is not something `==` can guess. The
+collapse is [a separate step](#reducing-a-mask-to-a-verdict).
+
+### Exact comparison
+
+The six comparisons are the operators `<`, `<=`, `>`, `>=`, `==` and `!=`, with
+`less`, `less_equal`, `greater`, `greater_equal`, `equal` and `not_equal`
+behind them in `routines.logic`. The operator is the spelling to use; the
+routines are there for the case where the operator syntax will not fit, and are
+reached by module path since the operator already says them:
+
+```mojo
+from linamo.routines.logic import greater
+
+var M = A > B            # the ordinary spelling
+var N = greater(A, B)    # the same call
+```
+
+On floating-point elements, `==` answers the question you asked rather than the
+one you meant --- which is what the next section is for.
+
+### Approximate comparison
+
+`isclose` returns the mask; `allclose` returns the single verdict.
+
+```mojo
+var A = la.matrix[Float64]([[0.1, 0.2], [0.3, 0.4]])
+var C = (A * 3.0) / 3.0
+
+print(la.all(A == C))       # False --- the round trip lost bits
+print(la.allclose(A, C))    # True
+print(la.isclose(A, C))     # the 2 x 2 mask behind that True
+```
+
+`allclose` is not `all(isclose(...))` written twice: it short-circuits on the
+first pair that fails, so it allocates no mask.
+
+Both take three optional arguments, with NumPy's names and defaults:
+
+| Argument    | Default | Meaning                                       |
+| ----------- | ------- | --------------------------------------------- |
+| `rtol`      | `1e-5`  | Relative tolerance, as a fraction of `abs(b)` |
+| `atol`      | `1e-8`  | Absolute tolerance                            |
+| `equal_nan` | `False` | Whether a NaN counts as close to a NaN        |
+
+The test is `abs(a - b) <= atol + rtol * abs(b)`, which is **asymmetric in its
+operands**: `b` is read as the reference value, so `isclose(measured, expected)`
+is the order that reads right. Non-finite operands never reach that test. Two
+equal infinities are close and opposite ones are not --- which is what `a == b`
+already says --- and a NaN is close to nothing at all, itself included, unless
+`equal_nan` is set.
+
+The element type must be floating-point. An integer matrix is exact, so there
+is nothing for a tolerance to do and `equal` is its comparison; asking anyway
+is a compile-time error rather than a runtime one. `allclose` on an empty
+operand is `True`, as in NumPy: no element fails.
+
+For a test rather than a branch, `assert_matrices_close` in
+`utils/test_utils.mojo` is the neighbouring tool: it takes two owned matrices,
+holds tighter defaults (`rtol=1e-7`, `atol=1e-10`), and raises with the
+offending position named instead of returning `False`.
+
+### Combining masks
+
+Masks carry no `&`, `|`, `^` or `~`. The connectives are named routines:
+
+| Routine             | True where                      |
+| ------------------- | ------------------------------- |
+| `logical_and(a, b)` | both operands are non-zero      |
+| `logical_or(a, b)`  | either operand is non-zero      |
+| `logical_xor(a, b)` | exactly one operand is non-zero |
+| `logical_not(a)`    | the operand is zero             |
+
+These are NumPy's `logical_*` family rather than its `&`: an operand of **any**
+element type is read for truthiness first, so they apply to a numeric matrix
+straight out of arithmetic as readily as to a mask.
+
+```mojo
+var A = la.matrix[Float64]([[-2.0, 0.5], [1.5, 3.0]])
+
+var inside = la.logical_and(A > 0.0, A < 2.0)   # 0 < a < 2, element-wise
+print(la.any(inside))          # True
+print(la.logical_not(inside))  # the complement
+```
+
+`logical_not` takes one operand and never raises. The binary three raise
+`ValueError` on a shape mismatch, like every other element-wise operation, and
+there is no broadcasting --- stretch an operand yourself with
+[`broadcast_to`](#shape-and-layout).
+
+### Reducing a mask to a verdict
+
+`all` and `any` turn a mask into a `Bool`, or into a mask one dimension
+smaller when given an axis. They read any element type for truthiness, not just
+`DType.bool`, so a numeric matrix can go straight in. Both short-circuit. See
+[Reductions, searches and sorts](#reductions-searches-and-sorts) for the axis
+form and the rest of the family.
+
+```mojo
+if la.all(A > 0.0):
+    ...
+print(la.any(A < 0.0, 1))   # which rows hold a negative element
+```
+
+### The `scalar_*` forms
+
+Every comparison and connective has a second form taking a single value on the
+right in place of a matrix, named by prefixing `scalar_`. Nothing in the
+library converts a scalar to a matrix, so this is how the mixed case is
+spelled:
+
+```mojo
+la.scalar_isclose(A, 0.0)          # mask: which elements are near zero
+la.scalar_allclose(residual, 0.0)  # Bool: is the whole thing near zero
+la.scalar_logical_and(mask, True)
+```
+
+For the six comparisons this form is what the operator already calls --- `A >
+0.0` *is* `scalar_greater(A, 0.0)` --- so those live behind the module path.
+The closeness and logical ones have no operator, so they sit on `la.` beside
+their matrix forms.
 
 ---
 
@@ -1705,10 +1872,11 @@ are:
 
 - **Creation**: `randn`, for normally distributed random matrices.
 - **Element-wise mathematics**: the trigonometric and hyperbolic functions,
-  `round`, `isclose`/`allclose`, the infinity predicates and the logical
-  operators.
+  `round`, and the infinity predicates `isposinf` / `isneginf`.
 - **Linear algebra**: `issymmetric`, an LU-based `solve_lu`, and eigenvalues.
-- **Packaging**: an install path that is not `-I src`.
+
+Each of these only *adds* a signature, so none of them will change anything
+written against this version.
 
 `StaticMatrix` is likewise a partial type; see
 [StaticMatrix](#staticmatrix).

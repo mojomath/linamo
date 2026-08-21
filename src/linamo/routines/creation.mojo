@@ -158,9 +158,9 @@ def smatrix[
     """Initializes the static matrix with a list of lists.
 
     Parameters:
+        dtype: The dtype behind `T`, deduced rather than written.
         nrows: The number of rows in the matrix.
         ncols: The number of columns in the matrix.
-        dtype: The dtype behind `T`, deduced rather than written.
         T: The type of the matrix elements. Defaults to `Float64`.
 
     Args:
@@ -202,9 +202,9 @@ def smatrix[
     """Initializes the static matrix with a list of values.
 
     Parameters:
+        dtype: The dtype behind `T`, deduced rather than written.
         nrows: The number of rows in the matrix.
         ncols: The number of columns in the matrix.
-        dtype: The dtype behind `T`, deduced rather than written.
         T: The type of the matrix elements. Defaults to `Float64`.
 
     Args:

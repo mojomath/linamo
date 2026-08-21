@@ -1,27 +1,13 @@
 # Linamo <!-- omit in toc -->
 
-A matrix and linear algebra library for Mojo.
-
-**[Manual](docs/MANUAL.md)** | **[Repository»](https://github.com/mojomath/linamo)** | **[Discord»](https://discord.gg/3rGH87uZTk)**
+Linear algebra for Mojo, specialized for two-dimensional matrices.
 
 [![Version](https://img.shields.io/badge/version-v0.1.0-blue)](https://github.com/mojomath/linamo/releases/tag/v0.1.0)
 [![Mojo](https://img.shields.io/badge/mojo-1.0.0-orange)](https://docs.modular.com/mojo/manual/)
 [![pixi](https://img.shields.io/badge/pixi%20add-linamo-purple)](https://prefix.dev/channels/modular-community/packages/linamo)
 <!-- [![CI](https://img.shields.io/github/actions/workflow/status/mojomath/linamo/run_tests.yaml?branch=main&label=tests)](https://github.com/mojomath/linamo/actions/workflows/run_tests.yaml) -->
 
-- [Overview](#overview)
-- [Goals](#goals)
-- [Background](#background)
-- [Install](#install)
-- [Quick start](#quick-start)
-  - [Create matrices](#create-matrices)
-  - [Arithmetic](#arithmetic)
-  - [Arbitrary-precision elements](#arbitrary-precision-elements)
-  - [Linear algebra](#linear-algebra)
-- [Project structure](#project-structure)
-- [Status](#status)
-  - [Requirements](#requirements)
-- [License](#license)
+**[Manual»](docs/MANUAL.md)** | **[Repository»](https://github.com/mojomath/linamo)** | **[Discord»](https://discord.gg/3rGH87uZTk)**
 
 ## Overview
 
@@ -89,11 +75,8 @@ details.
 - Optimize core operations like matrix multiplication which makes this package a
   better tool if you want to only use 2D matrices.
 
-## Background
-
-At the moment I am still building out the project scaffolding and solidifying
-the core functionality. Linamo targets **Mojo 1.0.0**; while the language is
-now stable, this package's own API is still moving quickly, so
+Linamo targets **Mojo 1.0.0**. The language is stable, but this package's own
+API is still moving quickly, so
 **pull requests are not accepted at this time**. If you have any suggestions,
 questions, or feedback, please feel free to open an
 [issue](https://github.com/mojomath/linamo/issues), start a
@@ -103,11 +86,60 @@ understanding!
 
 ## Install
 
-This project uses pixi for environment management.
+Linamo is published to the
+[modular-community](https://prefix.dev/channels/modular-community/packages/linamo)
+channel. Add the channel to your `pixi.toml` and add the package:
+
+```toml
+[workspace]
+channels = [
+    "https://conda.modular.com/max",
+    "https://repo.prefix.dev/modular-community",
+    "conda-forge",
+]
+```
 
 ```bash
-pixi install
+pixi add linamo
 ```
+
+That brings in Mojo, MAX and [Decimo](https://github.com/forfudan/decimo) as
+dependencies, and `import linamo as la` then works with no import path to set.
+
+> **The `pixi add` route arrives with the v0.1.0 release.** Until that tag is
+> published, take the package from source, below.
+
+### From source
+
+Clone the repository and let pixi build the environment:
+
+```bash
+git clone https://github.com/mojomath/linamo.git
+cd linamo
+pixi install
+pixi run test
+```
+
+A program outside the repository compiles against the source tree with the
+source directory on the import path, and Decimo beside it:
+
+```bash
+LINAMO=/path/to/linamo
+mojo run -I $LINAMO/src -I $LINAMO/temp my_program.mojo
+```
+
+Or precompile Linamo once and point at the artifact, which is what a build
+that imports it repeatedly should do:
+
+```bash
+pixi run pack                                     # writes tests/linamo.mojoc
+mojo run -I $LINAMO/tests -I $LINAMO/temp my_program.mojo
+```
+
+`temp/` is on both lines because Decimo is not optional: the matrix types name
+`decimo.Numeric`, so no part of Linamo compiles without it. `pixi run decimo`
+resolves and precompiles it there, and every pixi task in this repository
+depends on that step, so inside the checkout it needs no separate command.
 
 ## Quick start
 
@@ -125,12 +157,12 @@ pixi run test
 ```mojo
 import linamo as la
 
-fn main() raises:
+def main() raises:
     # From nested lists
     var A = la.matrix[Float64](
         [[1.0, 2.0, 3.0],
          [4.0, 5.0, 6.0],
-         [7.0, 8.0, 9.0]]
+         [7.0, 8.0, 10.0]]
     )
     print(A)
 
@@ -154,8 +186,7 @@ fn main() raises:
     var Q = A.div(O) # element-wise quotient
 
     # Scalar operations
-    from linamo.routines.math import scalar_mul
-    var scaled = scalar_mul(A, 2.0)
+    var scaled = A * 2.0
 ```
 
 ### Arbitrary-precision elements
@@ -215,16 +246,18 @@ def main() raises:
 linamo
 ├── pixi.toml
 ├── src/linamo
-│   ├── __init__.mojo
+│   ├── __init__.mojo            # the public surface: `import linamo as la`
+│   ├── prelude.mojo
 │   ├── types/
 │   │   ├── matrix.mojo          # Dynamic Matrix (row/col-major)
 │   │   ├── matrix_view.mojo     # Non-owning view with slicing
+│   │   ├── matrix_iter.mojo     # Row and column iterators
 │   │   ├── static_matrix.mojo   # Compile-time sized Matrix
 │   │   └── errors.mojo          # ValueError, IndexError, etc.
 │   ├── routines/
 │   │   ├── creation.mojo        # matrix, zeros, ones, full, eye, diag, arange, linspace, *_like, from_string
 │   │   ├── math.mojo            # add, sub, mul, div, matmul, scalar ops, min, max, prod
-│   │   ├── logic.mojo           # comparisons, all, any
+│   │   ├── logic.mojo           # comparisons, isclose, logical_*, all, any
 │   │   ├── functional.mojo      # fold, apply_along_axis
 │   │   ├── manipulation.mojo    # reshape, resize, flatten, contiguous, broadcast_to, astype
 │   │   ├── mutation.mojo        # the only source of mutable views: view_mut, fill, assign, store
@@ -238,8 +271,12 @@ linamo
 │   │   └── matrix_like.mojo     # MatrixLike trait
 │   └── utils/
 │       ├── element.mojo         # compile-time facts about an element type
+│       ├── formatting.mojo      # the shared grid every matrix type prints through
+│       ├── test_utils.mojo      # assert_matrices_equal / _close
 │       ├── indexing.mojo
 │       └── str.mojo
+├── docs/                        # MANUAL.md (the full tour), ROADMAP.md
+├── examples/                    # runnable, one per public type
 ├── tools/
 │   └── ensure_decimo.sh         # resolves and precompiles the decimo dependency
 └── tests/
@@ -251,13 +288,7 @@ linamo
     └── routines/                 # creation, linalg, math, decompositions
 ```
 
-## Status
-
-Linamo is under active development. The [User Manual](docs/MANUAL.md) documents
-what exists today; see the [Roadmap](docs/ROADMAP.md) for upcoming phases
-(eigenvalues, statistics, norms, etc.).
-
-### Requirements
+## Requirements
 
 - Mojo `>=1.0.0,<1.1.0`
 - MAX `>=26.5.0,<26.6` — supplies `parallelize()`, which moved out of the Mojo

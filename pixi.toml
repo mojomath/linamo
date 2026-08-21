@@ -1,5 +1,5 @@
 [workspace]
-authors = ["ZHU Yuhao 朱宇浩 <dr.yuhao.zhu@outlook.com>"]
+authors = ["ZHU Yuhao (朱宇浩) <dr.yuhao.zhu@outlook.com>"]
 channels = ["https://conda.modular.com/max", "https://repo.prefix.dev/modular-community", "conda-forge"]
 name = "linamo"
 platforms = ["osx-arm64", "linux-64"]

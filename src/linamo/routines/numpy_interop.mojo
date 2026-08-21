@@ -28,7 +28,8 @@ def from_numpy[
     is always C-contiguous regardless of the numpy array's memory layout.
 
     Parameters:
-        dtype: The data type of the matrix elements. Defaults to float64.
+        dtype: The dtype behind `T`, deduced rather than written.
+        T: The type of the matrix elements. Defaults to `Float64`.
 
     Args:
         data: A 2D numpy ndarray (PythonObject).

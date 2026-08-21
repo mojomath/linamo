@@ -4,7 +4,7 @@ Linamo development roadmap. Phases are prioritized for use as the linear
 algebra foundation of [stamojo](https://github.com/mojomath/stamojo) (a
 statistical modeling library, similar to statsmodels).
 
-Last reviewed: **2026-08-18**
+Last reviewed: **2026-08-22**
 
 - [Phase 0 — Core Types \& Basic Operations](#phase-0--core-types--basic-operations)
 - [Phase 1 — Matrix Fundamentals](#phase-1--matrix-fundamentals)
@@ -153,7 +153,8 @@ Mojo 1.0.0 (released 2026-08-11) landed a large set of breaking changes. See the
 
 ## Phase 5 — NuMojo Matrix Consolidation
 
-> **Status: 🚧 In progress — 5.1 through 5.5 done**
+> **Status: 🚧 In progress — 5.1 through 5.5, the gated half of 5.6,
+> 5.8 and 5.9 done**
 >
 > NuMojo dropped its `Matrix` type (`numojo/core/matrix/`), and it lives here
 > from now on. Its API is the checklist for this phase — not because Linamo
@@ -439,8 +440,8 @@ without them the opening moves of a session do not close.
 
 | Item                                                         | Module                | Status |
 | ------------------------------------------------------------ | --------------------- | ------ |
-| `isclose` / `allclose`                                       | `routines/logic.mojo` | □      |
-| `logical_and` / `logical_or` / `logical_not` / `logical_xor` | `routines/logic.mojo` | □      |
+| `isclose` / `allclose`                                       | `routines/logic.mojo` | ✓      |
+| `logical_and` / `logical_or` / `logical_not` / `logical_xor` | `routines/logic.mojo` | ✓      |
 
 **Deferred to 0.2.0.** Each of these only *adds* a signature, so shipping them
 later breaks nothing that 0.1.0 users will have written. Decided 2026-08-19.
@@ -810,17 +811,17 @@ import is the test.
 
 ## Documentation
 
-> **Status: 🚧 README, examples and the user manual; no install path**
+> **Status: ✓ Done**
 
 | Item                                         | Where                    | Status |
 | -------------------------------------------- | ------------------------ | ------ |
 | README: overview, quickstart, project layout | `README.md`              | ✓      |
 | Runnable examples, one per public type       | `examples/`              | ✓      |
-| User manual                                  | `docs/MANUAL.md`         | 🚧     |
-| Manual checked against the actual surface    | `docs/MANUAL.md`         | 🚧     |
-| Documented install path                      | `README.md`, `pixi.toml` | □      |
+| User manual                                  | `docs/MANUAL.md`         | ✓      |
+| Manual checked against the actual surface    | `docs/MANUAL.md`         | ✓      |
+| Documented install path                      | `README.md`, `docs/`     | ✓      |
 
-The manual is the release blocker. Most of Linamo can be guessed at by someone
+The manual was the release blocker. Most of Linamo can be guessed at by someone
 who knows NumPy — except the one thing the library is built around, which is
 that `Matrix` owns and `MatrixView` borrows. A user who does not know that will
 not understand why `a[0:2, 0:2]` cannot be written through, why `fill` lives in
@@ -841,13 +842,21 @@ the kernel inventory, the `@implicit` constructor — moved to an appendix. The
 per-symbol reference is generated from docstrings with `mojo doc`, which is
 verified to work on the whole package, so it was never this file's job.
 
-The manual is written and its snippets have been compiled and run against the
-current source. It is still marked 🚧 because 5.5–5.7 will add surface it has
-to grow to cover; Appendix B tracks what it does not document yet.
+The manual is written and every snippet has been compiled and run against the
+current source. It covers the gated half of 5.6 in a *Comparing matrices*
+chapter --- exact comparison, `isclose`/`allclose` with the asymmetry of their
+formula and the floating-point-only requirement, the `logical_*` connectives,
+and how a mask collapses. Appendix B now lists only what 0.2.0 will add, each
+entry a signature that changes nothing already written.
 
-The install path is a documentation gap and a packaging one at once: today the
-only story is `-I src`, and either the package gets published to
-`modular-community` or the `.mojoc` route gets written down.
+The install path is documented as `pixi add linamo` from `modular-community`,
+with the source route beside it for the window before the v0.1.0 tag reaches
+the channel. Both are written down rather than one: `-I src` recompiles the
+library on every build, so a project that imports it repeatedly wants the
+`.mojoc` that `pixi run pack` produces, and that route was verified by running
+a program against `tests/linamo.mojoc` with no `src` on the path at all. What
+remains is the publish itself, which is a `recipe.yaml` on the
+`modular-community` side, not a change in this repository.
 
 ---
 
@@ -855,6 +864,12 @@ only story is `-I src`, and either the package gets published to
 
 **Gate: Phase 5 through 5.5, the gated half of 5.6, plus 5.9, plus the user
 guide.**
+
+**The gate is met.** Every item above is ✓, the suite is green under
+`-D ASSERT=all`, `pixi run examples` runs clean and `pixi run pack` builds
+without a warning. One step is left and it is not a code change: publishing the
+package to `modular-community`, which the README and the manual already
+document as the install path.
 
 Earlier is not shippable. Without 5.5 and the comparison half of 5.6 there is
 no `arange`, no `linspace` and no `isclose`, and a new user's opening moves are
@@ -873,9 +888,10 @@ work all *add* signatures rather than change them, so they are 0.2.0 material.
 5.9 is the exception that has to land first, since it changes spellings users
 would already have written.
 
-The rest of the checklist is [Documentation](#documentation): the user manual
+The rest of the checklist was [Documentation](#documentation): the user manual
 kept level with 5.5–5.7, and an install path that is not `-I src`. Those are
-what make a release usable rather than merely tagged.
+what make a release usable rather than merely tagged, and both are now in
+place.
 
 ### Mixing `StaticMatrix` with `Matrix`
 
@@ -1212,3 +1228,36 @@ call site keeps it.
 |            | MANUAL claimed the scalar path raised as well --- it yields   |
 |            | `-0.0` and `inf`, and the page now says which path does what. |
 |            | 16 new tests (565 total).                                     |
+| 2026-08-22 | v0.1.0 gate closed. The 5.6 gate routines were written but    |
+|            | not reachable: `routines/logic.mojo` held `isclose`,          |
+|            | `allclose` and the `logical_*` family, while                  |
+|            | `linamo/__init__.mojo` re-exported `all` and `any` alone, so  |
+|            | `la.isclose` did not resolve --- only a module-path import    |
+|            | found them. Thirteen names added, and the line the export     |
+|            | list had been following without saying so is now written at   |
+|            | the top of the file: a routine an operator already spells is  |
+|            | reached by its module path. That is why `mul`, `div` and      |
+|            | `pow` are exported --- `*` became the matrix product and left |
+|            | the element-wise three without a symbol --- and why `add`,    |
+|            | `sub`, `floordiv`, `mod`, `neg` and the six comparisons are   |
+|            | not. The `logical_*` and closeness families have no operator  |
+|            | at all, so their `scalar_*` forms are exported beside their   |
+|            | matrix forms; those of the comparisons are not, since         |
+|            | `A > 0.0` is already the call. MANUAL gained a *Comparing     |
+|            | matrices* chapter for them, and Appendix B lost the three     |
+|            | entries it was claiming absent. Install path documented both  |
+|            | ways: `pixi add linamo` from `modular-community` as the       |
+|            | route, with the source and `.mojoc` routes for the window     |
+|            | before the tag lands --- verified by running a program        |
+|            | against `tests/linamo.mojoc` with no `src` on the import      |
+|            | path. The README quickstart opened `fn main() raises:`,       |
+|            | which Mojo 1.0 rejects outright (`'fn' has been removed`),    |
+|            | so the first program a visitor copied did not compile. Also   |
+|            | cleared the three docstring warnings `pixi run pack` emitted  |
+|            | --- two `smatrix` parameter lists ordered against the         |
+|            | declaration, one undocumented `T` in `from_numpy` --- which   |
+|            | matter because `mojo doc` output is the symbol reference.     |
+|            | A `tests/test_exports.mojo` pins the surface: every           |
+|            | other test file imports from a module path, so none of        |
+|            | them could see a name missing from the alias. 7 new tests     |
+|            | (572 total); no behaviour changed.                            |

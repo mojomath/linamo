@@ -50,6 +50,15 @@ from decimo import (
 # ===---------------------------------------------------------------------- ===#
 # Everything a user reaches for is re-exported here, so `import linamo as la`
 # is the only import a program needs and `la.<name>` is the only spelling.
+#
+# The line for the element-wise routines is the operator: a routine an operator
+# already spells is reached by its module path, and one no operator spells is
+# named here. So `mul`, `div` and `pow` are below --- `*` is the matrix product,
+# which leaves the element-wise three without a symbol --- while `add`, `sub`,
+# `floordiv`, `mod`, `neg` and the comparisons are not, since `+`, `-`, `//`,
+# `%`, unary `-`, `<` and `==` say them. The `logical_*` family and
+# `isclose`/`allclose` have no operator at all, so both their matrix and their
+# `scalar_*` forms are here.
 
 from linamo.types.matrix import Matrix
 from linamo.types.matrix_view import MatrixView
@@ -87,7 +96,21 @@ from linamo.routines.linalg import (
     lstsq,
 )
 from linamo.routines.functional import apply_along_axis, fold
-from linamo.routines.logic import all, any
+from linamo.routines.logic import (
+    all,
+    allclose,
+    any,
+    isclose,
+    logical_and,
+    logical_not,
+    logical_or,
+    logical_xor,
+    scalar_allclose,
+    scalar_isclose,
+    scalar_logical_and,
+    scalar_logical_or,
+    scalar_logical_xor,
+)
 from linamo.routines.manipulation import (
     astype,
     broadcast_to,
