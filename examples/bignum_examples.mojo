@@ -79,3 +79,19 @@ def main() raises:
     print("prices + prices =\n", prices + prices)
     print("sum(prices) =", la.sum(prices))
     print("Float64 for comparison:", Float64(0.1) + Float64(0.2))
+
+    _banner("ELIMINATION WANTS A DECIMAL ELEMENT")
+
+    # `lu`, `det`, `solve` and `inv` reach a decimal element through the same
+    # names a `Float64` matrix uses, and `A ** -1` goes through `inv`.
+    var m2 = la.from_string[Decimal]("[[4, 7], [2, 6]]")
+    print("m2 =\n", m2)
+    print("det(m2) =", la.det(m2))
+    print("inv(m2) =\n", la.inv(m2))
+    print("m2 ** -1 (the same matrix) =\n", m2**-1)
+    print("inv(m2) @ m2 =\n", la.inv(m2) @ m2)
+
+    # These four divide, and `BInt` division truncates toward zero, so an
+    # integer matrix has no business here: nothing raises and the answer is
+    # simply not the determinant. Use a decimal element.
+    print("det of the same numbers as BInt =", la.det(a), "(should be -2)")

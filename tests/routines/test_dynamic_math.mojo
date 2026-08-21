@@ -85,11 +85,11 @@ def test_dynamic_mul() raises:
     testing.assert_equal(c[1, 1], 200.0)
 
 
-def test_dynamic_mul_dunder() raises:
-    """Test element-wise multiplication using * operator."""
+def test_dynamic_mul_method() raises:
+    """Test element-wise multiplication using the `mul` method."""
     var a = la.matrix[Float64]([[2.0, 3.0], [4.0, 5.0]])
     var b = la.matrix[Float64]([[2.0, 2.0], [2.0, 2.0]])
-    var c = a * b
+    var c = a.mul(b)
     testing.assert_equal(c[0, 0], 4.0)
     testing.assert_equal(c[1, 1], 10.0)
 
@@ -110,11 +110,11 @@ def test_dynamic_div() raises:
     testing.assert_equal(c[1, 1], 5.0)
 
 
-def test_dynamic_div_dunder() raises:
-    """Test element-wise division using / operator."""
+def test_dynamic_div_method() raises:
+    """Test element-wise division using the `div` method."""
     var a = la.matrix[Float64]([[10.0, 20.0], [30.0, 40.0]])
     var b = la.matrix[Float64]([[5.0, 5.0], [5.0, 5.0]])
-    var c = a / b
+    var c = a.div(b)
     testing.assert_equal(c[0, 0], 2.0)
     testing.assert_equal(c[1, 1], 8.0)
 

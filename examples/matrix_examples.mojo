@@ -237,20 +237,25 @@ def arithmetic() raises:
     print("a:\n", a)
     print("b:\n", b)
 
-    # Elementwise, matrix by matrix.
+    # Elementwise, matrix by matrix. `+` and `-` are element-wise as operators;
+    # the product and the quotient are methods, because `*` is taken.
     print("a + b:\n", a + b)
     print("a - b:\n", a - b)
-    print("a * b - elementwise, not matrix multiplication:\n", a * b)
-    print("b / a:\n", b / a)
+    print("a.mul(b) - elementwise:\n", a.mul(b))
+    print("b.div(a) - elementwise:\n", b.div(a))
 
-    # Matrix multiplication has its own operator.
+    # Matrix multiplication has two spellings, which are the same operation.
     print("a @ b:\n", a @ b)
+    print("a * b - the same product:\n", a * b)
+
+    # `**` is repeated multiplication, and a negative power inverts first.
+    print("a ** 2:\n", a**2)
 
     # Scalar operands, on either side.
     print("a + 100:\n", a + 100.0)
     print("100 - a - the reflected form:\n", 100.0 - a)
     print("a * 2:\n", a * 2.0)
-    print("a ** 2:\n", a**2.0)
+    print("a.pow(2) - every element squared:\n", a.pow(2.0))
 
     # Integer-flavoured operators.
     var i = la.matrix[Int64]([[17, 23], [31, 47]])

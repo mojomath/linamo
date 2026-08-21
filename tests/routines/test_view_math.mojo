@@ -112,7 +112,7 @@ def test_add_view_mat() raises:
 
 
 def test_mul_view_mat() raises:
-    """Test mul: MatrixView * Matrix."""
+    """Test mul: view and matrix, element by element."""
     var big = la.matrix[Float64]([[2.0, 3.0, 99.0], [4.0, 5.0, 99.0]])
     var va = big[0:2, 0:2]  # [[2, 3], [4, 5]]
     var b = la.matrix[Float64]([[10.0, 10.0], [10.0, 10.0]])

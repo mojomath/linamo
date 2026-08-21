@@ -37,10 +37,10 @@
 set -euo pipefail
 
 DECIMO_REPO="${DECIMO_REPO:-https://github.com/forfudan/decimo.git}"
-# The commit that introduces `decimo.Numeric` and `decimo.Parsable`. Update
+# The commit that carries both `decimo.Numeric` and `decimo.Parsable`. Update
 # this when decimo releases and the conda package carries both traits, at which
 # point source 2 takes over and this is only the fallback.
-DECIMO_COMMIT="${DECIMO_COMMIT:-3bb326f39ca2db97544aabeefa247f4ab013cf0e}"
+DECIMO_COMMIT="${DECIMO_COMMIT:-f0dbc4a690377f73322c14e34d47ab1900f3e0e5}"
 MODE="${LINAMO_DECIMO:-auto}"
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"

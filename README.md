@@ -143,10 +143,15 @@ fn main() raises:
 ### Arithmetic
 
 ```mojo
-    # Element-wise operators
-    var B = A + O   # addition
-    var C = A * A   # Hadamard product
-    var D = A @ A   # matrix multiplication
+    # `*` and `@` are the matrix product; `**` is repeated multiplication
+    var C = A * A    # same call as A @ A
+    var D = A**3     # A @ A @ A, by repeated squaring
+    var E = A**-1    # inverts first, so this is inv(A)
+
+    # Element-wise arithmetic: `+` and `-` as operators, the rest as methods
+    var B = A + O    # addition
+    var H = A.mul(A) # Hadamard product
+    var Q = A.div(O) # element-wise quotient
 
     # Scalar operations
     from linamo.routines.math import scalar_mul
@@ -171,6 +176,10 @@ def main() raises:
 
     var prices = la.matrix[Decimal]([[Decimal("0.1"), Decimal("0.2")]])
     print(la.sum(prices))        # 0.3, which binary floating point cannot say
+
+    # Elimination runs over a decimal element too: `lu`, `det`, `solve`, `inv`.
+    var m = la.from_string[Decimal]("[[4, 7], [2, 6]]")
+    print(la.inv(m))             # 0.6 -0.7 / -0.2 0.4, to the type's precision
 ```
 
 ### Linear algebra

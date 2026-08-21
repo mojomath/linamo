@@ -2,7 +2,9 @@
 Tests for the Phase 5.2 operator surface on `Matrix`.
 
 - in-place operators (`+=`, `-=`, `*=`, `/=`, `//=`, `%=`)
-- `__floordiv__`, `__mod__`, `__pow__`
+- `__mul__` and `__pow__`, both of which are linear-algebra operations
+- the element-wise `mul`, `div` and `pow` methods that stand beside them
+- `__floordiv__`, `__mod__`
 - reflected scalar operators (`__radd__`, `__rsub__`, `__rmul__`,
   `__rtruediv__`)
 - comparison operators returning `Matrix[Scalar[DType.bool]]`
@@ -42,22 +44,13 @@ def test_isub_matrix() raises:
     testing.assert_equal(a[1, 1], 36.0)
 
 
-def test_imul_matrix() raises:
-    """`*=` with another matrix (element-wise, not matmul)."""
-    var a = la.matrix[Float64]([[1.0, 2.0], [3.0, 4.0]])
-    var b = la.matrix[Float64]([[2.0, 3.0], [4.0, 5.0]])
-    a *= b
-    testing.assert_equal(a[0, 0], 2.0)
-    testing.assert_equal(a[1, 1], 20.0)
-
-
-def test_itruediv_matrix() raises:
-    """`/=` with another matrix."""
+def test_itruediv_scalar() raises:
+    """`/=` with a scalar. A matrix on the right does not compile: `*=` and
+    `/=` would have to mean a product that cannot be written in place."""
     var a = la.matrix[Float64]([[10.0, 20.0], [30.0, 40.0]])
-    var b = la.matrix[Float64]([[2.0, 4.0], [5.0, 8.0]])
-    a /= b
-    testing.assert_equal(a[0, 0], 5.0)
-    testing.assert_equal(a[1, 1], 5.0)
+    a /= 5.0
+    testing.assert_equal(a[0, 0], 2.0)
+    testing.assert_equal(a[1, 1], 8.0)
 
 
 def test_ifloordiv_matrix() raises:
@@ -191,23 +184,119 @@ def test_mod_matrix() raises:
     testing.assert_equal(c[1, 1], 3.0)
 
 
-def test_pow_matrix() raises:
-    """`**` between two matrices is element-wise, not matrix power."""
+def test_mul_is_matmul() raises:
+    """`*` is the matrix product, the same operation as `@`."""
+    var a = la.matrix[Float64]([[1.0, 2.0], [3.0, 4.0]])
+    var b = la.matrix[Float64]([[5.0, 6.0], [7.0, 8.0]])
+    var c = a * b
+    testing.assert_equal(c[0, 0], 19.0)
+    testing.assert_equal(c[0, 1], 22.0)
+    testing.assert_equal(c[1, 0], 43.0)
+    testing.assert_equal(c[1, 1], 50.0)
+    var d = a @ b
+    testing.assert_equal(c[0, 0], d[0, 0])
+    testing.assert_equal(c[1, 1], d[1, 1])
+
+
+def test_mul_respects_the_order_of_the_operands() raises:
+    """The matrix product does not commute, so `a * b` is not `b * a`.
+
+    This is the one behaviour that separates the new `*` from the old one and
+    would go unnoticed on symmetric operands, so it is asserted directly.
+    """
+    var a = la.matrix[Float64]([[1.0, 2.0], [3.0, 4.0]])
+    var b = la.matrix[Float64]([[5.0, 6.0], [7.0, 8.0]])
+    testing.assert_equal((a * b)[0, 0], 19.0)
+    testing.assert_equal((b * a)[0, 0], 23.0)
+
+
+def test_mul_rejects_a_mismatched_inner_dimension() raises:
+    """`*` checks what `@` checks: the inner dimensions must agree."""
+    var a = la.matrix[Float64]([[1.0, 2.0, 3.0]])
+    var b = la.matrix[Float64]([[1.0, 2.0, 3.0]])
+    with testing.assert_raises():
+        _ = a * b
+
+
+def test_elementwise_mul_and_div_methods() raises:
+    """`mul` and `div` are the element-wise pair `*` and `/` used to be."""
+    var a = la.matrix[Float64]([[1.0, 2.0], [3.0, 4.0]])
+    var b = la.matrix[Float64]([[2.0, 3.0], [4.0, 5.0]])
+    var c = a.mul(b)
+    testing.assert_equal(c[0, 0], 2.0)
+    testing.assert_equal(c[1, 1], 20.0)
+    var d = b.div(a)
+    testing.assert_equal(d[0, 0], 2.0)
+    testing.assert_equal(d[1, 1], 1.25)
+
+
+def test_elementwise_methods_take_a_scalar_too() raises:
+    """`a.mul(2.0)` is `a * 2.0`; the scalar operand never changed meaning."""
+    var a = la.matrix[Float64]([[1.0, 2.0], [3.0, 4.0]])
+    testing.assert_equal(a.mul(2.0)[1, 1], 8.0)
+    testing.assert_equal(a.div(2.0)[1, 1], 2.0)
+    testing.assert_equal(a.pow(2.0)[1, 1], 16.0)
+
+
+def test_pow_elementwise_method() raises:
+    """`pow` raises each element to the matching element of the operand."""
     var a = la.matrix[Float64]([[2.0, 3.0], [4.0, 5.0]])
     var b = la.matrix[Float64]([[2.0, 2.0], [3.0, 0.0]])
-    var c = a**b
+    var c = a.pow(b)
     testing.assert_equal(c[0, 0], 4.0)
     testing.assert_equal(c[0, 1], 9.0)
     testing.assert_equal(c[1, 0], 64.0)
     testing.assert_equal(c[1, 1], 1.0)
 
 
-def test_pow_scalar() raises:
-    """`**` with a scalar exponent."""
-    var a = la.matrix[Float64]([[2.0, 3.0], [4.0, 5.0]])
-    var c = a**2.0
-    testing.assert_equal(c[0, 0], 4.0)
-    testing.assert_equal(c[1, 1], 25.0)
+def test_pow_is_repeated_multiplication() raises:
+    """`a ** 3` is `a @ a @ a`, not each element cubed."""
+    var a = la.matrix[Float64]([[1.0, 2.0], [3.0, 4.0]])
+    var c = a**3
+    var expected = a @ a @ a
+    testing.assert_equal(c[0, 0], expected[0, 0])
+    testing.assert_equal(c[0, 1], expected[0, 1])
+    testing.assert_equal(c[1, 0], expected[1, 0])
+    testing.assert_equal(c[1, 1], expected[1, 1])
+    testing.assert_equal(c[0, 0], 37.0)
+
+
+def test_pow_one_returns_the_matrix() raises:
+    """The base case of the squaring loop."""
+    var a = la.matrix[Float64]([[1.0, 2.0], [3.0, 4.0]])
+    var c = a**1
+    testing.assert_equal(c[0, 0], 1.0)
+    testing.assert_equal(c[1, 1], 4.0)
+
+
+def test_pow_zero_is_the_identity() raises:
+    """`a ** 0` is the identity of the product, as for any other power."""
+    var a = la.matrix[Float64]([[1.0, 2.0], [3.0, 4.0]])
+    var c = a**0
+    testing.assert_equal(c[0, 0], 1.0)
+    testing.assert_equal(c[0, 1], 0.0)
+    testing.assert_equal(c[1, 0], 0.0)
+    testing.assert_equal(c[1, 1], 1.0)
+
+
+def test_pow_minus_one_is_the_inverse() raises:
+    """A negative exponent inverts first, so `a ** -1 @ a` is the identity."""
+    var a = la.matrix[Float64]([[4.0, 7.0], [2.0, 6.0]])
+    var c = a**-1
+    testing.assert_almost_equal(c[0, 0], 0.6)
+    testing.assert_almost_equal(c[0, 1], -0.7)
+    testing.assert_almost_equal(c[1, 0], -0.2)
+    testing.assert_almost_equal(c[1, 1], 0.4)
+    var back = c @ a
+    testing.assert_almost_equal(back[0, 0], 1.0)
+    testing.assert_almost_equal(back[0, 1], 0.0)
+
+
+def test_pow_rejects_a_non_square_matrix() raises:
+    """A rectangular matrix cannot be multiplied by itself."""
+    var a = la.matrix[Float64]([[1.0, 2.0, 3.0]])
+    with testing.assert_raises():
+        _ = a**2
 
 
 def test_floordiv_view() raises:
@@ -397,7 +486,7 @@ def test_view_scalar_arithmetic() raises:
 
 
 def test_view_floordiv_and_pow() raises:
-    """`//` and `**` on a view."""
+    """`//` and `**` on a view, plus the element-wise `pow` beside them."""
     var big = la.matrix[Float64](
         [[7.0, 9.0, 99.0], [11.0, 13.0, 99.0], [99.0, 99.0, 99.0]]
     )
@@ -405,8 +494,10 @@ def test_view_floordiv_and_pow() raises:
     var fd = v // 2.0
     testing.assert_equal(fd[0, 0], 3.0)
     testing.assert_equal(fd[1, 1], 6.0)
-    var pw = v**2.0
+    var pw = v.pow(2.0)
     testing.assert_equal(pw[0, 0], 49.0)
+    var sq = v**2
+    testing.assert_equal(sq[0, 0], 7.0 * 7.0 + 9.0 * 11.0)
 
 
 def test_view_reflected_scalar() raises:

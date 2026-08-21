@@ -6,6 +6,8 @@ from std.math import sqrt
 
 from decimo import Numeric
 
+import linamo.routines.math
+
 from linamo.types.errors import ValueError
 from linamo.types.matrix import Matrix
 from linamo.types.matrix_view import MatrixView
@@ -188,6 +190,137 @@ def lu[
     return (L^, U^, piv^)
 
 
+# ===---------------------------------------------------------------------- ===#
+# Elimination over arbitrary-precision elements
+# ===---------------------------------------------------------------------- ===#
+# `lu`, `det`, `solve` and `inv` each carry a second implementation below the
+# scalar one, reached when the element type is `decimo.Numeric`. The algorithm
+# is the same in both; what differs is that there is no vector instruction to
+# reach for, the constants are `T.zero()` and `T.one()` rather than literals,
+# and ordering comes from `Comparable`.
+#
+# `Comparable` is in the bound because partial pivoting has to rank candidate
+# pivots by magnitude. An `abs` requirement would be redundant on top of it:
+# `-x if x < T.zero() else x` is built from what `Numeric` and `Comparable`
+# already provide.
+#
+# These four routines divide, so they mean whatever `/` means on the element
+# type. `BigDecimal` and `Decimal128` give a quotient rounded to the type's
+# precision, and the answers are the usual approximate ones carrying more
+# digits than `Float64` would. `BigInt` truncates toward zero, and an integer
+# matrix has no integer inverse in general, so a solve or an inverse over
+# `BigInt` returns whole numbers that answer nothing: use a decimal element
+# type for these.
+
+
+def lu[
+    T: Numeric & Comparable, origin: Origin, //
+](view: MatrixView[T, origin]) raises -> Tuple[Matrix[T], Matrix[T], List[Int]]:
+    """Computes the LU decomposition with partial pivoting: PA = LU.
+
+    The input matrix view is decomposed into a unit lower-triangular matrix L,
+    an upper-triangular matrix U, and a permutation vector P such that the rows
+    of A permuted by P equal L @ U.
+
+    A singular matrix decomposes without complaint and leaves a zero on the
+    diagonal of U, which is what lets `det` report zero for it. The routines
+    that go on to divide by that diagonal are the ones that raise.
+
+    Parameters:
+        T: The type of the matrix elements.
+        origin: The origin of the operand.
+
+    Args:
+        view: The square matrix or view to decompose.
+
+    Returns:
+        The triple `(L, U, P)`.
+
+    Raises:
+        ValueError: If the matrix is not square.
+    """
+    if view.nrows() != view.ncols():
+        raise ValueError(
+            function="lu()",
+            message="Matrix must be square for LU decomposition.",
+        )
+    var n = view.nrows()
+    var zero = T.zero()
+
+    # Work on a row-major copy for uniform indexing.
+    var u_data = List[T](length=n * n, fill=zero)
+    for i in range(n):
+        for j in range(n):
+            u_data[i * n + j] = view[i, j].copy()
+
+    var l_data = List[T](length=n * n, fill=zero)
+
+    # Initialise piv as identity permutation.
+    var piv = List[Int](unsafe_uninit_length=n)
+    for i in range(n):
+        piv[i] = i
+
+    for k in range(n):
+        # --- partial pivoting: find row with largest |u[i,k]| for i >= k ---
+        var max_val = zero.copy()
+        var max_row = k
+        for i in range(k, n):
+            var val = u_data[i * n + k].copy()
+            if val < zero:
+                val = -val
+            if val > max_val:
+                max_val = val^
+                max_row = i
+
+        # Swap rows in u_data
+        if max_row != k:
+            for j in range(n):
+                var tmp = u_data[k * n + j].copy()
+                u_data[k * n + j] = u_data[max_row * n + j].copy()
+                u_data[max_row * n + j] = tmp^
+            # Swap already-computed L columns
+            for j in range(k):
+                var tmp = l_data[k * n + j].copy()
+                l_data[k * n + j] = l_data[max_row * n + j].copy()
+                l_data[max_row * n + j] = tmp^
+            # Swap piv
+            var tmp_piv = piv[k]
+            piv[k] = piv[max_row]
+            piv[max_row] = tmp_piv
+
+        # --- elimination ---
+        var pivot = u_data[k * n + k].copy()
+        if pivot == zero:
+            # Nothing in this column to eliminate with. Dividing would raise,
+            # and the zero left on U's diagonal is the honest result.
+            continue
+        for i in range(k + 1, n):
+            var factor = u_data[i * n + k] / pivot
+            for j in range(k, n):
+                u_data[i * n + j] = (
+                    u_data[i * n + j] - factor * u_data[k * n + j]
+                )
+            l_data[i * n + k] = factor^
+
+    # Set L diagonal to 1.
+    var one = T.one()
+    for i in range(n):
+        l_data[i * n + i] = one.copy()
+
+    # Zero out below-diagonal in U.
+    for i in range(n):
+        for j in range(i):
+            u_data[i * n + j] = zero.copy()
+
+    var L = Matrix[T](
+        buffer=l_data^, nrows=n, ncols=n, row_stride=n, col_stride=1
+    )
+    var U = Matrix[T](
+        buffer=u_data^, nrows=n, ncols=n, row_stride=n, col_stride=1
+    )
+    return (L^, U^, piv^)
+
+
 def cholesky[
     dtype: DType, origin: Origin, //
 ](view: MatrixView[Scalar[dtype], origin]) raises -> Matrix[Scalar[dtype]]:
@@ -353,6 +486,56 @@ def det[
     return d
 
 
+def det[
+    T: Numeric & Comparable, origin: Origin, //
+](view: MatrixView[T, origin]) raises -> T:
+    """Computes the determinant of a square matrix view via LU decomposition.
+
+    Parameters:
+        T: The type of the matrix elements.
+        origin: The origin of the operand.
+
+    Args:
+        view: The square matrix or view to reduce.
+
+    Returns:
+        The determinant.
+
+    Raises:
+        ValueError: If the matrix is not square.
+    """
+    if view.nrows() != view.ncols():
+        raise ValueError(
+            function="det()",
+            message="Matrix must be square to compute determinant.",
+        )
+    var n = view.nrows()
+    var lu_result = lu(view)
+    ref U = lu_result[1]
+    ref piv = lu_result[2]
+
+    var d = T.one()
+    for i in range(n):
+        d = d * U._data[i * n + i]
+
+    var piv_copy = List[Int](unsafe_uninit_length=n)
+    for i in range(n):
+        piv_copy[i] = piv[i]
+
+    var swaps = 0
+    for i in range(n):
+        while piv_copy[i] != i:
+            var target = piv_copy[i]
+            piv_copy[i] = piv_copy[target]
+            piv_copy[target] = target
+            swaps += 1
+
+    if swaps % 2 == 1:
+        d = -d
+
+    return d^
+
+
 def solve[
     dtype: DType, origin_a: Origin, origin_b: Origin, //
 ](
@@ -426,6 +609,100 @@ def solve[
     )
 
 
+def solve[
+    T: Numeric & Comparable, origin_a: Origin, origin_b: Origin, //
+](A: MatrixView[T, origin_a], b: MatrixView[T, origin_b]) raises -> Matrix[T]:
+    """Solves the linear system Ax = b for x, using LU decomposition.
+
+    Both A and b can be matrix views. The right-hand side b can be a column
+    vector (n x 1) or a matrix (n x k) for multiple right-hand sides.
+
+    Parameters:
+        T: The type of the matrix elements.
+        origin_a: The origin of the coefficient matrix.
+        origin_b: The origin of the right-hand side.
+
+    Args:
+        A: The square coefficient matrix or view.
+        b: The right-hand side, with as many rows as A.
+
+    Returns:
+        A new matrix holding the solution, with the shape of b.
+
+    Raises:
+        ValueError: If A is not square, if the shapes do not match, or if A is
+            singular.
+    """
+    if A.nrows() != A.ncols():
+        raise ValueError(
+            function="solve()",
+            message="Coefficient matrix A must be square.",
+        )
+    var n = A.nrows()
+    if b.nrows() != n:
+        raise ValueError(
+            function="solve()",
+            message="Dimensions of A and b do not match: A is "
+            + String(n)
+            + "x"
+            + String(n)
+            + " but b has "
+            + String(b.nrows())
+            + " rows.",
+        )
+
+    var k = b.ncols()  # number of right-hand sides
+    var zero = T.zero()
+
+    # LU decompose: PA = LU
+    var lu_result = lu(A)
+    ref L = lu_result[0]
+    ref U = lu_result[1]
+    ref piv = lu_result[2]
+
+    for i in range(n):
+        if U._data[i * n + i] == zero:
+            raise ValueError(
+                function="solve()",
+                message="Coefficient matrix A is singular.",
+            )
+
+    # Permute rows of b according to piv: Pb
+    var pb_data = List[T](length=n * k, fill=zero)
+    for i in range(n):
+        var src_row = piv[i]
+        for j in range(k):
+            pb_data[i * k + j] = b[src_row, j].copy()
+
+    # Allocate solution workspace x (n x k), row-major.
+    var x_data = List[T](length=n * k, fill=zero)
+
+    # For each right-hand side column:
+    for col in range(k):
+        # Forward substitution: Ly = Pb  (L is unit lower-triangular)
+        var y = List[T](length=n, fill=zero)
+        for i in range(n):
+            var s = pb_data[i * k + col].copy()
+            for j2 in range(i):
+                s = s - L._data[i * n + j2] * y[j2]
+            y[i] = s^
+
+        # Back substitution: Ux = y
+        for i in range(n - 1, -1, -1):
+            var s = y[i].copy()
+            for j2 in range(i + 1, n):
+                s = s - U._data[i * n + j2] * x_data[j2 * k + col]
+            x_data[i * k + col] = s / U._data[i * n + i]
+
+    return Matrix[T](
+        buffer=x_data^,
+        nrows=n,
+        ncols=k,
+        row_stride=k,
+        col_stride=1,
+    )
+
+
 def inv[
     dtype: DType, origin: Origin, //
 ](view: MatrixView[Scalar[dtype], origin]) raises -> Matrix[Scalar[dtype]]:
@@ -453,6 +730,180 @@ def inv[
     )
 
     return solve(view, I.view())
+
+
+def inv[
+    T: Numeric & Comparable, origin: Origin, //
+](view: MatrixView[T, origin]) raises -> Matrix[T]:
+    """Computes the inverse of a square matrix view using LU decomposition.
+
+    Solves A @ X = I for X.
+
+    Parameters:
+        T: The type of the matrix elements.
+        origin: The origin of the operand.
+
+    Args:
+        view: The square matrix or view to invert.
+
+    Returns:
+        A new matrix holding the inverse.
+
+    Raises:
+        ValueError: If the matrix is not square or is singular.
+    """
+    if view.nrows() != view.ncols():
+        raise ValueError(
+            function="inv()",
+            message="Matrix must be square to compute inverse.",
+        )
+    var n = view.nrows()
+
+    # Build identity matrix as RHS
+    var eye_data = List[T](length=n * n, fill=T.zero())
+    var one = T.one()
+    for i in range(n):
+        eye_data[i * n + i] = one.copy()
+    var I = Matrix[T](
+        buffer=eye_data^,
+        nrows=n,
+        ncols=n,
+        row_stride=n,
+        col_stride=1,
+    )
+
+    return solve(view, I.view())
+
+
+# ===---------------------------------------------------------------------- ===#
+# Matrix power
+# ===---------------------------------------------------------------------- ===#
+# Repeated multiplication by squaring: `A ** 13` costs five products rather
+# than twelve. The exponent is an `Int` because only a whole number of
+# multiplications is defined; a fractional matrix power needs an
+# eigendecomposition and is a different routine.
+
+
+def matrix_power[
+    dtype: DType, origin: Origin, //
+](view: MatrixView[Scalar[dtype], origin], exponent: Int) raises -> Matrix[
+    Scalar[dtype]
+]:
+    """Raises a square matrix to an integer power.
+
+    `matrix_power(A, 3)` is `A @ A @ A`, `matrix_power(A, 0)` is the identity,
+    and a negative exponent inverts first: `matrix_power(A, -2)` is
+    `inv(A) @ inv(A)`. This is what `A ** n` calls.
+
+    Parameters:
+        dtype: The dtype behind the element type, deduced rather than written.
+        origin: The origin of the input view.
+
+    Args:
+        view: The square matrix or view to raise.
+        exponent: The power to raise it to. May be negative.
+
+    Returns:
+        A new matrix holding the product.
+
+    Raises:
+        ValueError: If the matrix is not square, or if a negative exponent is
+            asked of a singular matrix.
+    """
+    if view.nrows() != view.ncols():
+        raise ValueError(
+            function="matrix_power()",
+            message="Matrix must be square to be raised to a power.",
+        )
+    var n = view.nrows()
+
+    var base: Matrix[Scalar[dtype]]
+    var remaining: Int
+    if exponent < 0:
+        base = inv(view)
+        remaining = -exponent
+    else:
+        base = view.to_matrix()
+        remaining = exponent
+
+    var eye_data = List[Scalar[dtype]](length=n * n, fill=0)
+    for i in range(n):
+        eye_data[i * n + i] = 1
+    var result = Matrix[Scalar[dtype]](
+        buffer=eye_data^,
+        nrows=n,
+        ncols=n,
+        row_stride=n,
+        col_stride=1,
+    )
+
+    while remaining > 0:
+        if remaining % 2 == 1:
+            result = linamo.routines.math.matmul(result.view(), base.view())
+        remaining //= 2
+        if remaining > 0:
+            base = linamo.routines.math.matmul(base.view(), base.view())
+    return result^
+
+
+def matrix_power[
+    T: Numeric & Comparable, origin: Origin, //
+](view: MatrixView[T, origin], exponent: Int) raises -> Matrix[T]:
+    """Raises a square arbitrary-precision matrix to an integer power.
+
+    `matrix_power(A, 3)` is `A @ A @ A`, `matrix_power(A, 0)` is the identity,
+    and a negative exponent inverts first: `matrix_power(A, -2)` is
+    `inv(A) @ inv(A)`. This is what `A ** n` calls.
+
+    Parameters:
+        T: The type of the matrix elements.
+        origin: The origin of the input view.
+
+    Args:
+        view: The square matrix or view to raise.
+        exponent: The power to raise it to. May be negative.
+
+    Returns:
+        A new matrix holding the product.
+
+    Raises:
+        ValueError: If the matrix is not square, or if a negative exponent is
+            asked of a singular matrix.
+    """
+    if view.nrows() != view.ncols():
+        raise ValueError(
+            function="matrix_power()",
+            message="Matrix must be square to be raised to a power.",
+        )
+    var n = view.nrows()
+
+    var data = List[T](length=n * n, fill=T.zero())
+    for i in range(n):
+        data[i * n + i] = T.one()
+    var result = Matrix[T](
+        buffer=data^,
+        nrows=n,
+        ncols=n,
+        row_stride=n,
+        col_stride=1,
+    )
+
+    var base: Matrix[T]
+    var remaining: Int
+    if exponent < 0:
+        base = inv(view)
+        remaining = -exponent
+    else:
+        base = view.to_matrix()
+        remaining = exponent
+
+    while remaining > 0:
+        if remaining % 2 == 1:
+            result = linamo.routines.math.matmul(result.view(), base.view())
+        remaining //= 2
+        if remaining > 0:
+            base = linamo.routines.math.matmul(base.view(), base.view())
+    return result^
 
 
 def lstsq[

@@ -30,9 +30,14 @@ manual is the prose half: the shape of the API, not an enumeration of it.
   - [Creating matrices](#creating-matrices)
     - [Ranges, shapes copied from another matrix, and random values](#ranges-shapes-copied-from-another-matrix-and-random-values)
     - [Parsing a matrix from text](#parsing-a-matrix-from-text)
+  - [Printing a matrix](#printing-a-matrix)
+    - [What a grid leaves out](#what-a-grid-leaves-out)
+    - [Tuning the appearance](#tuning-the-appearance)
   - [Indexing and slicing](#indexing-and-slicing)
   - [Copying and assignment](#copying-and-assignment)
   - [Operators](#operators)
+    - [Element-wise product, quotient and power](#element-wise-product-quotient-and-power)
+    - [Matrix power](#matrix-power)
     - [Comparisons return masks](#comparisons-return-masks)
     - [Reflected operators](#reflected-operators)
     - [In-place operators](#in-place-operators)
@@ -691,25 +696,72 @@ writes into an operand.
 
 | Operator                    | Meaning                                         |
 | --------------------------- | ----------------------------------------------- |
-| `+` `-` `*` `/`             | Element-wise arithmetic                         |
+| `*` `@`                     | Matrix multiplication - two names, one product  |
+| `**`                        | Matrix power: `A ** 3` is `A @ A @ A`           |
+| `+` `-`                     | Element-wise arithmetic                         |
 | `//` `%`                    | Element-wise floor division and modulo          |
-| `**`                        | Element-wise power (**not** matrix power)       |
-| `@`                         | Matrix multiplication                           |
 | `<` `<=` `>` `>=` `==` `!=` | Element-wise mask, `Matrix[Scalar[DType.bool]]` |
 
-`**` follows NumPy: `A ** 2` squares each entry. Matrix exponentiation is a
-different operation and gets a named routine, not an operator.
+**`*` between two matrices is the matrix product, not the element-wise one.**
+This is the point where linamo parts company with NumPy, and it is worth
+reading twice: on two square operands both readings type-check and return the
+right shape, so mistaking one for the other gives a wrong answer rather than an
+error. `A * B` and `A @ B` are the same call.
+
+With a scalar on either side, `*` and `/` scale every element as they always
+have: `A * 2.0`, `2.0 * A`, `A / 2.0`. Only the matrix-by-matrix case changed.
+
+### Element-wise product, quotient and power
+
+`*` is taken, so these are methods rather than operators. Each is the method
+form of the like-named routine, taking the same operands:
+
+| Element-wise      | Method       | Routine        |
+| ----------------- | ------------ | -------------- |
+| Hadamard product  | `a.mul(b)`   | `mul(a, b)`    |
+| Quotient          | `a.div(b)`   | `div(a, b)`    |
+| Power             | `a.pow(b)`   | `pow(a, b)`    |
+
+Each also takes a scalar: `a.pow(2.0)` squares every element, which is what
+`a ** 2.0` used to do. `a.mul(2.0)` and `a.div(2.0)` are the same operations
+as `a * 2.0` and `a / 2.0` and exist so the element-wise family reads as one
+set.
+
+There is no `A / B` between two matrices. Division by a matrix is a solve
+under another name, and which side you are solving on is not something a
+single character should decide - write [`solve`](#linear-algebra) and say so.
 
 Every operator has a named routine behind it in `routines.math` and
-`routines.logic` — `add`, `sub`, `mul`, `div`, `matmul`, `floordiv`, `mod`,
-`pow`, `greater`, `equal`, and so on, plus a `scalar_*` form of each for the
-matrix-and-scalar case. Use them when you want to be explicit, or when the
-operator syntax will not fit.
+`routines.logic` — `add`, `sub`, `mul`, `div`, `matmul`, `matrix_power`,
+`floordiv`, `mod`, `pow`, `greater`, `equal`, and so on, plus a `scalar_*` form
+of each for the matrix-and-scalar case. Use them when you want to be explicit,
+or when the operator syntax will not fit.
 
 Element-wise binary operations require identical shapes and raise `ValueError`
-otherwise; `@` requires the inner dimensions to agree. There is no implicit
-broadcasting — stretch an operand yourself with
+otherwise; `*`, `@` and `**` are the linear-algebra operations and check what
+linear algebra requires — inner dimensions that agree, and a square operand for
+`**`. There is no implicit broadcasting — stretch an operand yourself with
 [`broadcast_to`](#shape-and-layout) when you want it.
+
+### Matrix power
+
+`A ** n` multiplies `A` by itself `n` times, by repeated squaring, so `A ** 13`
+costs five products rather than twelve. The exponent is an `Int`: only a whole
+number of multiplications is defined, and a fractional power would need an
+eigendecomposition.
+
+```mojo
+a**3   # a @ a @ a
+a**1   # a
+a**0   # the identity matrix
+a**-1  # inv(a)
+a**-2  # inv(a) @ inv(a)
+```
+
+`A` must be square, and a negative exponent additionally needs it to be
+invertible; both raise `ValueError` otherwise. On an arbitrary-precision
+element type a negative exponent always raises, because `inv` is defined over
+the SIMD element types only.
 
 ### Comparisons return masks
 
@@ -733,10 +785,15 @@ The subtraction and division forms keep the operand order you would expect --
 
 ### In-place operators
 
-`+=`, `-=`, `*=`, `/=`, `//=` and `%=` are defined on `Matrix` only, and accept
-a matrix, a view, or a scalar. Unlike the out-of-place operators they allocate
-nothing: they write back through the matrix's own strides, so a transposed or
+`+=`, `-=`, `//=` and `%=` are defined on `Matrix` only, and accept a matrix, a
+view, or a scalar. Unlike the out-of-place operators they allocate nothing:
+they write back through the matrix's own strides, so a transposed or
 column-major matrix keeps its layout.
+
+`*=` and `/=` take a **scalar only**. A matrix on the right would have to mean
+the matrix product, and that cannot be done in place: every element of the
+target is read after the point where it would have been overwritten, so it
+needs a full temporary. Write `a = a * b` and let the allocation show.
 
 `MatrixView` has no in-place operators, for the same reason it has no `store`
 method: the type is generic over its origin, and Mojo checks a method body
@@ -1038,17 +1095,18 @@ truncates towards zero, and a narrowing conversion wraps.
 Everything in `routines.linalg` accepts a `Matrix` or a `MatrixView` on either
 side and returns owning matrices.
 
-| Routine        | Returns              | Notes                                    |
-| -------------- | -------------------- | ---------------------------------------- |
-| `transpose(a)` | `Matrix`             | a new matrix, axes exchanged             |
-| `trace(a)`     | `Scalar[d]`          | square input required                    |
-| `det(a)`       | `Scalar[d]`          | via LU                                   |
-| `inv(a)`       | `Matrix`             | via LU; solves `A @ X = I`               |
-| `lu(a)`        | `(L, U, piv)`        | partial pivoting, `PA = LU`              |
-| `cholesky(a)`  | `Matrix` (lower `L`) | symmetric positive-definite input        |
-| `qr(a)`        | `(Q, R)`             | Householder reflections, `m >= n`        |
-| `solve(A, b)`  | `Matrix`             | via LU; `b` may have several columns     |
-| `lstsq(A, b)`  | `Matrix`             | via QR; overdetermined systems, `m >= n` |
+| Routine              | Returns              | Notes                                    |
+| -------------------- | -------------------- | ---------------------------------------- |
+| `transpose(a)`       | `Matrix`             | a new matrix, axes exchanged             |
+| `trace(a)`           | `Scalar[d]`          | square input required                    |
+| `det(a)`             | `Scalar[d]`          | via LU                                   |
+| `inv(a)`             | `Matrix`             | via LU; solves `A @ X = I`               |
+| `matrix_power(a, n)` | `Matrix`             | repeated squaring; what `a ** n` calls   |
+| `lu(a)`              | `(L, U, piv)`        | partial pivoting, `PA = LU`              |
+| `cholesky(a)`        | `Matrix` (lower `L`) | symmetric positive-definite input        |
+| `qr(a)`              | `(Q, R)`             | Householder reflections, `m >= n`        |
+| `solve(A, b)`        | `Matrix`             | via LU; `b` may have several columns     |
+| `lstsq(A, b)`        | `Matrix`             | via QR; overdetermined systems, `m >= n` |
 
 ```mojo
 var A = la.matrix[Float64](
@@ -1075,9 +1133,21 @@ The tuple results are unpacked with an index and `.copy()`, because `Matrix` is
 not implicitly copyable and taking it out of the tuple is a copy you have to
 ask for.
 
-A singular matrix raises `ValueError` from `solve`, `inv` and `det`; a
-non-square input raises from the routines that need one; and `cholesky` raises
-if the input is not positive definite. Nothing returns a silent NaN.
+A non-square input raises `ValueError` from every routine that needs a square
+one, and `cholesky` raises if the input is not positive definite.
+
+A singular matrix is answered differently by the two element paths, because
+they divide differently. On a scalar element the division is IEEE arithmetic:
+`det` returns zero and `inv`, `solve` and a negative `matrix_power` return
+infinities, without raising. On an arbitrary-precision element there is no
+infinity to return, so `det` still reports zero but `inv`, `solve` and a
+negative `matrix_power` raise `ValueError` naming the matrix as singular.
+
+`trace`, `det`, `lu`, `solve`, `inv` and `matrix_power` all carry a second
+overload for the arbitrary-precision element types; `cholesky`, `qr` and
+`lstsq` are scalar-only, since they need a square root. See
+[Arbitrary-precision elements](#arbitrary-precision-elements) for what division
+means there.
 
 ---
 
@@ -1349,7 +1419,9 @@ from linamo import BInt
 var a = la.matrix[BInt]([[1, 2], [3, 4]])
 
 a + a               # element-wise, as for any other element type
-a @ a               # matrix multiplication
+a @ a               # matrix multiplication, and `a * a` is the same call
+a**2                # repeated multiplication; `a**-1` inverts, see below
+a.mul(a)            # element-wise, the Hadamard product
 a * BInt(3)         # a value on either side of the operator
 a.transpose()       # only moves elements
 la.sort(a, 1)       # only compares them
@@ -1358,6 +1430,30 @@ la.eye[BInt](3)     # asks `Numeric` for a zero and a one
 
 la.from_string[BInt]("[[1, 2], [3, 4]]")   # asks `Parsable` to read the text
 ```
+
+Elimination is there too — `lu`, `det`, `solve`, `inv`, and `a**-1` through
+them — but it wants a *decimal* element:
+
+```mojo
+import linamo as la
+from linamo import Dec128
+
+var m = la.from_string[Dec128]("[[4, 7], [2, 6]]")
+
+la.det(m)                # 10
+la.inv(m)                # 0.6 -0.7 / -0.2 0.4, exactly
+m ** -1                  # the same matrix, through `matrix_power`
+la.solve(m, la.from_string[Dec128]("[[1], [1]]"))
+```
+
+These four divide, so they mean whatever `/` means on the element type.
+`Decimal128` and `BigDecimal` give a quotient rounded to the type's precision,
+which is an ordinary approximate answer carrying more digits than `Float64`
+would — a `BigDecimal` inverse is *not* exact, it is exact to 28 significant
+digits. `BigInt` truncates toward zero, and an integer matrix has no integer
+inverse in general, so elimination over `BigInt` compiles, runs, raises
+nothing, and returns whole numbers that are not the answer. Nothing in the
+signature stops you; a decimal element type is what these routines are for.
 
 The element types Linamo re-exports are exactly those that conform to
 `decimo.Numeric`, under both of Decimo's spellings. All three also conform to
@@ -1390,9 +1486,14 @@ SIMD and no `parallelize` on the `Numeric` path: a `BInt` addition allocates,
 so those loops are memory-bound and the plain triple loop in `matmul` is what
 the operation costs.
 
-`//`, `%` and `**` have no `Numeric` counterpart. The trait closes over
-`+ - * /` and nothing else, and `/` on an integral element truncates toward
-zero the way `Int` does.
+`//` and `%` have no `Numeric` counterpart. The trait closes over `+ - * /` and
+nothing else, and `/` on an integral element truncates toward zero the way
+`Int` does. `**` does carry over, since a matrix power is repeated
+multiplication.
+
+The elimination routines ask for `Numeric & Comparable` rather than `Numeric`
+alone: partial pivoting has to rank candidate pivots by magnitude. All three
+re-exported element types are `Comparable`, so nothing is excluded in practice.
 
 ### Decimo is a hard dependency
 

@@ -133,16 +133,16 @@ def test_add_and_sub() raises:
     testing.assert_equal(String(d[1, 1]), "4")
 
 
-def test_mul_is_element_wise() raises:
-    """`*` is the Hadamard product; `@` is matrix multiplication."""
-    var p = _a() * _a()
+def test_mul_method_is_element_wise() raises:
+    """`mul` is the Hadamard product; `*` and `@` are matrix multiplication."""
+    var p = _a().mul(_a())
     testing.assert_equal(String(p[0, 1]), "4")
     testing.assert_equal(String(p[1, 0]), "9")
 
 
 def test_div_truncates_on_an_integral_element() raises:
     """`/` on a `BInt` truncates toward zero, as `Int` does."""
-    var q = _a() / la.matrix[BInt]([[2, 3], [2, 3]])
+    var q = _a().div(la.matrix[BInt]([[2, 3], [2, 3]]))
     testing.assert_equal(String(q[0, 0]), "0")
     testing.assert_equal(String(q[1, 0]), "1")
 

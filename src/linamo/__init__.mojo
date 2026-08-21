@@ -83,6 +83,7 @@ from linamo.routines.linalg import (
     det,
     solve,
     inv,
+    matrix_power,
     lstsq,
 )
 from linamo.routines.functional import apply_along_axis, fold
@@ -97,7 +98,7 @@ from linamo.routines.manipulation import (
     reshape_view,
     resize,
 )
-from linamo.routines.math import max, min, prod, cumprod
+from linamo.routines.math import div, matmul, max, min, mul, pow, prod, cumprod
 from linamo.routines.mutation import (
     assign,
     cols_mut,

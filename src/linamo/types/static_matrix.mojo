@@ -329,3 +329,30 @@ struct StaticMatrix[T: Copyable & Deinitable, num_rows: Int, num_cols: Int](
     ) -> StaticMatrix[Scalar[Self.dtype], Self.num_rows, other_num_cols]:
         """Performs matrix multiplication of two matrices."""
         return linamo.routines.math.matmul(self._as_simd(), other._as_simd())
+
+    def __mul__[
+        other_num_cols: Int, //
+    ](
+        self, other: StaticMatrix[Self.T, Self.num_cols, other_num_cols]
+    ) -> StaticMatrix[Scalar[Self.dtype], Self.num_rows, other_num_cols]:
+        """Performs matrix multiplication, the same as `@`."""
+        return linamo.routines.math.matmul(self._as_simd(), other._as_simd())
+
+    # ===------------------------------------------------------------------ ===#
+    # Element-wise product and quotient
+    # ===------------------------------------------------------------------ ===#
+    # `*` multiplies matrices here too, so the element-wise forms carry the
+    # same names they carry on `Matrix`. The shapes must match exactly, which
+    # the parameters state rather than check.
+
+    def mul(
+        self, other: Self
+    ) -> StaticMatrix[Scalar[Self.dtype], Self.num_rows, Self.num_cols]:
+        """Multiplies element by element (the Hadamard product)."""
+        return linamo.routines.math.mul(self._as_simd(), other._as_simd())
+
+    def div(
+        self, other: Self
+    ) -> StaticMatrix[Scalar[Self.dtype], Self.num_rows, Self.num_cols]:
+        """Divides element by element."""
+        return linamo.routines.math.div(self._as_simd(), other._as_simd())

@@ -138,11 +138,23 @@ def test_arithmetic_operators_accept_all_four_combinations() raises:
         testing.assert_equal(c[0, 0], 11.0)
     for c in [a - b, a - b.view(), a.view() - b, a.view() - b.view()]:
         testing.assert_equal(c[0, 0], -9.0)
-    for c in [a * b, a * b.view(), a.view() * b, a.view() * b.view()]:
+    for c in [
+        a.mul(b),
+        a.mul(b.view()),
+        a.view().mul(b),
+        a.view().mul(b.view()),
+    ]:
         testing.assert_equal(c[0, 0], 10.0)
-    for c in [b / a, b / a.view(), b.view() / a, b.view() / a.view()]:
+    for c in [
+        b.div(a),
+        b.div(a.view()),
+        b.view().div(a),
+        b.view().div(a.view()),
+    ]:
         testing.assert_equal(c[0, 0], 10.0)
     for c in [a @ b, a @ b.view(), a.view() @ b, a.view() @ b.view()]:
+        testing.assert_equal(c[0, 0], 70.0)
+    for c in [a * b, a * b.view(), a.view() * b, a.view() * b.view()]:
         testing.assert_equal(c[0, 0], 70.0)
 
 
@@ -155,7 +167,12 @@ def test_floordiv_mod_pow_operators_accept_all_four_combinations() raises:
         testing.assert_equal(c[0, 0], 3.0)
     for c in [b % a, b % a.view(), b.view() % a, b.view() % a.view()]:
         testing.assert_equal(c[0, 0], 1.0)
-    for c in [a**a, a ** a.view(), a.view() ** a, a.view() ** a.view()]:
+    for c in [
+        a.pow(a),
+        a.pow(a.view()),
+        a.view().pow(a),
+        a.view().pow(a.view()),
+    ]:
         testing.assert_equal(c[0, 0], 4.0)
 
 
@@ -189,10 +206,6 @@ def test_inplace_operators_accept_a_matrix_and_a_view() raises:
 
     c -= b
     c -= b.view()
-    testing.assert_equal(c[0, 0], 1.0)
-
-    c *= b
-    c /= b.view()
     testing.assert_equal(c[0, 0], 1.0)
 
     var d = la.matrix[Float64]([[7.0, 7.0], [7.0, 7.0]])

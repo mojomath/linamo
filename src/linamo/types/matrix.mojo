@@ -854,18 +854,8 @@ struct Matrix[T: Copyable & Deinitable](
     ](self, other: MatrixView[Self.T, origin]) raises -> Matrix[
         Scalar[d]
     ] where (Self.T == Scalar[d]):
-        """Performs element-wise multiplication."""
-        return linamo.routines.math.mul(
-            self._simd_view[d](), other._as_simd[d]()
-        )
-
-    def __truediv__[
-        d: DType, origin: Origin, //
-    ](self, other: MatrixView[Self.T, origin]) raises -> Matrix[
-        Scalar[d]
-    ] where (Self.T == Scalar[d]):
-        """Performs element-wise division."""
-        return linamo.routines.math.div(
+        """Performs matrix multiplication, the same as `@`."""
+        return linamo.routines.math.matmul(
             self._simd_view[d](), other._as_simd[d]()
         )
 
@@ -885,6 +875,74 @@ struct Matrix[T: Copyable & Deinitable](
         """Negates every element."""
         return linamo.routines.math.scalar_rsub(
             self._simd_view[d](), Scalar[d](0)
+        )
+
+    # ===------------------------------------------------------------------ ===#
+    # Element-wise product, quotient and power
+    # ===------------------------------------------------------------------ ===#
+    # `*` multiplies matrices and `**` raises one to a power, so the
+    # element-wise forms are spelled out. Each is the method form of the
+    # like-named routine in `routines/math.mojo`, which takes the same
+    # operands: `a.mul(b)` and `mul(a, b)` are one function reached two ways.
+
+    def mul[
+        d: DType, origin: Origin, //
+    ](self, other: MatrixView[Self.T, origin]) raises -> Matrix[
+        Scalar[d]
+    ] where (Self.T == Scalar[d]):
+        """Multiplies element by element (the Hadamard product)."""
+        return linamo.routines.math.mul(
+            self._simd_view[d](), other._as_simd[d]()
+        )
+
+    def mul[
+        d: DType, //
+    ](self, other: Self.ElementType) -> Matrix[Scalar[d]] where (
+        Self.T == Scalar[d]
+    ):
+        """Multiplies every element by a scalar, the same as `*`."""
+        return linamo.routines.math.scalar_mul(
+            self._simd_view[d](), rebind[Scalar[d]](other)
+        )
+
+    def div[
+        d: DType, origin: Origin, //
+    ](self, other: MatrixView[Self.T, origin]) raises -> Matrix[
+        Scalar[d]
+    ] where (Self.T == Scalar[d]):
+        """Divides element by element."""
+        return linamo.routines.math.div(
+            self._simd_view[d](), other._as_simd[d]()
+        )
+
+    def div[
+        d: DType, //
+    ](self, other: Self.ElementType) -> Matrix[Scalar[d]] where (
+        Self.T == Scalar[d]
+    ):
+        """Divides every element by a scalar, the same as `/`."""
+        return linamo.routines.math.scalar_div(
+            self._simd_view[d](), rebind[Scalar[d]](other)
+        )
+
+    def pow[
+        d: DType, origin: Origin, //
+    ](self, other: MatrixView[Self.T, origin]) raises -> Matrix[
+        Scalar[d]
+    ] where (Self.T == Scalar[d]):
+        """Raises each element to the matching element of `other`."""
+        return linamo.routines.math.pow(
+            self._simd_view[d](), other._as_simd[d]()
+        )
+
+    def pow[
+        d: DType, //
+    ](self, other: Self.ElementType) -> Matrix[Scalar[d]] where (
+        Self.T == Scalar[d]
+    ):
+        """Raises every element to a scalar power."""
+        return linamo.routines.math.scalar_pow(
+            self._simd_view[d](), rebind[Scalar[d]](other)
         )
 
     # ===------------------------------------------------------------------ ===#
@@ -956,19 +1014,23 @@ struct Matrix[T: Copyable & Deinitable](
 
     def __pow__[
         d: DType, //
-    ](self, other: Self.ElementType) -> Matrix[Scalar[d]] where (
+    ](self, exponent: Int) raises -> Matrix[Scalar[d]] where (
         Self.T == Scalar[d]
     ):
-        """Raises every element to a scalar power."""
-        return linamo.routines.math.scalar_pow(
-            self._simd_view[d](), rebind[Scalar[d]](other)
+        """Raises the matrix to an integer power: `A ** 3` is `A @ A @ A`.
+
+        `A ** 0` is the identity and a negative exponent inverts first, so
+        `A ** -1` is `inv(A)`. The matrix must be square.
+        """
+        return linamo.routines.linalg.matrix_power(
+            self._simd_view[d](), exponent
         )
 
     # ===------------------------------------------------------------------ ===#
-    # floordiv, mod, pow
+    # floordiv and mod
     # ===------------------------------------------------------------------ ===#
-    # `__pow__` is element-wise, matching NumPy's `**`. Matrix exponentiation
-    # is a different operation and is spelled as a named routine, not `**`.
+    # Element-wise, and unambiguously so: neither has a linear-algebra reading
+    # that `*` and `**` could be confused with.
 
     def __floordiv__[
         d: DType, origin: Origin, //
@@ -987,16 +1049,6 @@ struct Matrix[T: Copyable & Deinitable](
     ] where (Self.T == Scalar[d]):
         """Performs element-wise modulo."""
         return linamo.routines.math.mod(
-            self._simd_view[d](), other._as_simd[d]()
-        )
-
-    def __pow__[
-        d: DType, origin: Origin, //
-    ](self, other: MatrixView[Self.T, origin]) raises -> Matrix[
-        Scalar[d]
-    ] where (Self.T == Scalar[d]):
-        """Performs element-wise exponentiation."""
-        return linamo.routines.math.pow(
             self._simd_view[d](), other._as_simd[d]()
         )
 
@@ -1062,10 +1114,11 @@ struct Matrix[T: Copyable & Deinitable](
     # `routines/math.mojo`, and no element type satisfies both. A user writing
     # `A + B` never learns which of the two they got.
     #
-    # `//`, `%` and `**` have no counterpart here. `Numeric` closes over
-    # `+ - * /` and nothing else, and `/` on an integral element truncates
-    # toward zero the way `Int` does, so `//` would be a second name for the
-    # same operation on `BigInt` and a missing one on `BigDecimal`.
+    # `//` and `%` have no counterpart here. `Numeric` closes over `+ - * /`
+    # and nothing else, and `/` on an integral element truncates toward zero
+    # the way `Int` does, so `//` would be a second name for the same
+    # operation on `BigInt` and a missing one on `BigDecimal`. `**` does carry
+    # over, since a matrix power is repeated multiplication.
 
     def __add__[
         origin: Origin, //
@@ -1088,16 +1141,8 @@ struct Matrix[T: Copyable & Deinitable](
     ](self, other: MatrixView[Self.T, origin]) raises -> Matrix[
         Self.T
     ] where conforms_to(Self.T, Numeric):
-        """Performs element-wise multiplication."""
-        return linamo.routines.math.mul(self, other)
-
-    def __truediv__[
-        origin: Origin, //
-    ](self, other: MatrixView[Self.T, origin]) raises -> Matrix[
-        Self.T
-    ] where conforms_to(Self.T, Numeric):
-        """Performs element-wise division."""
-        return linamo.routines.math.div(self, other)
+        """Performs matrix multiplication, the same as `@`."""
+        return linamo.routines.math.matmul(self, other)
 
     def __matmul__[
         origin: Origin, //
@@ -1112,6 +1157,46 @@ struct Matrix[T: Copyable & Deinitable](
     ) raises -> Matrix[Self.T] where conforms_to(Self.T, Numeric):
         """Negates every element."""
         return linamo.routines.math.neg(self)
+
+    def __pow__(
+        self, exponent: Int
+    ) raises -> Matrix[Self.T] where conforms_to(
+        Self.T, Numeric
+    ) and conforms_to(Self.T, Comparable):
+        """Raises the matrix to an integer power, as on a scalar element type.
+
+        `Comparable` joins `Numeric` in the clause because a negative exponent
+        goes through `inv`, whose pivoting ranks candidates by magnitude.
+        """
+        return linamo.routines.linalg.matrix_power(self, exponent)
+
+    def mul[
+        origin: Origin, //
+    ](self, other: MatrixView[Self.T, origin]) raises -> Matrix[
+        Self.T
+    ] where conforms_to(Self.T, Numeric):
+        """Multiplies element by element (the Hadamard product)."""
+        return linamo.routines.math.mul(self, other)
+
+    def mul(
+        self, other: Self.ElementType
+    ) raises -> Matrix[Self.T] where conforms_to(Self.T, Numeric):
+        """Multiplies every element by a value, the same as `*`."""
+        return linamo.routines.math.scalar_mul(self, other)
+
+    def div[
+        origin: Origin, //
+    ](self, other: MatrixView[Self.T, origin]) raises -> Matrix[
+        Self.T
+    ] where conforms_to(Self.T, Numeric):
+        """Divides element by element."""
+        return linamo.routines.math.div(self, other)
+
+    def div(
+        self, other: Self.ElementType
+    ) raises -> Matrix[Self.T] where conforms_to(Self.T, Numeric):
+        """Divides every element by a value, the same as `/`."""
+        return linamo.routines.math.scalar_div(self, other)
 
     def __add__(
         self, other: Self.ElementType
@@ -1211,32 +1296,12 @@ struct Matrix[T: Copyable & Deinitable](
         ](rebind[Matrix[Scalar[d]]](self), rebind[Scalar[d]](other))
 
     def __imul__[
-        d: DType, origin: Origin, //
-    ](mut self, other: MatrixView[Self.T, origin]) raises where (
-        Self.T == Scalar[d]
-    ):
-        """In-place element-wise multiplication with another matrix or view."""
-        linamo.routines.math._elementwise_inplace[func=Scalar[d].__mul__](
-            rebind[Matrix[Scalar[d]]](self), other._as_simd[d]()
-        )
-
-    def __imul__[
         d: DType, //
     ](mut self, other: Self.ElementType) where Self.T == Scalar[d]:
         """In-place element-wise multiplication with a scalar."""
         linamo.routines.math._scalar_elementwise_inplace[
             func=Scalar[d].__mul__
         ](rebind[Matrix[Scalar[d]]](self), rebind[Scalar[d]](other))
-
-    def __itruediv__[
-        d: DType, origin: Origin, //
-    ](mut self, other: MatrixView[Self.T, origin]) raises where (
-        Self.T == Scalar[d]
-    ):
-        """In-place element-wise division with another matrix or view."""
-        linamo.routines.math._elementwise_inplace[func=Scalar[d].__truediv__](
-            rebind[Matrix[Scalar[d]]](self), other._as_simd[d]()
-        )
 
     def __itruediv__[
         d: DType, //

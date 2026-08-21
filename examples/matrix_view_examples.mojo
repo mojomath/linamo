@@ -498,7 +498,7 @@ def arithmetic() raises:
     # has to put its output somewhere, and a view owns nothing.
     print("m[0:2, :] + m[2:4, :]:\n", top + bottom)
     print("m[2:4, :] - m[0:2, :]:\n", bottom - top)
-    print("m[0:2, :] * m[2:4, :] - elementwise:\n", top * bottom)
+    print("m[0:2, :].mul(m[2:4, :]) - elementwise:\n", top.mul(bottom))
 
     # View with matrix, and matrix with view: both directions work.
     var ones = la.ones[Float64](2, 4)

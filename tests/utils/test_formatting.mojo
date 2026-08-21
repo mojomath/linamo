@@ -70,7 +70,7 @@ def test_print_does_not_end_with_a_blank_line() raises:
 def test_a_long_fraction_is_trimmed_and_marked() raises:
     """Digits after the point are cut; the mark says the reading is abridged."""
     var m = la.from_string[la.BDec]("[[1.0, 3.0]]")
-    var q = m[0:1, 0:1] / m[0:1, 1:2]
+    var q = m[0:1, 0:1].div(m[0:1, 1:2])
     var text = q.__str__()
     testing.assert_equal(text, "[[ 0.33333333… ]]")
 

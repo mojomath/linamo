@@ -69,7 +69,7 @@ Last reviewed: **2026-08-18**
 | `Matrix` (`add`, `sub`, `mul`, `div`)   |                          |                                     |        |
 | Scalar–matrix operations                | `routines/math.mojo`     | Scaling, centering                  | ✓      |
 | (`scalar_add/sub/mul/div`)              |                          |                                     |        |
-| Operator overloads (`+`, `-`, `*`, `/`) | `types/matrix.mojo`      | Ergonomic element-wise syntax       | ✓      |
+| Operator overloads (`+`, `-`, `*`, `/`) | `types/matrix.mojo`      | Ergonomic arithmetic syntax         | ✓      |
 | for dynamic `Matrix`                    |                          |                                     |        |
 
 ---
@@ -223,12 +223,12 @@ Mutating a view goes through `routines/mutation.mojo`.
 **Comparisons return a mask, not a verdict.** `a == b` is an element-wise
 `Matrix[DType.bool]`, as in NumPy, so `Matrix` deliberately does not conform to
 `EqualityComparable`; whether two matrices are wholly identical stays a separate
-question that `assert_matrices_equal` answers. `__pow__` is element-wise for the
-same reason — matrix exponentiation will get a named routine, not an operator.
-The comparison kernels went into a new `routines/logic.mojo`, which is where 5.3
-wants `all` / `any` anyway. `__rtruediv__` came along uninvited: shipping
-`2.0 - A` without `2.0 / A` is worse than having all four or none. All of these
-are mirrored onto `MatrixView`.
+question that `assert_matrices_equal` answers. `__pow__` was element-wise for
+the same reason; the 2026-08-21 entry below revisits that and gives `*` and `**`
+their linear-algebra meanings. The comparison kernels went into a new
+`routines/logic.mojo`, which is where 5.3 wants `all` / `any` anyway.
+`__rtruediv__` came along uninvited: shipping `2.0 - A` without `2.0 / A` is
+worse than having all four or none. All of these are mirrored onto `MatrixView`.
 
 **Slicing had to become read-only.** 5.1 gave slicing and `view()` `ref self`,
 so `a[0:2, 0:2]` on a `var` matrix produced a mutable view. A mutable view is an
@@ -454,11 +454,12 @@ later breaks nothing that 0.1.0 users will have written. Decided 2026-08-19.
 
 ### 5.7 — Linear algebra gaps
 
-| Item                                 | Module                 | Status |
-| ------------------------------------ | ---------------------- | ------ |
-| `issymmetric`                        | `routines/linalg.mojo` | □      |
-| `solve_lu` (explicit LU-based solve) | `routines/linalg.mojo` | □      |
-| `eig` (ported from NuMojo — Phase 6) | `routines/linalg.mojo` | □      |
+| Item                                    | Module                 | Status |
+| --------------------------------------- | ---------------------- | ------ |
+| `issymmetric`                           | `routines/linalg.mojo` | □      |
+| `solve_lu` (explicit LU-based solve)    | `routines/linalg.mojo` | □      |
+| `eig` (ported from NuMojo — Phase 6)    | `routines/linalg.mojo` | □      |
+| `lu`/`det`/`solve`/`inv` over `Numeric` | `routines/linalg.mojo` | ✓      |
 
 ### 5.8 — Interop
 
@@ -1165,3 +1166,49 @@ call site keeps it.
 |            | variables. 13 new tests (541 total), asserting on whole lines |
 |            | --- a substring check cannot see a column that slipped by one |
 |            | space.                                                        |
+| 2026-08-21 | `*` and `**` now carry their linear-algebra meanings. `A * B` |
+|            | is the matrix product, the same call as `A @ B`; `A ** n` is  |
+|            | repeated multiplication by squaring, `A ** 0` the identity, a |
+|            | negative power inverting first. The element-wise three became |
+|            | methods beside the routines they already had --- `a.mul(b)`,  |
+|            | `a.div(b)`, `a.pow(b)`. `A / B` is gone rather than           |
+|            | reinterpreted: division by a matrix is a solve, and which     |
+|            | side is being solved on is not a thing one character should   |
+|            | decide. Five of the nine matmul-`*` libraries surveyed leave  |
+|            | it undefined for that reason; only the MATLAB lineage makes   |
+|            | it a solve, and that lineage has `\` for the other side. `*=` |
+|            | and `/=` keep the scalar operand and lose the matrix one,     |
+|            | because the matrix product cannot be written in place ---     |
+|            | every element of the target is read after the point it would  |
+|            | have been overwritten. The risk here is unlike the rest of    |
+|            | the phase: on square operands both readings of `*` type-check |
+|            | and return the right shape, so the old meaning fails silently |
+|            | rather than loudly. One test in the suite was asserting the   |
+|            | Hadamard product and had to be caught by running it, not by   |
+|            | compiling it; `test_mul_respects_the_order_of_the_operands`   |
+|            | is there so the next one is caught by name. `matrix_power` is |
+|            | new in `routines/linalg.mojo`, with negative exponents on the |
+|            | SIMD path alone --- `inv` has no `Numeric` counterpart to     |
+|            | invert with. 549 tests.                                       |
+| 2026-08-21 | `lu`, `det`, `solve` and `inv` gained `Numeric` overloads, so |
+|            | a `Matrix[Dec128]` or `Matrix[BDec]` decomposes and inverts   |
+|            | through the same names a `Matrix[Float64]` uses, and          |
+|            | `A ** -1` works there --- the gap the previous entry left     |
+|            | open. The bound is `Numeric & Comparable`, because partial    |
+|            | pivoting has to rank candidates by magnitude; an `abs`        |
+|            | requirement on top of that would be redundant, since          |
+|            | `-x if x < zero else x` is already available. No trait was    |
+|            | added to keep `BigInt` out. Its `/` truncates toward zero and |
+|            | an integer matrix has no integer inverse in general, so       |
+|            | elimination over it answers nothing --- but a marker trait    |
+|            | would not have stopped anyone either, since any type at all   |
+|            | can be a matrix element. The caveat lives in the docs and in  |
+|            | two tests that pin both sides of it: `[[1, 1], [0, 1]]`       |
+|            | inverts exactly because nothing truncates, and                |
+|            | `det([[1, 2], [3, 4]])` misses -2 because something does.     |
+|            | Singular input parts company with the scalar path, which has  |
+|            | an infinity to return and returns it; a decimal has none, so  |
+|            | `inv` and `solve` raise while `det` still reports zero. The   |
+|            | MANUAL claimed the scalar path raised as well --- it yields   |
+|            | `-0.0` and `inf`, and the page now says which path does what. |
+|            | 16 new tests (565 total).                                     |
