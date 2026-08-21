@@ -15,6 +15,15 @@ from linamo.types.matrix import Matrix
 from linamo.types.matrix_iter import MatrixAxisIter
 from linamo.utils.indexing import get_offset, indices_within_bounds
 from linamo.utils.str import element_type_name
+from linamo.utils.formatting import (
+    ELISION,
+    elides,
+    gap_position,
+    plan_indices,
+    trim_fraction,
+    write_grid,
+    write_header,
+)
 from std.memory import Pointer
 
 
@@ -493,61 +502,62 @@ struct MatrixView[
     # the same condition, which is what keeps `print(view)` available for
     # `MatrixView[Float64]` and absent for a view whose element has no
     # `write_to`.
+    def _write_grid[
+        W: Writer, //
+    ](self, mut writer: W) where conforms_to(Self.T, Writable):
+        """Writes the bracketed grid of elements, without a header.
+
+        A row `plan_indices` leaves out is an empty list, which `write_grid`
+        prints as `ELISION`; a column it leaves out carries the mark in every
+        row, so it is measured and padded like any other column.
+        """
+        var elide = elides(self._nrows, self._ncols)
+        var rows = plan_indices(self._nrows, elide)
+        var cols = plan_indices(self._ncols, elide)
+        var cells = List[List[String]]()
+        for i in rows:
+            var row = List[String]()
+            if i >= 0:
+                for j in cols:
+                    if j >= 0:
+                        row.append(
+                            trim_fraction(
+                                String(
+                                    self._data[
+                                        self._offset
+                                        + i * self._row_stride
+                                        + j * self._col_stride
+                                    ]
+                                )
+                            )
+                        )
+                    else:
+                        row.append(String(ELISION))
+            cells.append(row^)
+        write_grid(writer, cells, gap_position(cols))
+
     def __str__(self) -> String where conforms_to(Self.T, Writable):
-        """Returns a string representation of the matrix."""
-        var result = String("")
-        for i in range(self._nrows):
-            for j in range(self._ncols):
-                result += (
-                    String(
-                        self._data[
-                            self._offset
-                            + i * self._row_stride
-                            + j * self._col_stride
-                        ]
-                    )
-                    + "\t"
-                )
-            if i < self._nrows - 1:
-                result += "\n"
-        return result
+        """Returns the grid of elements, without the header line."""
+        var text = String("")
+        self._write_grid(text)
+        return text^
 
     def write_to[
         W: Writer, //
     ](self, mut writer: W) where conforms_to(Self.T, Writable):
-        """Writes the matrix view to a writer."""
-        writer.write("MatrixView, ")
-        writer.write(element_type_name[Self.T]())
-        writer.write(", ")
-        writer.write(self._nrows)
-        writer.write("x")
-        writer.write(self._ncols)
-        writer.write(", strides: ")
-        writer.write(self._row_stride)
-        writer.write("-")
-        writer.write(self._col_stride)
-        writer.write(", offset: ")
-        writer.write(self._offset)
-        writer.write(":\n")
-        for i in range(self._nrows):
-            if i == 0:
-                writer.write("[[\t")
-            else:
-                writer.write(" [\t")
-            for j in range(self._ncols):
-                writer.write(
-                    self._data[
-                        self._offset
-                        + i * self._row_stride
-                        + j * self._col_stride
-                    ]
-                )
-                writer.write("\t")
-            writer.write("]")
-            if i < self._nrows - 1:
-                writer.write("\n")
-            else:
-                writer.write("]\n")
+        """Writes the matrix view to a writer, header line first."""
+        write_header(
+            writer,
+            "MatrixView",
+            element_type_name[Self.T](),
+            self._nrows,
+            self._ncols,
+            self._row_stride,
+            self._col_stride,
+            self._offset,
+        )
+        writer.write("\n")
+        self._write_grid(writer)
 
     # ===--------------------------------------------------------------------===#
     # Basic math dunders

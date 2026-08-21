@@ -718,10 +718,10 @@ The file and the `traits/` folder stay in the tree, because
 the trait is not a bad idea, only an unused one: Mojo 1.0 supports associated
 aliases, so `comptime dtype: DType` plus
 `def at(self, r: Int, c: Int) -> Scalar[Self.dtype]` is expressible (probed
-2026-08-18) and a later version could carry the read-only algorithms — starting
-with `__str__` / `write_to`, duplicated almost line for line between the two
-types today. This does not reopen 5.2: operand genericity still cannot go
-through a trait.
+2026-08-18) and a later version could carry the read-only algorithms — the
+per-type loop that reads elements into cells for `utils/formatting.mojo` is
+the one that remains, printing itself having been shared out on 2026-08-21.
+This does not reopen 5.2: operand genericity still cannot go through a trait.
 
 Keeping an unimported module means keeping a module the compiler never looks
 at, so `tests/traits/test_matrix_like.mojo` imports it and nothing else. The
@@ -1138,3 +1138,30 @@ call site keeps it.
 |            | `numeric.mojo` became `traits.mojo` now that it holds two.    |
 |            | The bracket walk in `_tokenize_rows` is shared: the element   |
 |            | type enters only through a `parse` parameter. 528 tests.      |
+| 2026-08-21 | Matrix printing reworked and shared. `Matrix`, `MatrixView`   |
+|            | and `StaticMatrix` had three copies of the same tab-separated |
+|            | loop; they now print through `utils/formatting.mojo` and      |
+|            | differ in their header line alone --- the duplication Phase 5 |
+|            | flagged, removed without the trait it was waiting on. Cells   |
+|            | are padded either side of the decimal point so the points of  |
+|            | a column stand in one line, per-column, the way NumPy does    |
+|            | it: flush-left and flush-right both line up an edge of a      |
+|            | number rather than its scale. The header dropped its strides  |
+|            | and offset unless they are not the ones a fresh matrix has,   |
+|            | so a view of part of a matrix announces its layout and        |
+|            | nothing else does. `write_to` no longer ends in a newline,    |
+|            | which was printing a blank line under every matrix. Rows      |
+|            | elide by element count and columns by line width --- a count  |
+|            | cannot protect a terminal when one element can be wider than  |
+|            | a line --- under a `MIN_COLS_SHOWN` floor, since one column   |
+|            | says less about a matrix than an overlong line does. A long   |
+|            | fractional part is trimmed and marked with `…` rather than    |
+|            | rounded, and the integer part is never touched, so a printed  |
+|            | magnitude is always the magnitude held. Widths are counted in |
+|            | code points, not bytes: `…` is three bytes and would have     |
+|            | skewed every column holding a trimmed value. The nine         |
+|            | appearance knobs are comptime aliases in one place, which is  |
+|            | what a configuration type would carry when Mojo has global    |
+|            | variables. 13 new tests (541 total), asserting on whole lines |
+|            | --- a substring check cannot see a column that slipped by one |
+|            | space.                                                        |

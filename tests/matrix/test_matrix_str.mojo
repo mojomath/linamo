@@ -7,15 +7,15 @@ import linamo as la
 
 
 def test_matrix_str_basic() raises:
-    """Test __str__ produces expected tab-separated format.
+    """Test __str__ produces the bare grid.
 
     Note: since Mojo 1.0.0 removed `Stringable`, `String(mat)` routes through
-    `write_to` (the rich representation).  `__str__` -- the bare tab-separated
-    grid -- must now be called explicitly.
+    `write_to`, which prints a header line above the grid. `__str__` -- the
+    grid on its own -- must be called explicitly.
     """
     var mat = la.matrix[Float64]([[1.0, 2.0], [3.0, 4.0]])
     var s = mat.__str__()
-    # __str__ produces tab-separated values, rows separated by newlines
+    # __str__ produces an aligned grid, rows separated by newlines
     testing.assert_true("1.0" in s, "String should contain element 1.0")
     testing.assert_true("4.0" in s, "String should contain element 4.0")
 

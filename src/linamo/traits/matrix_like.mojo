@@ -18,11 +18,13 @@ Operand genericity does not go through here: a routine that accepts either a
 `origin` parameter depends on the borrow of the argument. See the note in
 `linamo.routines.math`.
 
-What a trait could carry is the read-only algorithms that both types spell out
-separately today, `__str__` and `write_to` foremost. Mojo 1.0 supports
-associated aliases, so `comptime ElementType: Copyable & Deinitable` alongside
-`def at(self, r: Int, c: Int) -> Self.ElementType` is expressible, and that
-is the shape such a trait would take.
+What a trait could carry is the read-only algorithms that all three types
+spell out separately. Printing no longer counts among them: the layout moved
+to `linamo.utils.formatting`, and what each type keeps is the loop that reads
+its own elements into cells. That loop is what an associated alias would
+abstract, and Mojo 1.0 supports them, so `comptime ElementType: Copyable &
+Deinitable` alongside `def at(self, r: Int, c: Int) -> Self.ElementType` is
+expressible, and that is the shape such a trait would take.
 """
 
 

@@ -3,6 +3,15 @@ This module defines the `StaticMatrix` type which is a statically sized 2D matri
 """
 
 from linamo.utils.str import element_type_name
+from linamo.utils.formatting import (
+    ELISION,
+    elides,
+    gap_position,
+    plan_indices,
+    trim_fraction,
+    write_grid,
+    write_header,
+)
 from linamo.utils.element import dtype_of
 from linamo.types.errors import IndexError, ValueError
 from linamo.types.matrix import Matrix
@@ -251,47 +260,57 @@ struct StaticMatrix[T: Copyable & Deinitable, num_rows: Int, num_cols: Int](
     # String Representation and Writing
     # ===--------------------------------------------------------------------===#
 
+    def _write_grid[W: Writer, //](self, mut writer: W):
+        """Writes the bracketed grid of elements, without a header.
+
+        A row `plan_indices` leaves out is an empty list, which `write_grid`
+        prints as `ELISION`; a column it leaves out carries the mark in every
+        row, so it is measured and padded like any other column.
+        """
+        var elide = elides(Self.num_rows, Self.num_cols)
+        var rows = plan_indices(Self.num_rows, elide)
+        var cols = plan_indices(Self.num_cols, elide)
+        var cells = List[List[String]]()
+        for i in rows:
+            var row = List[String]()
+            if i >= 0:
+                for j in cols:
+                    if j >= 0:
+                        row.append(
+                            trim_fraction(
+                                String(
+                                    self._data[
+                                        i * Self.ROW_STRIDE
+                                        + j * Self.COL_STRIDE
+                                    ]
+                                )
+                            )
+                        )
+                    else:
+                        row.append(String(ELISION))
+            cells.append(row^)
+        write_grid(writer, cells, gap_position(cols))
+
     def __str__(self) -> String:
-        """Returns a string representation of the matrix."""
-        var result = String("")
-        for i in range(Self.num_rows):
-            for j in range(Self.num_cols):
-                result += (
-                    String(
-                        self._data[i * Self.ROW_STRIDE + j * Self.COL_STRIDE]
-                    )
-                    + "\t"
-                )
-            if i < Self.num_rows - 1:
-                result += "\n"
-        return result
+        """Returns the grid of elements, without the header line."""
+        var text = String("")
+        self._write_grid(text)
+        return text^
 
     def write_to[W: Writer, //](self, mut writer: W):
-        """Writes the matrix to a writer."""
-        writer.write("StaticMatrix, ")
-        writer.write(element_type_name[Self.ElementType]())
-        writer.write(", ")
-        writer.write(Self.num_rows)
-        writer.write("x")
-        writer.write(Self.num_cols)
-        writer.write(":\n")
-        for i in range(Self.num_rows):
-            if i == 0:
-                writer.write("[[\t")
-            else:
-                writer.write(" [\t")
-            for j in range(Self.num_cols):
-                writer.write(
-                    round(
-                        self._data[i * Self.ROW_STRIDE + j * Self.COL_STRIDE], 4
-                    )
-                )
-                writer.write("\t")
-            writer.write("]")
-            if i < Self.num_rows - 1:
-                writer.write("\n")
-            else:
-                writer.write("]")
+        """Writes the matrix to a writer, header line first."""
+        write_header(
+            writer,
+            "StaticMatrix",
+            element_type_name[Self.ElementType](),
+            Self.num_rows,
+            Self.num_cols,
+            Self.ROW_STRIDE,
+            Self.COL_STRIDE,
+            0,
+        )
+        writer.write("\n")
+        self._write_grid(writer)
 
     # ===------------------------------------------------------------------ ===#
     # Basic math dunders

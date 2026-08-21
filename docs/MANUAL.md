@@ -518,6 +518,108 @@ could have passed through on the way in.
 
 ---
 
+## Printing a matrix
+
+`print` writes a header line and then the grid; `__str__` writes the grid on
+its own, for when a matrix goes inside a larger piece of text.
+
+```mojo
+var A = la.matrix[Float64](
+    [[1457.2, 9.5, 1589.62], [3.25, 1626.8, 12.5], [1648.0, 1726.0, 1804.0]]
+)
+print(A)
+```
+
+```console
+Matrix[float64] 3x3
+[[ 1457.2      9.5  1589.62 ]
+ [    3.25  1626.8    12.5  ]
+ [ 1648.0   1726.0  1804.0  ]]
+```
+
+Cells are padded on both sides of the decimal point, so the points of a column
+stand in one vertical line. This is the alignment NumPy uses, and it is what
+keeps a column readable when it holds `1648.0` next to `3.25`; flush-left or
+flush-right padding lines up an edge of the number rather than its scale.
+Widths are measured per column, so one wide column does not stretch the rest.
+
+The header names the type, the element type and the shape. Strides and offset
+join it only when they are not the ones a freshly built matrix has:
+
+```console
+Matrix[float64] 3x3                                  # a plain matrix
+MatrixView[float64] 2x2, strides (4, 1), offset 5    # a window into one
+```
+
+A view of a whole matrix prints as cleanly as the matrix does. A view of part
+of one says so, which is the case where the layout is the thing worth knowing.
+
+### What a grid leaves out
+
+Rows are dropped by element count and columns by line width, each marked with
+`...`:
+
+```console
+Matrix[float64] 40x40
+[[ 0.0  0.0  0.0  ...  0.0  0.0  0.0 ]
+ [ 0.0  0.0  0.0  ...  0.0  0.0  0.0 ]
+ [ 0.0  0.0  0.0  ...  0.0  0.0  0.0 ]
+ ...
+ [ 0.0  0.0  0.0  ...  0.0  0.0  0.0 ]
+ [ 0.0  0.0  0.0  ...  0.0  0.0  0.0 ]
+ [ 0.0  0.0  0.0  ...  0.0  0.0  0.0 ]]
+```
+
+The two rules are separate because a count on its own cannot protect a
+terminal: an arbitrary-precision element can be wider than a line by itself, so
+how many columns fit is a question about their rendered width, not their
+number. Under it sits a floor — a matrix always shows `MIN_COLS_SHOWN` columns,
+even where that overruns the line, because one column says less about a matrix
+than a long line does.
+
+An element with a long fractional part is trimmed rather than rounded:
+
+```mojo
+print(la.from_string[la.BDec]("[[1.0]]") / la.from_string[la.BDec]("[[3.0]]"))
+```
+
+```console
+Matrix[BigDecimal] 1x1
+[[ 0.33333333… ]]
+```
+
+Only digits after the decimal point are dropped, and the cut is marked. The
+integer part is never touched, so a printed magnitude is always the magnitude
+held: `la.from_string[la.BInt]("[[170141183460469231731687303715884105728]]")`
+prints all thirty-nine of its digits. The trailing `…` is what separates an
+abridged reading from a rounded value — nothing here silently reports a number
+it is not holding.
+
+### Tuning the appearance
+
+The knobs live in `linamo/utils/formatting.mojo`:
+
+| Alias             | Default    | Governs                                        |
+| ----------------- | ---------- | ---------------------------------------------- |
+| `MAX_LINE_WIDTH`  | 88         | the widest line a grid may occupy              |
+| `PRINT_THRESHOLD` | 1000       | the element count above which rows elide       |
+| `EDGE_ITEMS`      | 3          | rows, and columns, kept at each end            |
+| `MIN_COLS_SHOWN`  | 3          | columns shown however wide they are            |
+| `MAX_FRAC_DIGITS` | 8          | digits kept after the decimal point            |
+| `COLUMN_GAP`      | two spaces | what separates two cells                       |
+| `EDGE_PAD`        | one space  | what separates a row's brackets from its cells |
+| `ELISION`         | `...`      | the stand-in for what is not shown             |
+| `TRIM_MARK`       | `…`        | the mark that ends a trimmed fraction          |
+
+They are `comptime` aliases because Mojo has no global variables yet. When it
+gains them, these are what a configuration type would carry, alongside the
+working precision of the arbitrary-precision element types.
+
+All three matrix types print through this one module, so `Matrix`,
+`MatrixView` and `StaticMatrix` differ in their header line and nowhere else.
+
+---
+
 ## Indexing and slicing
 
 ```mojo
