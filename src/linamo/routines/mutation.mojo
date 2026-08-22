@@ -49,7 +49,7 @@ delegates here rather than repeating the loop - is its spelling on an owned
 matrix.
 """
 
-from linamo.types.errors import IndexError, ValueError
+from linamo.errors import IndexError, ValueError
 from linamo.types.matrix import Matrix
 from linamo.types.matrix_iter import MatrixAxisIter
 from linamo.types.matrix_view import MatrixView

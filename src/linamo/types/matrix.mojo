@@ -5,7 +5,7 @@ This module defines the `Matrix` type, which is a dynamically sized 2D matrix.
 
 from decimo import Numeric
 
-from linamo.types.errors import IndexError, ValueError
+from linamo.errors import IndexError, ValueError
 from linamo.types.matrix_iter import MatrixAxisIter
 from linamo.types.matrix_view import MatrixView
 import linamo.routines.linalg

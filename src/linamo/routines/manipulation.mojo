@@ -29,7 +29,7 @@ both types. And an owning result is always C-contiguous; `contiguous(m, "F")`
 is how a caller asks for the other layout.
 """
 
-from linamo.types.errors import ValueError
+from linamo.errors import ValueError
 from linamo.types.matrix import Matrix
 from linamo.types.matrix_view import MatrixView
 

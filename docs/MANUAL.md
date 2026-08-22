@@ -1535,8 +1535,8 @@ the view die before the array does.
 
 ## Errors
 
-Linamo raises Mojo `Error` values built by constructors in `types/errors.mojo`,
-which format themselves as a Python-style traceback:
+Linamo raises Mojo `Error` values built by the constructors in
+`linamo/errors.mojo`, which format themselves as a Python-style traceback:
 
 ```console
 Traceback (most recent call last):
@@ -1562,6 +1562,11 @@ machine's directory layout.
 These are constructor *functions* returning a plain `Error`, not distinct
 types, so catching is `except e:` and inspection is on the message. Mojo has no
 typed exceptions.
+
+`linamo/errors.mojo` re-exports them from `decimo.errors` rather than defining
+them, so the traceback format is Decimo's and the file and line in it are
+Linamo's. The module is the name the rest of the library imports under, which
+is what lets a future Linamo-specific kind be added in one place.
 
 Almost every public routine is `raises`, because shape checking is a runtime
 matter. Errors that can be caught at compile time — writing through a read-only

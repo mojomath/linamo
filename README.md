@@ -5,7 +5,7 @@ Linear algebra for Mojo, specialized for two-dimensional matrices.
 [![Version](https://img.shields.io/badge/version-v0.1.0-blue)](https://github.com/mojomath/linamo/releases/tag/v0.1.0)
 [![Mojo](https://img.shields.io/badge/mojo-1.0.0-orange)](https://docs.modular.com/mojo/manual/)
 [![pixi](https://img.shields.io/badge/pixi%20add-linamo-purple)](https://prefix.dev/channels/modular-community/packages/linamo)
-<!-- [![CI](https://img.shields.io/github/actions/workflow/status/mojomath/linamo/run_tests.yaml?branch=main&label=tests)](https://github.com/mojomath/linamo/actions/workflows/run_tests.yaml) -->
+[![CI](https://img.shields.io/github/actions/workflow/status/mojomath/linamo/run_tests.yaml?branch=main&label=tests)](https://github.com/mojomath/linamo/actions/workflows/run_tests.yaml)
 
 **[Manual»](docs/MANUAL.md)** | **[Repository»](https://github.com/mojomath/linamo)** | **[Discord»](https://discord.gg/3rGH87uZTk)**
 
@@ -248,12 +248,12 @@ linamo
 ├── src/linamo
 │   ├── __init__.mojo            # the public surface: `import linamo as la`
 │   ├── prelude.mojo
+│   ├── errors.mojo              # the error kinds, re-exported from decimo
 │   ├── types/
 │   │   ├── matrix.mojo          # Dynamic Matrix (row/col-major)
 │   │   ├── matrix_view.mojo     # Non-owning view with slicing
 │   │   ├── matrix_iter.mojo     # Row and column iterators
-│   │   ├── static_matrix.mojo   # Compile-time sized Matrix
-│   │   └── errors.mojo          # ValueError, IndexError, etc.
+│   │   └── static_matrix.mojo   # Compile-time sized Matrix
 │   ├── routines/
 │   │   ├── creation.mojo        # matrix, zeros, ones, full, eye, diag, arange, linspace, *_like, from_string
 │   │   ├── math.mojo            # add, sub, mul, div, matmul, scalar ops, min, max, prod

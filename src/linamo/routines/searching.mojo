@@ -13,7 +13,7 @@ row/column pair. The axis forms return a matrix of `int64` indices, one per
 lane, each counted within its own lane.
 """
 
-from linamo.types.errors import ValueError
+from linamo.errors import ValueError
 from linamo.types.matrix import Matrix
 from linamo.types.matrix_view import MatrixView
 

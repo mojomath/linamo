@@ -6,7 +6,7 @@ from std.math import ceil
 
 from decimo import Numeric, Parsable
 
-from linamo.types.errors import ValueError
+from linamo.errors import ValueError
 from linamo.types.matrix import Matrix
 from linamo.types.matrix_view import MatrixView
 from linamo.types.static_matrix import StaticMatrix

@@ -15,8 +15,8 @@ degrade to, and a `1 x n` result composes with everything else here.
 
 from decimo import Numeric
 
+from linamo.errors import ValueError
 from linamo.routines.functional import apply_along_axis, fold
-from linamo.types.errors import ValueError
 from linamo.types.matrix import Matrix
 from linamo.types.matrix_view import MatrixView
 

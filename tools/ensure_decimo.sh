@@ -15,7 +15,8 @@
 #      libraries together. This is the path to use while a decimo change is
 #      still uncommitted.
 #   2. The conda package `decimo` from the modular-community channel, once it
-#      ships a build carrying `decimo.Numeric` and `decimo.Parsable`.
+#      ships a build carrying `decimo.Numeric`, `decimo.Parsable` and
+#      `decimo.errors`.
 #   3. The upstream git repository, pinned at $DECIMO_COMMIT.
 #
 # The package is always *precompiled with this workspace's own `mojo`*. A
@@ -37,10 +38,11 @@
 set -euo pipefail
 
 DECIMO_REPO="${DECIMO_REPO:-https://github.com/forfudan/decimo.git}"
-# The commit that carries both `decimo.Numeric` and `decimo.Parsable`. Update
-# this when decimo releases and the conda package carries both traits, at which
-# point source 2 takes over and this is only the fallback.
-DECIMO_COMMIT="${DECIMO_COMMIT:-f0dbc4a690377f73322c14e34d47ab1900f3e0e5}"
+# The commit that carries `decimo.Numeric`, `decimo.Parsable` and the error
+# kinds in `decimo.errors`. Update this when decimo releases and the conda
+# package carries all three, at which point source 2 takes over and this is
+# only the fallback.
+DECIMO_COMMIT="${DECIMO_COMMIT:-2e561618fb675de3fdfe624b934f2f2d5e4eda41}"
 MODE="${LINAMO_DECIMO:-auto}"
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -79,7 +81,7 @@ fi
 env_has_decimo() {
     local dir
     dir="$(mktemp -d)"
-    printf 'from decimo import Numeric, Parsable\n\ndef main():\n    pass\n' >"$dir/probe.mojo"
+    printf 'from decimo import Numeric, Parsable\nfrom decimo.errors import ValueError\n\ndef main():\n    pass\n' >"$dir/probe.mojo"
     local ok=0
     pixi run mojo build -o "$dir/probe" "$dir/probe.mojo" >/dev/null 2>&1 || ok=1
     rm -rf "$dir"

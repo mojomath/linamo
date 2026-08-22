@@ -13,7 +13,7 @@ from std.algorithm import vectorize
 from std.math import isfinite, isnan
 from std.sys import simd_width_of
 
-from linamo.types.errors import ValueError
+from linamo.errors import ValueError
 from linamo.types.matrix import Matrix
 from linamo.types.matrix_view import MatrixView
 from linamo.utils.indexing import get_offset

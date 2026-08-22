@@ -6,9 +6,9 @@ from std.math import sqrt
 
 from decimo import Numeric
 
+from linamo.errors import ValueError
 import linamo.routines.math
 
-from linamo.types.errors import ValueError
 from linamo.types.matrix import Matrix
 from linamo.types.matrix_view import MatrixView
 from linamo.utils.indexing import get_offset

@@ -2,6 +2,7 @@
 This module defines the `StaticMatrix` type which is a statically sized 2D matrix.
 """
 
+from linamo.errors import IndexError, ValueError
 from linamo.utils.str import element_type_name
 from linamo.utils.formatting import (
     ELISION,
@@ -13,7 +14,6 @@ from linamo.utils.formatting import (
     write_header,
 )
 from linamo.utils.element import dtype_of
-from linamo.types.errors import IndexError, ValueError
 from linamo.types.matrix import Matrix
 from linamo.types.matrix_view import MatrixView
 import linamo.routines.math

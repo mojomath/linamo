@@ -3,6 +3,8 @@ This module defines the `MatrixView` type, which is a view on a `Matrix`.
 """
 
 import std.math as builtin_math
+
+from linamo.errors import IndexError
 import linamo.routines.linalg
 import linamo.routines.math
 import linamo.routines.logic
@@ -10,7 +12,6 @@ import linamo.routines.manipulation
 
 from decimo import Numeric
 
-from linamo.types.errors import IndexError
 from linamo.types.matrix import Matrix
 from linamo.types.matrix_iter import MatrixAxisIter
 from linamo.utils.indexing import get_offset, indices_within_bounds

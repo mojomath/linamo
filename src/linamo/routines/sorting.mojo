@@ -28,7 +28,7 @@ say, so these routines are generic over the element type and work on a
 
 from std.builtin.sort import sort as _sort_list
 
-from linamo.types.errors import ValueError
+from linamo.errors import ValueError
 from linamo.types.matrix import Matrix
 from linamo.types.matrix_view import MatrixView
 

@@ -139,12 +139,15 @@ Mojo 1.0.0 (released 2026-08-11) landed a large set of breaking changes. See the
 
 > **Note — typed raises had to be dropped.** Linamo used to declare
 > `raises ValueError` (etc.) on its public routines. Mojo 1.0.0 makes typed
-> raises strictly **invariant**: a `raises Error` function cannot call a
-> `raises ValueError` one, *and vice versa*, which makes a typed-raise public
-> API impossible to combine with `std.testing` or with any downstream caller
-> such as stamojo. The error kinds in `types/errors.mojo` therefore changed from
-> type aliases into factory functions that build a `LinamoError` payload and
-> wrap it in a plain `Error`. Every
+> raises **invariant in one direction**: widening is fine, so a plain
+> `raises Error` function may call a `raises ValueError` one, but the reverse is
+> rejected — a `raises ValueError` function cannot call anything declared with a
+> bare `raises`. That is the direction that bites, because it reaches neither
+> `std.testing` nor any ordinary helper, and it spreads up the call chain from
+> wherever it is introduced, which makes a typed-raise public API impossible to
+> combine with a downstream caller such as stamojo. The error kinds in
+> `types/errors.mojo` therefore changed from type aliases into factory functions
+> that build a `LinamoError` payload and wrap it in a plain `Error`. Every
 > `raise ValueError(function=..., message=...)` call site is unchanged and the
 > rich traceback survives, because `Error` is built from a `Writable`; only the
 > signatures changed. Revisit if Mojo adds error-type widening.
@@ -1261,3 +1264,33 @@ call site keeps it.
 |            | other test file imports from a module path, so none of        |
 |            | them could see a name missing from the alias. 7 new tests     |
 |            | (572 total); no behaviour changed.                            |
+| 2026-08-22 | `types/errors.mojo` is now `errors.mojo`, and re-exports the  |
+|            | kinds from `decimo.errors` instead of defining them. It       |
+|            | leaves `types/` because it no longer holds a type: since the  |
+|            | typed-raises rework the kinds are constructor functions, so   |
+|            | `from linamo.types.errors import ValueError` named a type     |
+|            | that does not exist. The two modules had drifted into         |
+|            | near-duplicates of each other, and the copy here was the more |
+|            | advanced of the two: constructor functions rather than type   |
+|            | aliases, a switchable `_USE_COLOUR`, and the blank line       |
+|            | Python puts between chained tracebacks. All of that went      |
+|            | upstream into Decimo instead of being maintained twice, so    |
+|            | the thirteen `from linamo.types.errors import` lines became   |
+|            | `from linamo.errors import` and nothing else changed. Keeping |
+|            | the module as a facade rather than naming `decimo.errors` at  |
+|            | each site costs nothing --- Decimo is a hard dependency       |
+|            | either way, since `Matrix` names `decimo.Numeric` --- and     |
+|            | means a kind Decimo does not have is added in one place       |
+|            | instead of thirty. The alias form was not broken --- it       |
+|            | compiles --- but it leaves `raises ValueError` writable, and  |
+|            | a function that declares it is cut off from `std.testing` and |
+|            | from every plain `raises` helper; spelling the kinds as       |
+|            | functions puts that dead end out of reach. The traceback      |
+|            | still names the Linamo raise site rather than a line in       |
+|            | Decimo, which is the part worth checking: `call_location()`   |
+|            | inside an `@always_inline` reports the caller, and that       |
+|            | survives both the package boundary and the re-export. Needs   |
+|            | decimo >= v0.13.0; `tools/ensure_decimo.sh` pins the commit   |
+|            | and its conda probe now asks for `decimo.errors` too, so a    |
+|            | v0.12.0 package is not mistaken for a usable one. 572 tests,  |
+|            | zero warnings; no behaviour changed.                          |

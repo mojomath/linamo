@@ -9,7 +9,7 @@ library's global RNG, which is what `rand` draws from.
 
 from std.random import random_float64, random_si64, seed as _seed_rng
 
-from linamo.types.errors import ValueError
+from linamo.errors import ValueError
 from linamo.types.matrix import Matrix
 
 
