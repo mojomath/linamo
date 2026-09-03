@@ -103,7 +103,7 @@ environments:
       - conda: https://conda.modular.com/max/linux-64/mojo-compiler-1.0.0-release.conda
       - conda: https://conda.modular.com/max/noarch/mblack-26.5.0-release.conda
       - conda: https://conda.modular.com/max/noarch/mojo-python-1.0.0-release.conda
-      - conda: https://repo.prefix.dev/modular-community/linux-64/decimo-0.13.0-hb0f4dca_0.conda
+      - conda: https://repo.prefix.dev/modular-community/linux-64/decimo-0.14.0-hb0f4dca_0.conda
       osx-arm64:
       - conda: https://conda.anaconda.org/conda-forge/noarch/_python_abi3_support-1.0-hd8ed1ab_3.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/ca-certificates-2026.7.22-hbd8a1cb_0.conda
@@ -186,7 +186,7 @@ environments:
       - conda: https://conda.modular.com/max/osx-arm64/max-core-26.5.0-release.conda
       - conda: https://conda.modular.com/max/osx-arm64/mojo-1.0.0-release.conda
       - conda: https://conda.modular.com/max/osx-arm64/mojo-compiler-1.0.0-release.conda
-      - conda: https://repo.prefix.dev/modular-community/osx-arm64/decimo-0.13.0-h60d57d3_0.conda
+      - conda: https://repo.prefix.dev/modular-community/osx-arm64/decimo-0.14.0-h60d57d3_0.conda
 packages:
 - conda: https://conda.anaconda.org/conda-forge/linux-64/_openmp_mutex-4.5-20_gnu.conda
   build_number: 20
@@ -2029,21 +2029,21 @@ packages:
   run_exports: {}
   size: 61221085
   timestamp: 1786294690001
-- conda: https://repo.prefix.dev/modular-community/linux-64/decimo-0.13.0-hb0f4dca_0.conda
-  sha256: 9a1529878c889f7f3ecc669f45bbdd9129f5aaa698e4c50aca5f73f4bae65c37
-  md5: e833fd30f0816ae941538549fb68d91d
+- conda: https://repo.prefix.dev/modular-community/linux-64/decimo-0.14.0-hb0f4dca_0.conda
+  sha256: c7f75eb1bc7271bc7566f8ba6602bea172f91a6c989afdfe2500f2e50ff93b46
+  md5: 1c1046ebd2431085d5df008264e627e6
   depends:
   - mojo-compiler >=1.0.0,<1.1.0
   license: Apache-2.0
   run_exports: {}
-  size: 1427805
-  timestamp: 1788226739952
-- conda: https://repo.prefix.dev/modular-community/osx-arm64/decimo-0.13.0-h60d57d3_0.conda
-  sha256: ee38f33e539e2792654a145df58aa7188289de77b27330d0c4c289f6727e2366
-  md5: 929af9c83f92a6682bbf3c3a868d9cd4
+  size: 1702180
+  timestamp: 1788481798331
+- conda: https://repo.prefix.dev/modular-community/osx-arm64/decimo-0.14.0-h60d57d3_0.conda
+  sha256: 7671dc7740b905fb4cb129a1c4f5f4b7f18847cb79309a5b06b48891a316f91b
+  md5: 16e34ab22220141e6c2d9b3ba13193b1
   depends:
   - mojo-compiler >=1.0.0,<1.1.0
   license: Apache-2.0
   run_exports: {}
-  size: 1427317
-  timestamp: 1788227134819
+  size: 1701321
+  timestamp: 1788481781173

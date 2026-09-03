@@ -5,6 +5,8 @@ This module defines the `Matrix` type, which is a dynamically sized 2D matrix.
 
 from decimo import Numeric
 
+from linamo.traits.conjugable import Conjugable
+from linamo.types.complex import Complex
 from linamo.errors import IndexError, ValueError
 from linamo.types.matrix_iter import MatrixAxisIter
 from linamo.types.matrix_view import MatrixView
@@ -233,6 +235,41 @@ struct Matrix[T: Copyable & Deinitable](
         # not of the buffer.
         self._data = List[Self.ElementType](
             length=nrows * ncols, fill=rebind[Self.ElementType](Scalar[d](0))
+        )
+        self._nrows = nrows
+        self._ncols = ncols
+        self._row_stride = row_stride
+        self._col_stride = col_stride
+
+    # [Mojo Miji]
+    # The same constructor for an element that is not a hardware scalar. The
+    # one above needs `Scalar[d](0)` to say "zero"; every `Numeric` says it as
+    # `zero()`, so the only difference between the two bodies is where the fill
+    # value comes from. Without this overload `Matrix[BInt](2, 2, 2, 1)` fails
+    # while `zeros[BInt](2, 2)` succeeds, which is a distinction the element
+    # type does not justify.
+    #
+    # The two do not overlap: `Scalar` is the stdlib's, `Numeric` is decimo's,
+    # and Mojo's nominal conformance means no scalar conforms to it.
+    def __init__(
+        out self,
+        nrows: Int,
+        ncols: Int,
+        row_stride: Int,
+        col_stride: Int,
+    ) where conforms_to(Self.T, Numeric):
+        debug_assert(
+            layout_is_dense(nrows, ncols, row_stride, col_stride),
+            "Debug assertion failed: `Matrix` layout is not C- or F-major",
+        )
+        debug_assert(
+            layout_fits_buffer(
+                nrows, ncols, row_stride, col_stride, nrows * ncols
+            ),
+            "Debug assertion failed: `Matrix` layout overruns its buffer",
+        )
+        self._data = List[Self.ElementType](
+            length=nrows * ncols, fill=Self.T.zero()
         )
         self._nrows = nrows
         self._ncols = ncols
@@ -727,6 +764,40 @@ struct Matrix[T: Copyable & Deinitable](
         """
         return linamo.routines.linalg.transpose(self)
 
+    # [Mojo Miji]
+    # Two bodies, identical, because the constraint has to be decidable where
+    # the call is written. `linalg.conj_transpose` is a pair of overloads
+    # split on `conforms_to(T, Conjugable)`, and inside a `Matrix[T]` whose
+    # `T` is unconstrained neither side of that split can be proved, so a
+    # single method would be ambiguous. Restating the constraint on each
+    # overload is what tells the compiler which one it is in.
+    def conj_transpose(
+        self,
+    ) -> Matrix[Self.T] where not conforms_to(Self.T, Conjugable):
+        """Returns the conjugate transpose of this matrix.
+
+        This element type is its own conjugate, so this is `transpose()`. It
+        exists so that code written in terms of `conj_transpose` reads the
+        same whatever the element type is.
+
+        Returns:
+            A new matrix with the rows and columns exchanged.
+        """
+        return linamo.routines.linalg.conj_transpose(self)
+
+    def conj_transpose(
+        self,
+    ) -> Matrix[Self.T] where conforms_to(Self.T, Conjugable):
+        """Returns the conjugate transpose of this matrix.
+
+        Element `[i, j]` of the result is the conjugate of element `[j, i]`
+        of this matrix.
+
+        Returns:
+            A new matrix, transposed and conjugated.
+        """
+        return linamo.routines.linalg.conj_transpose(self)
+
     # ===--------------------------------------------------------------------===#
     # Type conversion
     # ===--------------------------------------------------------------------===#
@@ -1169,6 +1240,28 @@ struct Matrix[T: Copyable & Deinitable](
         goes through `inv`, whose pivoting ranks candidates by magnitude.
         """
         return linamo.routines.linalg.matrix_power(self, exponent)
+
+    # [Mojo Miji]
+    # The same operator for a complex element. It cannot go through the clause
+    # above: a complex number has a magnitude to pivot on but no order, so it
+    # is `Numeric` and never `Comparable`. `d` is inferred from the constraint,
+    # the way the shape constructor infers it from `Self.T == Scalar[d]`, and
+    # the rebinds are what carry that constraint into the call --- inside the
+    # body `Self.T` is still spelled `Self.T`, even though the clause has just
+    # said what it is.
+    def __pow__[
+        d: DType, //
+    ](self, exponent: Int) raises -> Matrix[Complex[d]] where (
+        Self.T == Complex[d]
+    ):
+        """Raises the matrix to an integer power.
+
+        A negative exponent inverts first, pivoting on `|z|`.
+        """
+        return linamo.routines.linalg.matrix_power(
+            rebind[MatrixView[Complex[d], origin_of(self._data)]](self.view()),
+            exponent,
+        )
 
     def mul[
         origin: Origin, //

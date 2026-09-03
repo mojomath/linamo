@@ -9,6 +9,8 @@ from decimo import Numeric
 from linamo.errors import ValueError
 import linamo.routines.math
 
+from linamo.traits.conjugable import Conjugable
+from linamo.types.complex import Complex
 from linamo.types.matrix import Matrix
 from linamo.types.matrix_view import MatrixView
 from linamo.utils.indexing import get_offset
@@ -48,6 +50,82 @@ def transpose[
     for i in range(nrows):
         for j in range(ncols):
             data.append(view[j, i].copy())
+    return Matrix[T](
+        buffer=data^,
+        nrows=nrows,
+        ncols=ncols,
+        row_stride=ncols,
+        col_stride=1,
+    )
+
+
+# ===---------------------------------------------------------------------- ===#
+# Conjugate transpose
+# ===---------------------------------------------------------------------- ===#
+# The transpose a complex algorithm actually wants. `A @ conj_transpose(A)` is
+# the Hermitian form that plays the role `A @ transpose(A)` plays over the
+# reals: its diagonal is a sum of squared magnitudes, hence real and
+# non-negative, which is what makes a Cholesky factor exist. Plain `transpose`
+# over complex elements gives a bilinear form instead, whose diagonal can be
+# negative or complex, and every energy argument built on it fails.
+#
+# Conjugation is the identity on a real element, so this is offered for every
+# element type rather than for complex alone: an algorithm written in terms of
+# `conj_transpose` is then correct over both, and reads the same in the two
+# places. The generic overload below is exactly `transpose`; only the complex
+# one conjugates.
+
+
+def conj_transpose[
+    T: Copyable & Deinitable, origin: Origin, //
+](view: MatrixView[T, origin]) -> Matrix[T] where not conforms_to(
+    T, Conjugable
+):
+    """Returns the conjugate transpose of a matrix view.
+
+    An element type with no conjugate of its own is its own conjugate, so this
+    is the plain transpose. It exists so that an algorithm written in terms of
+    `conj_transpose` stays correct over a real element type and reads the same
+    in both places.
+
+    Parameters:
+        T: The type of the matrix elements.
+        origin: The origin of the input view.
+
+    Args:
+        view: The matrix or view to transpose.
+
+    Returns:
+        A new C-contiguous matrix with the rows and columns exchanged.
+    """
+    return transpose(view)
+
+
+def conj_transpose[
+    T: Conjugable, origin: Origin, //
+](view: MatrixView[T, origin]) -> Matrix[T] where conforms_to(T, Conjugable):
+    """Returns the conjugate transpose of a matrix view.
+
+    Element `[i, j]` of the result is the conjugate of element `[j, i]` of the
+    input. Both steps happen in the one traversal, so this costs no more than
+    a transpose.
+
+    Parameters:
+        T: The type of the matrix elements.
+        origin: The origin of the input view.
+
+    Args:
+        view: The matrix or view to transpose.
+
+    Returns:
+        A new C-contiguous matrix, transposed and conjugated.
+    """
+    var nrows = view.ncols()  # transposed
+    var ncols = view.nrows()  # transposed
+    var data = List[T](capacity=nrows * ncols)
+    for i in range(nrows):
+        for j in range(ncols):
+            data.append(view[j, i].conj())
     return Matrix[T](
         buffer=data^,
         nrows=nrows,
@@ -196,13 +274,25 @@ def lu[
 # `lu`, `det`, `solve` and `inv` each carry a second implementation below the
 # scalar one, reached when the element type is `decimo.Numeric`. The algorithm
 # is the same in both; what differs is that there is no vector instruction to
-# reach for, the constants are `T.zero()` and `T.one()` rather than literals,
-# and ordering comes from `Comparable`.
+# reach for, and the constants are `T.zero()` and `T.one()` rather than
+# literals.
 #
-# `Comparable` is in the bound because partial pivoting has to rank candidate
-# pivots by magnitude. An `abs` requirement would be redundant on top of it:
-# `-x if x < T.zero() else x` is built from what `Numeric` and `Comparable`
-# already provide.
+# Partial pivoting is the one step that needs more than `Numeric`: it has to
+# rank candidate pivots by magnitude. That used to be spelled with
+# `Comparable` in the bound and `-x if x < T.zero() else x` in the body, which
+# reads as an ordering requirement but is really an `abs` requirement wearing
+# an order's clothes. The distinction does not matter until an element type
+# has a magnitude and no order --- which is exactly what a complex number is.
+# There is no ordering on the complex plane, and any invented one would make
+# `a < b` mean something no user of complex numbers expects.
+#
+# So the ranking is a parameter. `_larger_magnitude_ordered` recovers the old
+# behaviour for element types that do have an order, and
+# `_larger_magnitude_complex` ranks by squared magnitude --- squaring orders
+# magnitudes exactly as the magnitudes do, and skips a square root per
+# candidate. Everything below is written once against that parameter, so the
+# complex overloads are the two-line functions at the end of each pair rather
+# than a third copy of elimination.
 #
 # These four routines divide, so they mean whatever `/` means on the element
 # type. `BigDecimal` and `Decimal128` give a quotient rounded to the type's
@@ -213,8 +303,49 @@ def lu[
 # type for these.
 
 
-def lu[
-    T: Numeric & Comparable, origin: Origin, //
+def _larger_magnitude_ordered[
+    T: Numeric & Comparable
+](a: T, b: T) raises -> Bool:
+    """Returns whether `|a| > |b|`, for an element type that has an order.
+
+    Parameters:
+        T: The element type.
+
+    Args:
+        a: The candidate pivot.
+        b: The best pivot so far.
+
+    Returns:
+        True if `a` has the larger magnitude.
+    """
+    var abs_a = -a if a < T.zero() else a.copy()
+    var abs_b = -b if b < T.zero() else b.copy()
+    return abs_b < abs_a
+
+
+def _larger_magnitude_complex[
+    d: DType
+](a: Complex[d], b: Complex[d]) raises -> Bool:
+    """Returns whether `|a| > |b|`, ranking by squared magnitude.
+
+    Parameters:
+        d: The component dtype.
+
+    Args:
+        a: The candidate pivot.
+        b: The best pivot so far.
+
+    Returns:
+        True if `a` has the larger magnitude.
+    """
+    return a.squared_norm() > b.squared_norm()
+
+
+def _lu_core[
+    T: Numeric & Equatable,
+    origin: Origin,
+    //,
+    larger: def(T, T) raises thin -> Bool,
 ](view: MatrixView[T, origin]) raises -> Tuple[Matrix[T], Matrix[T], List[Int]]:
     """Computes the LU decomposition with partial pivoting: PA = LU.
 
@@ -262,14 +393,12 @@ def lu[
 
     for k in range(n):
         # --- partial pivoting: find row with largest |u[i,k]| for i >= k ---
-        var max_val = zero.copy()
+        # `larger` is what makes this routine serve an element type with no
+        # order: it is handed the two candidates and answers which has the
+        # greater magnitude, without the caller ever ranking `T` directly.
         var max_row = k
-        for i in range(k, n):
-            var val = u_data[i * n + k].copy()
-            if val < zero:
-                val = -val
-            if val > max_val:
-                max_val = val^
+        for i in range(k + 1, n):
+            if larger(u_data[i * n + k], u_data[max_row * n + k]):
                 max_row = i
 
         # Swap rows in u_data
@@ -321,6 +450,53 @@ def lu[
     return (L^, U^, piv^)
 
 
+def lu[
+    T: Numeric & Comparable, origin: Origin, //
+](view: MatrixView[T, origin]) raises -> Tuple[Matrix[T], Matrix[T], List[Int]]:
+    """Computes the LU decomposition with partial pivoting: PA = LU.
+
+    Parameters:
+        T: The type of the matrix elements.
+        origin: The origin of the operand.
+
+    Args:
+        view: The square matrix or view to decompose.
+
+    Returns:
+        The triple `(L, U, P)`.
+
+    Raises:
+        ValueError: If the matrix is not square.
+    """
+    return _lu_core[larger=_larger_magnitude_ordered[T]](view)
+
+
+def lu[
+    d: DType, origin: Origin, //
+](view: MatrixView[Complex[d], origin]) raises -> Tuple[
+    Matrix[Complex[d]], Matrix[Complex[d]], List[Int]
+]:
+    """Computes the LU decomposition of a complex matrix: PA = LU.
+
+    Pivots on `|z|`, which is a real number and does order, rather than on the
+    element itself, which does not.
+
+    Parameters:
+        d: The component dtype of the matrix elements.
+        origin: The origin of the operand.
+
+    Args:
+        view: The square matrix or view to decompose.
+
+    Returns:
+        The triple `(L, U, P)`.
+
+    Raises:
+        ValueError: If the matrix is not square.
+    """
+    return _lu_core[larger=_larger_magnitude_complex[d]](view)
+
+
 def cholesky[
     dtype: DType, origin: Origin, //
 ](view: MatrixView[Scalar[dtype], origin]) raises -> Matrix[Scalar[dtype]]:
@@ -358,6 +534,72 @@ def cholesky[
                 l_data[i * n + j] = (view[i, j] - s) / l_data[j * n + j]
 
     return Matrix[Scalar[dtype]](
+        buffer=l_data^, nrows=n, ncols=n, row_stride=n, col_stride=1
+    )
+
+
+def cholesky[
+    d: DType, origin: Origin, //
+](view: MatrixView[Complex[d], origin]) raises -> Matrix[Complex[d]]:
+    """Computes the Cholesky decomposition of a Hermitian matrix: A = L L^H.
+
+    The input must be Hermitian positive-definite. The result is a lower
+    triangular L with a real positive diagonal such that
+    `L @ conj_transpose(L)` is A.
+
+    Only the lower triangle is read, and only the real part of the diagonal,
+    as the scalar overload reads only the lower triangle of a symmetric
+    matrix. A Hermitian matrix has a real diagonal by definition, so the
+    imaginary part there carries no information; ignoring it rather than
+    checking it against a tolerance is what LAPACK's `zpotrf` does, and it
+    avoids inventing a scale-dependent threshold.
+
+    Parameters:
+        d: The component dtype of the matrix elements.
+        origin: The origin of the operand.
+
+    Args:
+        view: The Hermitian positive-definite matrix or view to factor.
+
+    Returns:
+        The lower triangular factor L.
+
+    Raises:
+        ValueError: If the matrix is not square, or not positive-definite.
+    """
+    if view.nrows() != view.ncols():
+        raise ValueError(
+            function="cholesky()",
+            message="Matrix must be square for Cholesky decomposition.",
+        )
+    var n = view.nrows()
+    var l_data = List[Complex[d]](length=n * n, fill=Complex[d].zero())
+
+    for i in range(n):
+        for j in range(i + 1):
+            # [Mojo Miji]
+            # The conjugate is on the second factor, so on the diagonal this
+            # sum is a sum of squared magnitudes: real, and the reason the
+            # diagonal of L comes out real.
+            var s = Complex[d].zero()
+            for k in range(j):
+                s = s + l_data[i * n + k] * l_data[j * n + k].conj()
+
+            if i == j:
+                var diag = view[i, i] - s
+                if diag.re() <= 0:
+                    raise ValueError(
+                        function="cholesky()",
+                        message=(
+                            "Matrix is not positive-definite (non-positive"
+                            " diagonal encountered)."
+                        ),
+                    )
+                l_data[i * n + j] = Complex[d](sqrt(diag.re()))
+            else:
+                l_data[i * n + j] = (view[i, j] - s) / l_data[j * n + j]
+
+    return Matrix[Complex[d]](
         buffer=l_data^, nrows=n, ncols=n, row_stride=n, col_stride=1
     )
 
@@ -450,6 +692,115 @@ def qr[
     return (Q^, R^)
 
 
+def qr[
+    d: DType, origin: Origin, //
+](view: MatrixView[Complex[d], origin]) raises -> Tuple[
+    Matrix[Complex[d]], Matrix[Complex[d]]
+]:
+    """Computes the QR decomposition of a complex matrix: A = Q R.
+
+    Q is unitary --- `conj_transpose(Q) @ Q` is the identity, which is what
+    "orthogonal" becomes over the complex field --- and R is upper triangular.
+    Works for any m x n view with m >= n.
+
+    Parameters:
+        d: The component dtype of the matrix elements.
+        origin: The origin of the operand.
+
+    Args:
+        view: The matrix or view to factor.
+
+    Returns:
+        The pair `(Q, R)`.
+
+    Raises:
+        ValueError: If the matrix has fewer rows than columns.
+    """
+    var m = view.nrows()
+    var n = view.ncols()
+    if m < n:
+        raise ValueError(
+            function="qr()",
+            message="QR decomposition requires nrows >= ncols.",
+        )
+
+    var r_data = List[Complex[d]](length=m * n, fill=Complex[d].zero())
+    for i in range(m):
+        for j in range(n):
+            r_data[i * n + j] = view[i, j].copy()
+
+    var q_data = List[Complex[d]](length=m * m, fill=Complex[d].zero())
+    for i in range(m):
+        q_data[i * m + i] = Complex[d].one()
+
+    for k in range(n):
+        # --- Householder vector for column k below row k --------------- #
+        # The magnitude of the column is a sum of squared magnitudes, so it
+        # is real even though nothing else here is.
+        var sigma = Scalar[d](0)
+        for i in range(k, m):
+            sigma += r_data[i * n + k].squared_norm()
+        var norm_x = sqrt(sigma)
+        if norm_x == 0:
+            continue  # Column is already zero; skip.
+
+        # [Mojo Miji]
+        # Over the reals the reflector's sign is chosen to point away from
+        # `x_k`, which is what keeps `v[0]` from cancelling. The complex
+        # analogue of a sign is a phase: `x_k / |x_k|` is the unit number
+        # pointing the same way as `x_k`, and `|v[0]|` then comes out as
+        # `|x_k| + norm_x`, the largest it can be. A zero `x_k` has no
+        # direction to preserve, so any unit number will do and one is the
+        # cheapest.
+        var x_k = r_data[k * n + k].copy()
+        var x_k_mag = x_k.norm()
+        var phase = Complex[d].one()
+        if x_k_mag != 0:
+            phase = Complex[d](x_k.re() / x_k_mag, x_k.im() / x_k_mag)
+
+        var v_len = m - k
+        var v = List[Complex[d]](length=v_len, fill=Complex[d].zero())
+        v[0] = x_k + phase * Complex[d](norm_x)
+        for i in range(1, v_len):
+            v[i] = r_data[(k + i) * n + k].copy()
+
+        # tau = 2 / (v^H v). The denominator is real for the same reason.
+        var vhv = Scalar[d](0)
+        for i in range(v_len):
+            vhv += v[i].squared_norm()
+        if vhv == 0:
+            continue
+        var tau = Complex[d](Scalar[d](2) / vhv)
+
+        # --- R <- (I - tau v v^H) R ------------------------------------ #
+        for j in range(k, n):
+            var dot = Complex[d].zero()
+            for i in range(v_len):
+                dot = dot + v[i].conj() * r_data[(k + i) * n + j]
+            for i in range(v_len):
+                r_data[(k + i) * n + j] = (
+                    r_data[(k + i) * n + j] - tau * v[i] * dot
+                )
+
+        # --- Q <- Q (I - tau v v^H) ------------------------------------ #
+        for i in range(m):
+            var dot = Complex[d].zero()
+            for j2 in range(v_len):
+                dot = dot + q_data[i * m + (k + j2)] * v[j2]
+            for j2 in range(v_len):
+                q_data[i * m + (k + j2)] = (
+                    q_data[i * m + (k + j2)] - tau * dot * v[j2].conj()
+                )
+
+    var Q = Matrix[Complex[d]](
+        buffer=q_data^, nrows=m, ncols=m, row_stride=m, col_stride=1
+    )
+    var R = Matrix[Complex[d]](
+        buffer=r_data^, nrows=m, ncols=n, row_stride=n, col_stride=1
+    )
+    return (Q^, R^)
+
+
 def det[
     dtype: DType, origin: Origin, //
 ](view: MatrixView[Scalar[dtype], origin]) raises -> Scalar[dtype]:
@@ -486,8 +837,11 @@ def det[
     return d
 
 
-def det[
-    T: Numeric & Comparable, origin: Origin, //
+def _det_core[
+    T: Numeric & Equatable,
+    origin: Origin,
+    //,
+    larger: def(T, T) raises thin -> Bool,
 ](view: MatrixView[T, origin]) raises -> T:
     """Computes the determinant of a square matrix view via LU decomposition.
 
@@ -510,7 +864,7 @@ def det[
             message="Matrix must be square to compute determinant.",
         )
     var n = view.nrows()
-    var lu_result = lu(view)
+    var lu_result = _lu_core[larger=larger](view)
     ref U = lu_result[1]
     ref piv = lu_result[2]
 
@@ -534,6 +888,48 @@ def det[
         d = -d
 
     return d^
+
+
+def det[
+    T: Numeric & Comparable, origin: Origin, //
+](view: MatrixView[T, origin]) raises -> T:
+    """Computes the determinant of a square matrix view via LU decomposition.
+
+    Parameters:
+        T: The type of the matrix elements.
+        origin: The origin of the operand.
+
+    Args:
+        view: The square matrix or view to reduce.
+
+    Returns:
+        The determinant.
+
+    Raises:
+        ValueError: If the matrix is not square.
+    """
+    return _det_core[larger=_larger_magnitude_ordered[T]](view)
+
+
+def det[
+    d: DType, origin: Origin, //
+](view: MatrixView[Complex[d], origin]) raises -> Complex[d]:
+    """Computes the determinant of a square complex matrix view.
+
+    Parameters:
+        d: The component dtype of the matrix elements.
+        origin: The origin of the operand.
+
+    Args:
+        view: The square matrix or view to reduce.
+
+    Returns:
+        The determinant, itself a complex number.
+
+    Raises:
+        ValueError: If the matrix is not square.
+    """
+    return _det_core[larger=_larger_magnitude_complex[d]](view)
 
 
 def solve[
@@ -609,8 +1005,12 @@ def solve[
     )
 
 
-def solve[
-    T: Numeric & Comparable, origin_a: Origin, origin_b: Origin, //
+def _solve_core[
+    T: Numeric & Equatable,
+    origin_a: Origin,
+    origin_b: Origin,
+    //,
+    larger: def(T, T) raises thin -> Bool,
 ](A: MatrixView[T, origin_a], b: MatrixView[T, origin_b]) raises -> Matrix[T]:
     """Solves the linear system Ax = b for x, using LU decomposition.
 
@@ -655,7 +1055,7 @@ def solve[
     var zero = T.zero()
 
     # LU decompose: PA = LU
-    var lu_result = lu(A)
+    var lu_result = _lu_core[larger=larger](A)
     ref L = lu_result[0]
     ref U = lu_result[1]
     ref piv = lu_result[2]
@@ -703,6 +1103,56 @@ def solve[
     )
 
 
+def solve[
+    T: Numeric & Comparable, origin_a: Origin, origin_b: Origin, //
+](A: MatrixView[T, origin_a], b: MatrixView[T, origin_b]) raises -> Matrix[T]:
+    """Solves the linear system Ax = b for x, using LU decomposition.
+
+    Parameters:
+        T: The type of the matrix elements.
+        origin_a: The origin of the coefficient matrix.
+        origin_b: The origin of the right-hand side.
+
+    Args:
+        A: The square coefficient matrix or view.
+        b: The right-hand side, with as many rows as A.
+
+    Returns:
+        A new matrix holding the solution, with the shape of b.
+
+    Raises:
+        ValueError: If A is not square, if the shapes do not match, or if A is
+            singular.
+    """
+    return _solve_core[larger=_larger_magnitude_ordered[T]](A, b)
+
+
+def solve[
+    d: DType, origin_a: Origin, origin_b: Origin, //
+](
+    A: MatrixView[Complex[d], origin_a], b: MatrixView[Complex[d], origin_b]
+) raises -> Matrix[Complex[d]]:
+    """Solves the complex linear system Ax = b for x.
+
+    Parameters:
+        d: The component dtype of the matrix elements.
+        origin_a: The origin of the coefficient matrix.
+        origin_b: The origin of the right-hand side.
+
+    Args:
+        A: The square coefficient matrix or view.
+        b: The right-hand side, with as many rows as A.
+
+    Returns:
+        A new matrix holding the solution, with the shape of b.
+
+    Raises:
+        ValueError: If A is not square, if the shapes do not match, or if A is
+            singular.
+    """
+    return _solve_core[larger=_larger_magnitude_complex[d]](A, b)
+
+
 def inv[
     dtype: DType, origin: Origin, //
 ](view: MatrixView[Scalar[dtype], origin]) raises -> Matrix[Scalar[dtype]]:
@@ -732,8 +1182,11 @@ def inv[
     return solve(view, I.view())
 
 
-def inv[
-    T: Numeric & Comparable, origin: Origin, //
+def _inv_core[
+    T: Numeric & Equatable,
+    origin: Origin,
+    //,
+    larger: def(T, T) raises thin -> Bool,
 ](view: MatrixView[T, origin]) raises -> Matrix[T]:
     """Computes the inverse of a square matrix view using LU decomposition.
 
@@ -772,7 +1225,49 @@ def inv[
         col_stride=1,
     )
 
-    return solve(view, I.view())
+    return _solve_core[larger=larger](view, I.view())
+
+
+def inv[
+    T: Numeric & Comparable, origin: Origin, //
+](view: MatrixView[T, origin]) raises -> Matrix[T]:
+    """Computes the inverse of a square matrix view using LU decomposition.
+
+    Parameters:
+        T: The type of the matrix elements.
+        origin: The origin of the operand.
+
+    Args:
+        view: The square matrix or view to invert.
+
+    Returns:
+        A new matrix holding the inverse.
+
+    Raises:
+        ValueError: If the matrix is not square or is singular.
+    """
+    return _inv_core[larger=_larger_magnitude_ordered[T]](view)
+
+
+def inv[
+    d: DType, origin: Origin, //
+](view: MatrixView[Complex[d], origin]) raises -> Matrix[Complex[d]]:
+    """Computes the inverse of a square complex matrix view.
+
+    Parameters:
+        d: The component dtype of the matrix elements.
+        origin: The origin of the operand.
+
+    Args:
+        view: The square matrix or view to invert.
+
+    Returns:
+        A new matrix holding the inverse.
+
+    Raises:
+        ValueError: If the matrix is not square or is singular.
+    """
+    return _inv_core[larger=_larger_magnitude_complex[d]](view)
 
 
 # ===---------------------------------------------------------------------- ===#
@@ -846,8 +1341,11 @@ def matrix_power[
     return result^
 
 
-def matrix_power[
-    T: Numeric & Comparable, origin: Origin, //
+def _matrix_power_core[
+    T: Numeric & Equatable,
+    origin: Origin,
+    //,
+    larger: def(T, T) raises thin -> Bool,
 ](view: MatrixView[T, origin], exponent: Int) raises -> Matrix[T]:
     """Raises a square arbitrary-precision matrix to an integer power.
 
@@ -891,7 +1389,7 @@ def matrix_power[
     var base: Matrix[T]
     var remaining: Int
     if exponent < 0:
-        base = inv(view)
+        base = _inv_core[larger=larger](view)
         remaining = -exponent
     else:
         base = view.to_matrix()
@@ -904,6 +1402,58 @@ def matrix_power[
         if remaining > 0:
             base = linamo.routines.math.matmul(base.view(), base.view())
     return result^
+
+
+def matrix_power[
+    T: Numeric & Comparable, origin: Origin, //
+](view: MatrixView[T, origin], exponent: Int) raises -> Matrix[T]:
+    """Raises a square arbitrary-precision matrix to an integer power.
+
+    Parameters:
+        T: The type of the matrix elements.
+        origin: The origin of the input view.
+
+    Args:
+        view: The square matrix or view to raise.
+        exponent: The power to raise it to. May be negative.
+
+    Returns:
+        A new matrix holding the product.
+
+    Raises:
+        ValueError: If the matrix is not square, or if a negative exponent is
+            asked of a singular matrix.
+    """
+    return _matrix_power_core[larger=_larger_magnitude_ordered[T]](
+        view, exponent
+    )
+
+
+def matrix_power[
+    d: DType, origin: Origin, //
+](view: MatrixView[Complex[d], origin], exponent: Int) raises -> Matrix[
+    Complex[d]
+]:
+    """Raises a square complex matrix to an integer power.
+
+    Parameters:
+        d: The component dtype of the matrix elements.
+        origin: The origin of the input view.
+
+    Args:
+        view: The square matrix or view to raise.
+        exponent: The power to raise it to. May be negative.
+
+    Returns:
+        A new matrix holding the product.
+
+    Raises:
+        ValueError: If the matrix is not square, or if a negative exponent is
+            asked of a singular matrix.
+    """
+    return _matrix_power_core[larger=_larger_magnitude_complex[d]](
+        view, exponent
+    )
 
 
 def lstsq[
@@ -962,6 +1512,93 @@ def lstsq[
             x_data[i * k + col] = s / R._data[i * n + i]
 
     return Matrix[Scalar[dtype]](
+        buffer=x_data^,
+        nrows=n,
+        ncols=k,
+        row_stride=k,
+        col_stride=1,
+    )
+
+
+def lstsq[
+    d: DType, origin_a: Origin, origin_b: Origin, //
+](
+    A: MatrixView[Complex[d], origin_a],
+    b: MatrixView[Complex[d], origin_b],
+) raises -> Matrix[Complex[d]]:
+    """Solves the complex least squares problem min ||Ax - b|| via QR.
+
+    Works for overdetermined systems (m >= n). For multiple right-hand sides,
+    b should have shape (m x k).
+
+    The normal equations behind this are `conj_transpose(A) @ A`, so the
+    projection uses `conj_transpose(Q)` where the real routine uses a plain
+    transpose. With the ordinary transpose the residual being minimised would
+    not be a sum of squared magnitudes and the answer would not be a least
+    squares solution at all.
+
+    Parameters:
+        d: The component dtype of the matrix elements.
+        origin_a: The origin of the coefficient matrix.
+        origin_b: The origin of the right-hand side.
+
+    Args:
+        A: The coefficient matrix or view, with at least as many rows as
+            columns.
+        b: The right-hand side, with as many rows as A.
+
+    Returns:
+        A new matrix holding the solution.
+
+    Raises:
+        ValueError: If A has fewer rows than columns, if the shapes do not
+            match, or if A is rank-deficient.
+    """
+    var m = A.nrows()
+    var n = A.ncols()
+    if m < n:
+        raise ValueError(
+            function="lstsq()",
+            message="Least squares requires nrows >= ncols (overdetermined).",
+        )
+    if b.nrows() != m:
+        raise ValueError(
+            function="lstsq()",
+            message="Dimensions of A and b do not match: A has "
+            + String(m)
+            + " rows but b has "
+            + String(b.nrows())
+            + " rows.",
+        )
+
+    var k = b.ncols()  # number of right-hand sides
+
+    var qr_result = qr(A)
+    ref Q = qr_result[0]
+    ref R = qr_result[1]
+
+    # (Q^H b), of which only the first n rows are needed.
+    var qhb_data = List[Complex[d]](length=n * k, fill=Complex[d].zero())
+    for i in range(n):
+        for j in range(k):
+            var s = Complex[d].zero()
+            for p in range(m):
+                # Q^H[i, p] is the conjugate of Q[p, i].
+                s = s + Q._data[p * m + i].conj() * b[p, j]
+            qhb_data[i * k + j] = s^
+
+    # Back substitution: R1 x = (Q^H b)[:n]
+    var x_data = List[Complex[d]](length=n * k, fill=Complex[d].zero())
+    for col in range(k):
+        for i in range(n - 1, -1, -1):
+            var s = qhb_data[i * k + col].copy()
+            for j2 in range(i + 1, n):
+                s = s - R._data[i * n + j2] * x_data[j2 * k + col]
+            # A zero on R's diagonal means a rank-deficient A; the element
+            # type's division raises rather than returning an infinity.
+            x_data[i * k + col] = s / R._data[i * n + i]
+
+    return Matrix[Complex[d]](
         buffer=x_data^,
         nrows=n,
         ncols=k,

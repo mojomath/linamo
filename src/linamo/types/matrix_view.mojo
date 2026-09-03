@@ -4,6 +4,8 @@ This module defines the `MatrixView` type, which is a view on a `Matrix`.
 
 import std.math as builtin_math
 
+from linamo.traits.conjugable import Conjugable
+from linamo.types.complex import Complex
 from linamo.errors import IndexError
 import linamo.routines.linalg
 import linamo.routines.math
@@ -471,6 +473,40 @@ struct MatrixView[
         """
         return linamo.routines.linalg.transpose(self)
 
+    # [Mojo Miji]
+    # Two bodies, identical, because the constraint has to be decidable where
+    # the call is written. `linalg.conj_transpose` is a pair of overloads
+    # split on `conforms_to(T, Conjugable)`, and inside a `Matrix[T]` whose
+    # `T` is unconstrained neither side of that split can be proved, so a
+    # single method would be ambiguous. Restating the constraint on each
+    # overload is what tells the compiler which one it is in.
+    def conj_transpose(
+        self,
+    ) -> Matrix[Self.T] where not conforms_to(Self.T, Conjugable):
+        """Returns the conjugate transpose of this matrix.
+
+        This element type is its own conjugate, so this is `transpose()`. It
+        exists so that code written in terms of `conj_transpose` reads the
+        same whatever the element type is.
+
+        Returns:
+            A new matrix with the rows and columns exchanged.
+        """
+        return linamo.routines.linalg.conj_transpose(self)
+
+    def conj_transpose(
+        self,
+    ) -> Matrix[Self.T] where conforms_to(Self.T, Conjugable):
+        """Returns the conjugate transpose of this matrix.
+
+        Element `[i, j]` of the result is the conjugate of element `[j, i]`
+        of this matrix.
+
+        Returns:
+            A new matrix, transposed and conjugated.
+        """
+        return linamo.routines.linalg.conj_transpose(self)
+
     def astype[
         d: DType, target: DType, //, Target: Copyable & Deinitable
     ](self) raises -> Matrix[Scalar[target]] where (
@@ -869,6 +905,21 @@ struct MatrixView[
     ) and conforms_to(Self.T, Comparable):
         """Raises the viewed matrix to an integer power, as on `Matrix`."""
         return linamo.routines.linalg.matrix_power(self, exponent)
+
+    # [Mojo Miji]
+    # The complex twin of the operator above; see the note on `Matrix.__pow__`.
+    def __pow__[
+        d: DType, //
+    ](self, exponent: Int) raises -> Matrix[Complex[d]] where (
+        Self.T == Complex[d]
+    ):
+        """Raises the matrix to an integer power.
+
+        A negative exponent inverts first, pivoting on `|z|`.
+        """
+        return linamo.routines.linalg.matrix_power(
+            rebind[MatrixView[Complex[d], Self.origin]](self), exponent
+        )
 
     def mul[
         origin_b: Origin, //

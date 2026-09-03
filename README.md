@@ -28,11 +28,13 @@ operators and routines run over fixed-width numbers and over exact ones:
 | `Float64`, `Int32`, ... | Any Mojo scalar, through SIMD kernels                  |
 | `BInt`                  | Arbitrary-precision integer, with no width to overflow |
 | `Decimal`, `Dec128`     | Base-ten decimals, so `0.1 + 0.2` is `0.3`             |
+| `CFloat64`, `CFloat32`  | Complex numbers, with a full set of decompositions     |
 
 `la.matrix[Float64]` and `la.matrix[BInt]` differ only in the brackets. The
 exact types come from [Decimo](https://github.com/forfudan/decimo) and are
 re-exported, so reaching for one costs no second import -- see
-[Arbitrary-precision elements](#arbitrary-precision-elements).
+[Arbitrary-precision elements](#arbitrary-precision-elements) and
+[Complex elements](#complex-elements).
 
 The name **Linamo** is **LIN**ear + **A**lgebra + **MO**jo: the field it
 covers, and the language it is written in. It can also be read as
@@ -57,7 +59,7 @@ general-purpose multi-dimensional array library):
 | **Primary goal**         | Linear algebra & matrix computation                          | General-purpose ndarray / tensor computing         |
 | **Supported dimensions** | 2D only (matrices)                                           | Arbitrary dimensions (N-D arrays)                  |
 | **Core abstraction**     | Matrix as a mathematical object                              | N-dimensional array container                      |
-| **Element types**        | Any Mojo scalar, plus arbitrary-precision `BInt` / `Decimal` | `DType` scalars (`NDArray[dtype: DType]`)          |
+| **Element types**        | Any Mojo scalar, plus `BInt` / `Decimal` / complex           | `DType` scalars (`NDArray[dtype: DType]`)          |
 | **Target domain**        | BLAS / LAPACK style workflows                                | NumPy-style scientific computing                   |
 | **Storage model**        | Matrix-specific storage (row/col strides)                    | Generic strided N-D storage                        |
 | **Static shapes**        | First-class support (compile-time sizes)                     | Not a primary focus                                |
@@ -262,6 +264,52 @@ the type's precision, but over `BInt` it truncates, and elimination then
 returns whole numbers that are not the answer without raising. The
 [manual](docs/MANUAL.md#arbitrary-precision-elements) has the details.
 
+### Complex elements
+
+A complex matrix is the same matrix. `la.CFloat64` goes in the brackets where
+`Float64` would, and the operators, creation routines and decompositions keep
+their names.
+
+```mojo
+import linamo as la
+from linamo import CFloat64
+
+def main() raises:
+    # `1+2i` is the literal syntax, and it is what the matrix prints, so the
+    # printed form reads back in. A cell may leave out what it implies.
+    var a = la.from_string[CFloat64]("[[1+2i, 3-1i], [2i, 4]]")
+    print(la.det(a))                 # a complex determinant
+    print(a @ la.inv(a))             # the identity
+    print(a**-1)                     # the same inverse, through `matrix_power`
+
+    # `i * i == -1` is the whole difference; a component-wise product would
+    # give zero here and the matrix product would be wrong everywhere.
+    print(CFloat64(0, 1) * CFloat64(0, 1))    # -1.0+0.0i
+    print(CFloat64.one() / CFloat64(0, 1))    # 0.0-1.0i, not the conjugate
+```
+
+The one thing complex matrices need beyond a new element type is the right
+transpose. `conj_transpose` moves the elements *and* negates the imaginary
+parts, and it is what makes `A @ conj_transpose(A)` Hermitian --- a real,
+non-negative diagonal --- which is the property `cholesky` and `qr` rest on:
+
+```mojo
+    var h = la.from_string[CFloat64]("[[4, 1-1i], [1+1i, 3]]")
+    var L = la.cholesky(h)           # A = L L^H
+    print(L @ la.conj_transpose(L))  # h again
+
+    var qr = la.qr(a)
+    print(la.conj_transpose(qr[0]) @ qr[0])   # the identity: Q is unitary
+```
+
+Conjugation is the identity on a real number, so `conj_transpose` works on
+every element type and is the plain transpose for all but the complex one.
+
+What is deliberately missing is ordering: `sort`, `min`, `max` and `<` are not
+available, because there is no order on the complex plane. Pivoting inside
+`lu`, `det`, `solve` and `inv` still works, because it ranks by `|z|`, which is
+real. The [manual](docs/MANUAL.md#complex-elements) has the details.
+
 ### Linear algebra
 
 ```mojo
@@ -342,7 +390,7 @@ linamo
 - Mojo `>=1.0.0,<1.1.0`
 - MAX `>=26.5.0,<26.6` — supplies `parallelize()`, which moved out of the Mojo
   standard library in 1.0.0
-- [Decimo](https://github.com/forfudan/decimo) `>=0.13.0,<0.14` — supplies the
+- [Decimo](https://github.com/forfudan/decimo) `>=0.14.0,<0.15` — supplies the
   `Numeric` and `Parsable` traits the matrix types are written against, and the
   error kinds in `linamo.errors`. It is a workspace dependency, so `pixi
   install` brings it in; `pixi run decimo` resolves it and is the hook for

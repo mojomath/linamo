@@ -64,6 +64,10 @@ manual is the prose half: the shape of the API, not an enumeration of it.
   - [Arbitrary-precision elements](#arbitrary-precision-elements)
     - [How it works, and what it costs](#how-it-works-and-what-it-costs)
     - [Decimo is a hard dependency](#decimo-is-a-hard-dependency)
+  - [Complex elements](#complex-elements)
+    - [Writing a complex literal](#writing-a-complex-literal)
+    - [The transpose is a conjugate transpose](#the-transpose-is-a-conjugate-transpose)
+    - [What is not there](#what-is-not-there)
   - [StaticMatrix](#staticmatrix)
     - [Crossing over to `Matrix`](#crossing-over-to-matrix)
   - [Appendix A: how it works inside](#appendix-a-how-it-works-inside)
@@ -140,6 +144,11 @@ Linamo aliases none of them. A matrix is parameterised on an element *type*
 rather than on a `DType`, so `Float64` already names what goes in the brackets
 and a second spelling for it would buy nothing. The one exception is
 `la.bool_`, the element of a comparison mask, which the stdlib has no name for.
+
+Two families of element type Linamo does name, because nothing else does: the
+arbitrary-precision numbers re-exported from Decimo, and `la.CFloat64` and
+`la.CFloat32` for complex numbers. Both are covered in their own sections
+below.
 
 Nothing is exported unqualified. `from linamo.prelude import *` gives you `la`
 and nothing else --- a library that puts bare names in your global namespace
@@ -1314,9 +1323,16 @@ negative `matrix_power` raise `ValueError` naming the matrix as singular.
 
 `trace`, `det`, `lu`, `solve`, `inv` and `matrix_power` all carry a second
 overload for the arbitrary-precision element types; `cholesky`, `qr` and
-`lstsq` are scalar-only, since they need a square root. See
+`lstsq` do not, since they need a square root. See
 [Arbitrary-precision elements](#arbitrary-precision-elements) for what division
 means there.
+
+Every routine in this section reaches a complex element as well, including the
+three above that the arbitrary-precision types cannot reach — a complex number
+has a square root. Their complex forms are separate implementations rather than
+extra overloads, because each of them transposes and over the complex field
+that transpose has to be a conjugate one. See
+[Complex elements](#complex-elements).
 
 ---
 
@@ -1635,7 +1651,7 @@ uses:
 
 | Long name    | Short name | What it is                                    |
 | ------------ | ---------- | --------------------------------------------- |
-| `BigInt`     | `BInt`     | arbitrary-precision integer (also `Integer`)  |
+| `BigInt`     | `BInt`     | arbitrary-precision integer                   |
 | `BigDecimal` | `BDec`     | arbitrary-precision decimal (also `Decimal`)  |
 | `Decimal128` | `Dec128`   | 128-bit exact decimal                         |
 
@@ -1686,6 +1702,132 @@ pixi run decimo    # find decimo, or build it into temp/
 `pixi run test`, `pixi run examples` and `pixi run pack` depend on that task,
 so running them is enough. Set `DECIMO_PATH=/path/to/decimo` to build against
 a local checkout instead --- the way to develop the two libraries together.
+
+## Complex elements
+
+`Matrix[la.CFloat64]` is an ordinary matrix of complex numbers. As with the
+Decimo types, it is not a separate API — the operators, the creation routines,
+the reductions and the decompositions are the same names.
+
+```mojo
+import linamo as la
+from linamo import CFloat64
+
+var a = la.from_string[CFloat64]("[[1+2i, 3-1i], [2i, 4]]")
+
+a + a                  # element-wise
+a @ a                  # matrix multiplication, and `a * a` is the same call
+a.mul(a)               # the Hadamard product
+a**-1                  # inverts, through `inv`
+la.trace(a)            # 1+2i plus 4+0i, so 5+2i
+la.det(a)              # a complex determinant
+la.eye[CFloat64](3)    # asks `Numeric` for a zero and a one
+la.cholesky(h)         # A = L L^H, on a Hermitian positive-definite h
+la.qr(a)               # a unitary Q, not merely an orthogonal one
+```
+
+The element type is Linamo's `Complex`, which wraps the stdlib's
+`std.complex.ComplexSIMD` and forwards every operator to it. It carries no
+arithmetic of its own; what it adds is one line the stdlib could not write —
+conformance to `decimo.Numeric`, a trait declared after `ComplexSIMD` was,
+which Mojo's nominal conformance allows only at the struct's own definition.
+That declaration is the whole of what makes a complex matrix work, because
+every routine above was written against `Numeric` rather than against a
+`DType`.
+
+Two names, and two shorter ones:
+
+| Long name        | Short name | What it is             |
+| ---------------- | ---------- | ---------------------- |
+| `ComplexFloat64` | `CFloat64` | a pair of `Float64`    |
+| `ComplexFloat32` | `CFloat32` | a pair of `Float32`    |
+
+Named after the components, as `Float64` is. NumPy counts the bits of the pair
+and calls the first of these `complex128`, which reads as a wider component
+than it has.
+
+Beyond the arithmetic, an element carries `re()`, `im()`, `conj()`, `norm()`,
+`squared_norm()`, `sqrt()` and `std()`, the last being the way back out to
+`std.complex` for the functions Linamo does not re-expose. There is no
+`abs(z)`: the stdlib's `Absable` requires the result to be the input's own
+type, and a magnitude is real, so conforming would mean returning `5.0+0.0i`
+for `|3+4i|`. `norm()` says the true thing.
+
+The component dtype must be floating-point. The quotient of two Gaussian
+integers is not a Gaussian integer, so an integral component could not honour
+`Numeric.__truediv__`.
+
+### Writing a complex literal
+
+The syntax is `a+bi`, which is also what a matrix prints, so the printed form
+reads back in. Either part may be left out where it is implied:
+
+```mojo
+la.from_string[CFloat64]("[[1+2i, 3-1i], [2i, -i]]")
+la.from_string[CFloat64]("[[1, 2i], [-i, 3.5-0.5i]]")   # a mostly-real matrix
+```
+
+| text     | value     |
+| -------- | --------- |
+| `1+2i`   | `1+2i`    |
+| `3`      | `3+0i`    |
+| `2i`     | `0+2i`    |
+| `-i`     | `0-1i`    |
+| `1e-3+2i`| `0.001+2i`|
+
+A literal must contain no spaces. A matrix literal is split on whitespace as
+well as on commas, so `1 + 2i` would arrive as three separate cells; the
+printer emits no spaces inside a cell, which is what keeps the round trip
+closed.
+
+Note also that every entry prints both components, `2.0+0.0i` included. The
+stdlib omits a zero imaginary part, which down a column gives three different
+shapes for one type and makes a real-valued entry indistinguishable from a
+real matrix.
+
+### The transpose is a conjugate transpose
+
+This is the one place where complex matrices need more than a new element type,
+and it is worth knowing before reaching for `transpose`:
+
+```mojo
+la.transpose(a)        # moves elements
+la.conj_transpose(a)   # moves them and negates the imaginary parts
+a.conj_transpose()     # the same, as a method
+```
+
+`A @ conj_transpose(A)` is Hermitian — a real, non-negative diagonal and
+conjugate off-diagonal pairs — which is the property `cholesky` and `qr` are
+built on. `A @ transpose(A)` over complex elements has none of it, so the plain
+transpose cannot stand in.
+
+Conjugation is the identity on a real number, so `conj_transpose` is offered
+for *every* element type and is the plain transpose for all but the complex
+one. An algorithm written in terms of it stays correct over both and reads the
+same in the two places.
+
+Dispatch goes through `linamo.traits.Conjugable`, which `Complex` conforms to
+and nothing else does. It marks the smaller set deliberately: `Float64` belongs
+to the stdlib and `BigInt` to Decimo, so Linamo can never declare conformance
+for them, and the other overload takes everything else through `where not
+conforms_to(T, Conjugable)`.
+
+### What is not there
+
+`sort`, `argsort`, `min`, `max` and the six comparison operators are absent for
+a complex element, and will stay absent. They need an ordering, and there is
+none on the complex plane; any invented one would make `a < b` mean something
+no user of complex numbers expects. Sort by a real key instead — `norm()` is
+usually the one meant.
+
+Partial pivoting inside `lu`, `det`, `solve`, `inv` and `matrix_power` does
+rank candidates, but it ranks them by `|z|`, which is a real number and does
+have an order. That is why elimination works where sorting does not.
+
+`isclose` and `allclose` are scalar-only, as is the SIMD `load`/`store` family:
+a complex element is two lanes wide and does not fit the one-lane assumption
+those make.
+
 
 ## StaticMatrix
 

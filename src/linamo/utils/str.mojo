@@ -13,11 +13,18 @@ def element_type_name[T: AnyType]() -> String:
     so a scalar is reported by its dtype and every other element type by its
     unqualified struct name:
 
-    | `T`         | result     |
-    |-------------|------------|
-    | `Float64`   | `float64`  |
-    | `Int32`     | `int32`    |
-    | `BigInt`    | `BigInt`   |
+    | `T`                        | result             |
+    |----------------------------|--------------------|
+    | `Float64`                  | `float64`          |
+    | `Int32`                    | `int32`            |
+    | `BigInt`                   | `BigInt`           |
+    | `Complex[DType.float64]`   | `Complex[float64]` |
+
+    A parameterised element keeps its parameters: they are what separates
+    `Complex[float64]` from `Complex[float32]`, and a header that printed both
+    as `Complex` would name two different matrices the same. Only the module
+    path is dropped, and `DType.` inside the parameters, so that a component
+    dtype is spelled the way a scalar element is.
 
     Parameters:
         T: The element type to name.
@@ -36,4 +43,12 @@ def element_type_name[T: AnyType]() -> String:
             ]
         )
     else:
-        return String(reflect[T].base_name())
+        # `reflect.name()` is fully qualified and parameterised
+        # (`linamo.types.complex.Complex[DType.float64]`), while `base_name()`
+        # is neither (`Complex`). The useful name is in between, so it is cut
+        # here: the module path is everything up to the last `.` that precedes
+        # the parameter list, and dropping it leaves the parameters intact.
+        comptime bracket = full.find("[")
+        comptime head_end = bracket if bracket != -1 else full.byte_length()
+        comptime dot = String(full[byte=0:head_end]).rfind(".")
+        return String(full[byte = dot + 1 :]).replace("DType.", "")

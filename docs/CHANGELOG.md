@@ -2,6 +2,77 @@
 
 This is a list of changes for the Linamo package.
 
+## Unreleased
+
+Complex matrices. `Matrix[CFloat64]` is an ordinary matrix: the operators, the
+creation routines, the reductions and the decompositions keep their names.
+
+### ⭐️ New
+
+**Element type:**
+
+1. **`Complex[d: DType]`**, with aliases **`ComplexFloat64`** / **`CFloat64`**
+   and **`ComplexFloat32`** / **`CFloat32`** — named after the components, as
+   `Float64` is. It wraps `std.complex.ComplexSIMD` and forwards every
+   operator to it; what it adds is conformance to `decimo.Numeric`, which the
+   stdlib type could not declare for a trait written after it. That one line
+   is what opens the whole `Numeric` tier to complex matrices.
+1. Also conforms to **`Rootable`** (`sqrt`, the principal root),
+   **`Parsable`** (see below) and the new **`Conjugable`**. Elements carry
+   `re`, `im`, `conj`, `norm`, `squared_norm` and `std`, the last being the way
+   back out to `std.complex`.
+1. Deliberately **not** `Comparable`: there is no ordering on the complex
+   plane, so `sort`, `min`, `max` and the comparison operators are absent and
+   will stay absent. Sort by a real key, usually `norm()`.
+
+**Literals:** `from_string[CFloat64]("[[1+2i, 3-1i], [2i, -i]]")`. The syntax
+is `a+bi`, which is also what a matrix prints, so the printed form reads back
+in. Either part may be omitted where implied. A literal contains no spaces,
+because a matrix literal is tokenized on whitespace as well as on commas.
+
+**`conj_transpose`:** a routine and a method on `Matrix` and `MatrixView`.
+`A @ conj_transpose(A)` is Hermitian, which is what `cholesky` and `qr` rest
+on; the plain transpose cannot stand in. Conjugation is the identity on a real
+number, so it is offered for every element type and is the plain transpose for
+all but `Complex`. Dispatch goes through the new **`Conjugable`** trait, which
+keeps the two overloads disjoint by construction rather than by accident.
+
+**Linear algebra:** `lu`, `det`, `solve`, `inv` and `matrix_power` reach a
+complex matrix, and so do `cholesky`, `qr` and `lstsq` — the three that the
+arbitrary-precision element types cannot reach, since those have no square
+root. `A ** n` works on both `Matrix` and `MatrixView`.
+
+### 🛠 Changed
+
+1. **Pivoting ranks by magnitude, not by order.** `lu`, `det`, `solve`, `inv`
+   and `matrix_power` used to carry `Numeric & Comparable`, and spelled the
+   pivot's magnitude as `-x if x < zero else x` — an `abs` wearing an order's
+   clothes. The ranking is now a parameter, and the five routines share one
+   body across all three element kinds. The public signatures of the existing
+   overloads are unchanged, and the exact answers over `BInt`, `BDec` and
+   `Decimal128` are unchanged.
+1. **`Matrix.__init__(nrows, ncols, row_stride, col_stride)`** accepts any
+   `Numeric` element, not only a hardware scalar. `Matrix[BInt](2, 2, 2, 1)`
+   used to fail while `zeros[BInt](2, 2)` succeeded.
+1. **A parameterised element type keeps its parameters in the header.**
+   `Matrix[Complex[float64]]` rather than `Matrix[Complex]`, which printed the
+   same for a 32-bit and a 64-bit complex matrix. Scalar, `BigInt` and
+   `Decimal128` headers are unchanged.
+1. **Decimo v0.14.0 is now the floor** (`>=0.14.0,<0.15.0`, up from
+   `>=0.13.0,<0.14`). The bound is exclusive at both ends on purpose: 0.14.0
+   retyped `Parsable.from_string` from `String` to `StringSlice`, and
+   `Complex.from_string` is written against the new spelling, so the element
+   types cannot conform against 0.13 and 0.14 at once. The git fallback in
+   `tools/ensure_decimo.sh` moves to the v0.14.0 tag to match.
+
+### 💔 Breaking
+
+1. **`Integer` is no longer re-exported.** Decimo v0.14.0 removed the alias in
+   favour of `BInt` / `BigInt`, both of which Linamo still re-exports, so
+   `la.Integer` becomes `la.BInt` (or `la.BigInt`). It was an alias for the
+   same type, so this is a rename at the call site and nothing more — no
+   matrix, no routine and no result changes.
+
 ## 20260901 (v0.1.0)
 
 Linamo v0.1.0 is the first release: linear algebra for Mojo, specialised for

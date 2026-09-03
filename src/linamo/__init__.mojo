@@ -29,7 +29,6 @@ from decimo import (
     Parsable,
     BigInt,
     BInt,
-    Integer,
     BigDecimal,
     BDec,
     Decimal,
@@ -43,6 +42,25 @@ from decimo import (
     ROUND_UP,
     ROUND_CEILING,
     ROUND_FLOOR,
+)
+
+# Complex numbers. The arithmetic is entirely the stdlib's: `Complex` forwards
+# every operator to `std.complex.ComplexSIMD` and adds the one thing that type
+# could not declare for itself --- conformance to `Numeric`, a trait written
+# after it, which Mojo's nominal rule allows only at the struct's own
+# definition. That single line is what puts `Matrix[ComplexFloat64]` through
+# the same `zeros`, `eye`, `@` and `lu` a `Matrix[BInt]` goes through.
+#
+# Named by component width, as `Float64` is: a `ComplexFloat64` is a pair of
+# `Float64`. NumPy counts the bits of the pair and calls it `complex128`, which
+# reads as a wider component than it has.
+from linamo.traits.conjugable import Conjugable
+from linamo.types.complex import (
+    Complex,
+    ComplexFloat32,
+    ComplexFloat64,
+    CFloat32,
+    CFloat64,
 )
 
 # ===---------------------------------------------------------------------- ===#
@@ -85,6 +103,7 @@ from linamo.routines.creation import (
 )
 from linamo.routines.linalg import (
     transpose,
+    conj_transpose,
     trace,
     lu,
     cholesky,
