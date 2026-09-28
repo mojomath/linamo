@@ -42,11 +42,11 @@
 set -euo pipefail
 
 DECIMO_REPO="${DECIMO_REPO:-https://github.com/forfudan/decimo.git}"
-# The v0.14.0 tag --- the same code as the conda package, so the fallback and
+# The v0.15.0 tag --- the same code as the conda package, so the fallback and
 # the normal source agree. Keep this in step with the `decimo` lower bound in
 # pixi.toml: a 0.13.0 checkout here does not merely warn, it fails to compile,
 # because `Complex.from_string` is written against the 0.14.0 trait.
-DECIMO_COMMIT="${DECIMO_COMMIT:-ffc697b60b9d13f63c8931abd573c48b62aeff6f}"
+DECIMO_COMMIT="${DECIMO_COMMIT:-0319125c37443ae8510661851768553b3e580196}"
 MODE="${LINAMO_DECIMO:-auto}"
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"

@@ -31,18 +31,11 @@ format = "pixi run mojo format ./src && pixi run mojo format ./tests"
 hooks = "pixi run pre-commit install"
 
 [dependencies]
-mojo = ">=1.0.0, <1.1.0"
-# Decimo supplies the `Numeric` and `Parsable` traits the matrix types are
-# written against, plus the error kinds in `decimo.errors`. It is a hard
-# dependency: no part of Linamo compiles without it. v0.14.0 is required
-# rather than merely preferred: it drops the `Integer` alias and its
-# `Parsable.from_string` takes a `StringSlice`, so the element types cannot
-# conform against both 0.13 and 0.14. `tools/ensure_decimo.sh` finds the
-# package here instead of falling back to a pinned git checkout.
-decimo = ">=0.14.0, <0.15.0"
+mojo = ">=1.1.0, <1.2.0"
+decimo = ">=0.15.0, <0.16.0"
 # `parallelize()` moved from the Mojo stdlib to the MAX package in Mojo 1.0.0.
-# MAX 26.5.x is the release paired with Mojo 1.0.0.
-max = ">=26.5.0, <26.6"
+# MAX 26.6.x is the release paired with Mojo 1.1.0.
+max = ">=26.6.0, <26.7.0"
 numpy = "*"
 
 # Formatting / lint toolchain driven by .pre-commit-config.yaml. These live

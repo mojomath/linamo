@@ -360,6 +360,8 @@ def _lu_core[
     Parameters:
         T: The type of the matrix elements.
         origin: The origin of the operand.
+        larger: Returns whether its first argument has the larger magnitude,
+            used to choose the pivot.
 
     Args:
         view: The square matrix or view to decompose.
@@ -848,6 +850,8 @@ def _det_core[
     Parameters:
         T: The type of the matrix elements.
         origin: The origin of the operand.
+        larger: Returns whether its first argument has the larger magnitude,
+            used to choose the pivot.
 
     Args:
         view: The square matrix or view to reduce.
@@ -1021,6 +1025,8 @@ def _solve_core[
         T: The type of the matrix elements.
         origin_a: The origin of the coefficient matrix.
         origin_b: The origin of the right-hand side.
+        larger: Returns whether its first argument has the larger magnitude,
+            used to choose the pivot.
 
     Args:
         A: The square coefficient matrix or view.
@@ -1195,6 +1201,8 @@ def _inv_core[
     Parameters:
         T: The type of the matrix elements.
         origin: The origin of the operand.
+        larger: Returns whether its first argument has the larger magnitude,
+            used to choose the pivot.
 
     Args:
         view: The square matrix or view to invert.
@@ -1356,6 +1364,8 @@ def _matrix_power_core[
     Parameters:
         T: The type of the matrix elements.
         origin: The origin of the input view.
+        larger: Returns whether its first argument has the larger magnitude,
+            used to choose the pivot.
 
     Args:
         view: The square matrix or view to raise.

@@ -264,8 +264,20 @@ def _matmul_view_simd[
     # ---------------------------------------------------------------------- #
     if b.is_row_contiguous():
 
-        @parameter
-        def process_row_broadcast(i: Int):
+        def process_row_broadcast(
+            i: Int,
+        ) {
+            mut result,
+            imm a_ptr,
+            imm b_ptr,
+            imm a_off,
+            imm b_off,
+            imm a_rs,
+            imm a_cs,
+            imm b_rs,
+            imm N,
+            imm K,
+        }:
             for k in range(K):
                 # [Mojo Miji]
                 # Broadcast A[i,k] (scalar) and SIMD-multiply with row k of B,
@@ -299,7 +311,7 @@ def _matmul_view_simd[
 
         var workers = _matmul_workers(M)
         if workers > 1:
-            parallelize[process_row_broadcast](M, workers)
+            parallelize(process_row_broadcast, M, workers)
         else:
             for i in range(M):
                 process_row_broadcast(i)
@@ -311,8 +323,19 @@ def _matmul_view_simd[
     # ---------------------------------------------------------------------- #
     elif a.is_row_contiguous() and b.is_col_contiguous():
 
-        @parameter
-        def process_row_dot(i: Int):
+        def process_row_dot(
+            i: Int,
+        ) {
+            mut result,
+            imm a_ptr,
+            imm b_ptr,
+            imm a_off,
+            imm b_off,
+            imm a_rs,
+            imm b_cs,
+            imm N,
+            imm K,
+        }:
             for j in range(N):
                 var dot_sum: Scalar[dtype] = 0
 
@@ -339,7 +362,7 @@ def _matmul_view_simd[
 
         var workers = _matmul_workers(M)
         if workers > 1:
-            parallelize[process_row_dot](M, workers)
+            parallelize(process_row_dot, M, workers)
         else:
             for i in range(M):
                 process_row_dot(i)
@@ -352,8 +375,21 @@ def _matmul_view_simd[
     # ---------------------------------------------------------------------- #
     elif a.is_col_contiguous():
 
-        @parameter
-        def process_col_accumulate(j: Int):
+        def process_col_accumulate(
+            j: Int,
+        ) {
+            mut result,
+            imm a_ptr,
+            imm b_ptr,
+            imm a_off,
+            imm b_off,
+            imm a_cs,
+            imm b_rs,
+            imm b_cs,
+            imm M,
+            imm N,
+            imm K,
+        }:
             # Temporary column buffer for SIMD accumulation.
             var temp = List[Scalar[dtype]](length=M, fill=0)
             var temp_ptr = temp._data
@@ -390,7 +426,7 @@ def _matmul_view_simd[
 
         var workers = _matmul_workers(N)
         if workers > 1:
-            parallelize[process_col_accumulate](N, workers)
+            parallelize(process_col_accumulate, N, workers)
         else:
             for j in range(N):
                 process_col_accumulate(j)
@@ -400,8 +436,21 @@ def _matmul_view_simd[
     # ---------------------------------------------------------------------- #
     else:
 
-        @parameter
-        def process_row_general(i: Int):
+        def process_row_general(
+            i: Int,
+        ) {
+            mut result,
+            imm a,
+            imm b,
+            imm a_off,
+            imm b_off,
+            imm a_rs,
+            imm a_cs,
+            imm b_rs,
+            imm b_cs,
+            imm N,
+            imm K,
+        }:
             for j in range(N):
                 var sum: Scalar[dtype] = 0
                 for k in range(K):
@@ -413,7 +462,7 @@ def _matmul_view_simd[
 
         var workers = _matmul_workers(M)
         if workers > 1:
-            parallelize[process_row_general](M, workers)
+            parallelize(process_row_general, M, workers)
         else:
             for i in range(M):
                 process_row_general(i)
