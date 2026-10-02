@@ -79,7 +79,7 @@ manual is the prose half: the shape of the API, not an enumeration of it.
 
 ## Getting started
 
-Linamo targets Mojo `1.0.0` and MAX `>=26.5.0`, and is published to the
+Linamo targets Mojo `1.1.0` and MAX `>=26.6.0`, and is published to the
 [modular-community](https://prefix.dev/channels/modular-community/packages/linamo)
 channel. In a project that has that channel in its `pixi.toml`:
 
@@ -88,9 +88,10 @@ pixi add linamo
 ```
 
 Mojo, MAX and [Decimo](https://github.com/forfudan/decimo) come with it, and
-nothing needs to be added to the import path. Until the v0.1.0 tag reaches the
-channel, take the package from source instead --- clone the repository and put
-the source directory and the precompiled Decimo on the import path:
+nothing needs to be added to the import path. Each release is pinned to one
+Mojo minor version --- v0.2.0 to Mojo 1.1, v0.1.0 to Mojo 1.0 --- and pixi
+picks the one that matches. To work from source instead, clone the repository
+and put the source directory and the precompiled Decimo on the import path:
 
 ```bash
 pixi install                # in the linamo checkout

@@ -2,8 +2,8 @@
 
 Linear algebra for Mojo, specialized for two-dimensional matrices.
 
-[![Version](https://img.shields.io/badge/version-v0.1.0-blue)](https://github.com/mojomath/linamo/releases/tag/v0.1.0)
-[![Mojo](https://img.shields.io/badge/mojo-1.0.0-orange)](https://docs.modular.com/mojo/manual/)
+[![Version](https://img.shields.io/badge/version-v0.2.0-blue)](https://github.com/mojomath/linamo/releases/tag/v0.2.0)
+[![Mojo](https://img.shields.io/badge/mojo-1.1.0-orange)](https://docs.modular.com/mojo/manual/)
 [![pixi](https://img.shields.io/badge/pixi%20add-linamo-purple)](https://prefix.dev/channels/modular-community/packages/linamo)
 [![CI](https://img.shields.io/github/actions/workflow/status/mojomath/linamo/run_tests.yaml?branch=main&label=tests)](https://github.com/mojomath/linamo/actions/workflows/run_tests.yaml)
 
@@ -92,7 +92,7 @@ details.
 - Optimize core operations like matrix multiplication which makes this package a
   better tool if you want to only use 2D matrices.
 
-Linamo targets **Mojo 1.0.0**. The language is stable, but this package's own
+Linamo targets **Mojo 1.1.0**. The language is stable, but this package's own
 API is still moving quickly, so
 **pull requests are not accepted at this time**. If you have any suggestions,
 questions, or feedback, please feel free to open an
@@ -123,8 +123,9 @@ pixi add linamo
 That brings in Mojo, MAX and [Decimo](https://github.com/forfudan/decimo) as
 dependencies, and `import linamo as la` then works with no import path to set.
 
-> **The `pixi add` route arrives with the v0.1.0 release.** Until that tag is
-> published, take the package from source, below.
+Each Linamo release is pinned to one Mojo minor version: v0.2.0 needs Mojo
+1.1, and v0.1.0 is the release for Mojo 1.0. pixi picks the one that matches
+the Mojo in your environment.
 
 ### From source
 
@@ -350,7 +351,8 @@ linamo
 │   │   ├── matrix.mojo          # Dynamic Matrix (row/col-major)
 │   │   ├── matrix_view.mojo     # Non-owning view with slicing
 │   │   ├── matrix_iter.mojo     # Row and column iterators
-│   │   └── static_matrix.mojo   # Compile-time sized Matrix
+│   │   ├── static_matrix.mojo   # Compile-time sized Matrix
+│   │   └── complex.mojo         # Complex element type (CFloat64, CFloat32)
 │   ├── routines/
 │   │   ├── creation.mojo        # matrix, zeros, ones, full, eye, diag, arange, linspace, *_like, from_string
 │   │   ├── math.mojo            # add, sub, mul, div, matmul, scalar ops, min, max, prod
@@ -365,7 +367,8 @@ linamo
 │   │   ├── numpy_interop.mojo   # from_numpy, to_numpy
 │   │   └── linalg.mojo          # transpose, trace, lu, cholesky, qr, det, solve, inv, lstsq
 │   ├── traits/
-│   │   └── matrix_like.mojo     # MatrixLike trait
+│   │   ├── matrix_like.mojo     # MatrixLike trait
+│   │   └── conjugable.mojo      # Conjugable trait, behind conj_transpose
 │   └── utils/
 │       ├── element.mojo         # compile-time facts about an element type
 │       ├── formatting.mojo      # the shared grid every matrix type prints through
@@ -382,17 +385,18 @@ linamo
     ├── matrix_view/              # View slicing, view-on-view
     ├── static_matrix/            # StaticMatrix tests
     ├── bignum/                   # Matrices of BigInt, BigDecimal, Decimal128
+    ├── complex/                  # Matrices of CFloat64, CFloat32
     └── routines/                 # creation, linalg, math, decompositions
 ```
 
 ## Requirements
 
-- Mojo `>=1.0.0,<1.1.0`
-- MAX `>=26.5.0,<26.6` — supplies `parallelize()`, which moved out of the Mojo
-  standard library in 1.0.0
-- [Decimo](https://github.com/forfudan/decimo) `>=0.14.0,<0.15` — supplies the
-  `Numeric` and `Parsable` traits the matrix types are written against, and the
-  error kinds in `linamo.errors`. It is a workspace dependency, so `pixi
+- Mojo `>=1.1.0,<1.2.0`
+- MAX `>=26.6.0,<26.7.0` — supplies `parallelize()`, which moved out of the
+  Mojo standard library in 1.0.0
+- [Decimo](https://github.com/forfudan/decimo) `>=0.15.0,<0.16.0` — supplies
+  the `Numeric` and `Parsable` traits the matrix types are written against, and
+  the error kinds in `linamo.errors`. It is a workspace dependency, so `pixi
   install` brings it in; `pixi run decimo` resolves it and is the hook for
   building against a local or unreleased Decimo instead
 

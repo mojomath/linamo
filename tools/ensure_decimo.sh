@@ -15,10 +15,11 @@
 #      libraries together. This is the path to use while a decimo change is
 #      still uncommitted.
 #   2. The conda package `decimo` from the modular-community channel. This is
-#      the normal source: `decimo >=0.14.0` is a workspace dependency. v0.13.0
+#      the normal source: `decimo >=0.15.0` is a workspace dependency. v0.13.0
 #      is the release that first carried `decimo.Numeric`, `decimo.Parsable`
-#      and `decimo.errors`, but 0.14.0 is the floor now: it removed the
-#      `Integer` alias and retyped `Parsable.from_string` to a `StringSlice`.
+#      and `decimo.errors`; 0.14.0 removed the `Integer` alias and retyped
+#      `Parsable.from_string` to a `StringSlice`; and 0.15.0 is the floor now,
+#      being the first release that compiles under Mojo 1.1.0.
 #   3. The upstream git repository, pinned at $DECIMO_COMMIT. Only reached when
 #      the environment has no decimo --- a checkout built before the dependency
 #      was added, or a deliberate `LINAMO_DECIMO=git`.
@@ -44,8 +45,9 @@ set -euo pipefail
 DECIMO_REPO="${DECIMO_REPO:-https://github.com/forfudan/decimo.git}"
 # The v0.15.0 tag --- the same code as the conda package, so the fallback and
 # the normal source agree. Keep this in step with the `decimo` lower bound in
-# pixi.toml: a 0.13.0 checkout here does not merely warn, it fails to compile,
-# because `Complex.from_string` is written against the 0.14.0 trait.
+# pixi.toml: an older checkout here does not merely warn, it fails to compile
+# --- 0.13.0 because `Complex.from_string` is written against the 0.14.0 trait,
+# and 0.14.0 because it predates the Mojo 1.1.0 migration.
 DECIMO_COMMIT="${DECIMO_COMMIT:-0319125c37443ae8510661851768553b3e580196}"
 MODE="${LINAMO_DECIMO:-auto}"
 

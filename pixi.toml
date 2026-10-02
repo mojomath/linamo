@@ -3,7 +3,7 @@ authors = ["ZHU Yuhao (朱宇浩) <dr.yuhao.zhu@outlook.com>"]
 channels = ["https://conda.modular.com/max", "https://repo.prefix.dev/modular-community", "conda-forge"]
 name = "linamo"
 platforms = ["osx-arm64", "linux-64"]
-version = "0.1.0"
+version = "0.2.0"
 
 [tasks]
 # Make `decimo` available. Every task below depends on this: the matrix types
