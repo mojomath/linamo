@@ -90,7 +90,7 @@ def from_numpy[
 
     # Create Matrix data buffer and copy from numpy memory
     var mat_data = List[Scalar[dtype]](length=nrows * ncols, fill=0)
-    unsafe_memcpy(dest=mat_data._data, src=pointer, count=nrows * ncols)
+    unsafe_memcpy(dest=mat_data.unsafe_ptr(), src=pointer, count=nrows * ncols)
 
     return Matrix[Scalar[dtype]](
         buffer=mat_data^,
@@ -161,7 +161,9 @@ def to_numpy[
 
     # For C-contiguous matrix, straight memcpy
     if mat.is_c_contiguous():
-        unsafe_memcpy(dest=np_ptr, src=mat._data._data, count=nrows * ncols)
+        unsafe_memcpy(
+            dest=np_ptr, src=mat._data.unsafe_ptr(), count=nrows * ncols
+        )
     else:
         # General case: copy element by element
         for i in range(nrows):

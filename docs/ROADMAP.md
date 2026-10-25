@@ -4,7 +4,7 @@ Linamo development roadmap. Phases are prioritized for use as the linear
 algebra foundation of [stamojo](https://github.com/mojomath/stamojo) (a
 statistical modeling library, similar to statsmodels).
 
-Last reviewed: **2026-10-02**
+Last reviewed: **2026-10-25**
 
 - [Phase 0 — Core Types \& Basic Operations](#phase-0--core-types--basic-operations)
 - [Phase 1 — Matrix Fundamentals](#phase-1--matrix-fundamentals)
@@ -446,9 +446,10 @@ without them the opening moves of a session do not close.
 | `isclose` / `allclose`                                       | `routines/logic.mojo` | ✓      |
 | `logical_and` / `logical_or` / `logical_not` / `logical_xor` | `routines/logic.mojo` | ✓      |
 
-**Deferred to 0.3.0.** Each of these only *adds* a signature, so shipping them
-later breaks nothing that 0.1.0 users will have written. Decided 2026-08-19 for
-0.2.0; moved to 0.3.0 when 0.2.0 became the Mojo 1.1.0 release (2026-10-02).
+**Deferred, not yet scheduled.** Each of these only *adds* a signature, so
+shipping them later breaks nothing that 0.1.0 users will have written. Deferred
+from 0.1.0 on 2026-08-19; v0.2.0 and v0.3.0 were toolchain releases and did
+not take them up.
 
 | Item                                                          | Module                | Status |
 | ------------------------------------------------------------- | --------------------- | ------ |
@@ -1305,3 +1306,6 @@ call site keeps it.
 |            | Decimo 0.15.0 is the floor because 0.14.0 does not compile    |
 |            | under 1.1.0. The 5.6 trig/hyperbolic/`round` items move to    |
 |            | 0.3.0. 663 tests, five examples, zero warnings.               |
+| 2026-10-25 | v0.3.0 prepared: Mojo 1.2.0, MAX 26.7, Decimo 0.16.0. Mojo    |
+|            | 1.2.0 hid `List`'s private `_data` pointer, so the SIMD paths |
+|            | now use `unsafe_ptr()`. 663 tests, zero warnings.             |

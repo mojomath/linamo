@@ -346,7 +346,7 @@ struct Matrix[T: Copyable & Deinitable](
                 ),
                 message="Index out of bounds.",
             )
-        return self._data._data.unsafe_offset(
+        return self._data.unsafe_ptr().unsafe_offset(
             row * self._row_stride + col * self._col_stride
         )[]
 
@@ -410,7 +410,7 @@ struct Matrix[T: Copyable & Deinitable](
             "Debug assertion failed: Indices out of bounds in `unsafe_load`",
         )
         var offset = get_offset(row, col, self._row_stride, self._col_stride)
-        return self._data._data.unsafe_offset(offset)[].copy()
+        return self._data.unsafe_ptr().unsafe_offset(offset)[].copy()
 
     # [Mojo Miji]
     # `read self`, not `ref self`. This method is the Matrix -> MatrixView

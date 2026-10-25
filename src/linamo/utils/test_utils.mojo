@@ -53,8 +53,8 @@ def assert_matrices_equal[
     )
 
     var n = a.nrows() * a.ncols()
-    var pa = a._data._data
-    var pb = b._data._data
+    var pa = a._data.unsafe_ptr()
+    var pb = b._data.unsafe_ptr()
     for i in range(n):
         assert_true(
             pa[unsafe_offset=i] == pb[unsafe_offset=i],

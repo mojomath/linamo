@@ -72,7 +72,7 @@ def _compare_view[
 
             comptime for lane in range(w):
                 res[lane] = func(a_chunk[lane], b_chunk[lane])
-            result._data._data.unsafe_store[width=w](idx, res)
+            result._data.unsafe_ptr().unsafe_store[width=w](idx, res)
 
         vectorize[simd_w](total, vec_cmp)
     else:
@@ -118,7 +118,7 @@ def _scalar_compare_view[
 
             comptime for lane in range(w):
                 res[lane] = func(m_chunk[lane], scalar)
-            result._data._data.unsafe_store[width=w](idx, res)
+            result._data.unsafe_ptr().unsafe_store[width=w](idx, res)
 
         vectorize[simd_w](total, vec_cmp)
     else:
@@ -376,7 +376,7 @@ def _isclose_view[
                 res[lane] = _isclose_element(
                     a_chunk[lane], b_chunk[lane], rtol, atol, equal_nan
                 )
-            result._data._data.unsafe_store[width=w](idx, res)
+            result._data.unsafe_ptr().unsafe_store[width=w](idx, res)
 
         vectorize[simd_w](total, vec_close)
     else:
@@ -433,7 +433,7 @@ def _scalar_isclose_view[
                 res[lane] = _isclose_element(
                     m_chunk[lane], scalar, rtol, atol, equal_nan
                 )
-            result._data._data.unsafe_store[width=w](idx, res)
+            result._data.unsafe_ptr().unsafe_store[width=w](idx, res)
 
         vectorize[simd_w](total, vec_close)
     else:

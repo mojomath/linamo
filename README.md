@@ -2,8 +2,8 @@
 
 Linear algebra for Mojo, specialized for two-dimensional matrices.
 
-[![Version](https://img.shields.io/badge/version-v0.2.0-blue)](https://github.com/mojomath/linamo/releases/tag/v0.2.0)
-[![Mojo](https://img.shields.io/badge/mojo-1.1.0-orange)](https://docs.modular.com/mojo/manual/)
+[![Version](https://img.shields.io/badge/version-v0.3.0-blue)](https://github.com/mojomath/linamo/releases/tag/v0.3.0)
+[![Mojo](https://img.shields.io/badge/mojo-1.2.0-orange)](https://docs.modular.com/mojo/manual/)
 [![pixi](https://img.shields.io/badge/pixi%20add-linamo-purple)](https://prefix.dev/channels/modular-community/packages/linamo)
 [![CI](https://img.shields.io/github/actions/workflow/status/mojomath/linamo/run_tests.yaml?branch=main&label=tests)](https://github.com/mojomath/linamo/actions/workflows/run_tests.yaml)
 
@@ -92,14 +92,7 @@ details.
 - Optimize core operations like matrix multiplication which makes this package a
   better tool if you want to only use 2D matrices.
 
-Linamo targets **Mojo 1.1.0**. The language is stable, but this package's own
-API is still moving quickly, so
-**pull requests are not accepted at this time**. If you have any suggestions,
-questions, or feedback, please feel free to open an
-[issue](https://github.com/mojomath/linamo/issues), start a
-[discussion](https://github.com/mojomath/linamo/discussions), or reach out on
-our [Discord channel](https://discord.gg/3rGH87uZTk). Thank you for your
-understanding!
+Linamo targets **Mojo 1.2.0**. The language is stable, but this package's own API is still moving quickly, so **pull requests are not accepted at this time**. If you have any suggestions, questions, or feedback, please feel free to open an [issue](https://github.com/mojomath/linamo/issues), start a [discussion](https://github.com/mojomath/linamo/discussions), or reach out on our [Discord channel](https://discord.gg/3rGH87uZTk). Thank you for your understanding!
 
 ## Install
 
@@ -123,9 +116,7 @@ pixi add linamo
 That brings in Mojo, MAX and [Decimo](https://github.com/forfudan/decimo) as
 dependencies, and `import linamo as la` then works with no import path to set.
 
-Each Linamo release is pinned to one Mojo minor version: v0.2.0 needs Mojo
-1.1, and v0.1.0 is the release for Mojo 1.0. pixi picks the one that matches
-the Mojo in your environment.
+Each Linamo release is pinned to one Mojo minor version: v0.3.0 needs Mojo 1.2, v0.2.0 Mojo 1.1, and v0.1.0 Mojo 1.0. pixi picks the one that matches the Mojo in your environment.
 
 ### From source
 
@@ -391,10 +382,10 @@ linamo
 
 ## Requirements
 
-- Mojo `>=1.1.0,<1.2.0`
-- MAX `>=26.6.0,<26.7.0` — supplies `parallelize()`, which moved out of the
+- Mojo `>=1.2.0,<1.3.0`
+- MAX `>=26.7.0,<26.8.0` — supplies `parallelize()`, which moved out of the
   Mojo standard library in 1.0.0
-- [Decimo](https://github.com/forfudan/decimo) `>=0.15.0,<0.16.0` — supplies
+- [Decimo](https://github.com/forfudan/decimo) `>=0.16.0,<0.17.0` — supplies
   the `Numeric` and `Parsable` traits the matrix types are written against, and
   the error kinds in `linamo.errors`. It is a workspace dependency, so `pixi
   install` brings it in; `pixi run decimo` resolves it and is the hook for

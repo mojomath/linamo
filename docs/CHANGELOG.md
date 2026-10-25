@@ -2,6 +2,19 @@
 
 This is a list of changes for the Linamo package.
 
+## 20261025 (v0.3.0)
+
+Linamo v0.3.0 updates the package to **Mojo v1.2.0**. There are no API
+changes.
+
+### 🛠 Changed in v0.3.0
+
+1. Dependencies: Decimo `>=0.16.0,<0.17.0` and MAX `>=26.7.0,<26.8.0`.
+
+### 💔 Breaking in v0.3.0
+
+1. **Linamo requires Mojo v1.2.0.** Use v0.2.0 for Mojo v1.1.0.
+
 ## 20261002 (v0.2.0)
 
 Linamo v0.2.0 updates the package to **Mojo v1.1.0** and adds complex

@@ -298,9 +298,9 @@ def _matmul_view_simd[
                     imm k,
                 }:
                     var r_idx = i * N + j
-                    result._data._data.unsafe_store[width=w](
+                    result._data.unsafe_ptr().unsafe_store[width=w](
                         r_idx,
-                        result._data._data.unsafe_load[width=w](r_idx)
+                        result._data.unsafe_ptr().unsafe_load[width=w](r_idx)
                         + a_ptr.unsafe_load[width=1](
                             a_off + i * a_rs + k * a_cs
                         )
@@ -358,7 +358,9 @@ def _matmul_view_simd[
                     ).reduce_add()
 
                 vectorize[simd_w](K, vec_k_dot)
-                result._data._data.unsafe_store[width=1](i * N + j, dot_sum)
+                result._data.unsafe_ptr().unsafe_store[width=1](
+                    i * N + j, dot_sum
+                )
 
         var workers = _matmul_workers(M)
         if workers > 1:
@@ -392,7 +394,7 @@ def _matmul_view_simd[
         }:
             # Temporary column buffer for SIMD accumulation.
             var temp = List[Scalar[dtype]](length=M, fill=0)
-            var temp_ptr = temp._data
+            var temp_ptr = temp.unsafe_ptr()
 
             for k in range(K):
                 var b_kj = b_ptr.unsafe_load[width=1](
@@ -420,7 +422,7 @@ def _matmul_view_simd[
 
             # Scatter temp column into result's column j.
             for i in range(M):
-                result._data._data.unsafe_store[width=1](
+                result._data.unsafe_ptr().unsafe_store[width=1](
                     i * N + j, temp_ptr.unsafe_load[width=1](i)
                 )
 
@@ -458,7 +460,7 @@ def _matmul_view_simd[
                         a._data[a_off + i * a_rs + k * a_cs]
                         * b._data[b_off + k * b_rs + j * b_cs]
                     )
-                result._data._data.unsafe_store[width=1](i * N + j, sum)
+                result._data.unsafe_ptr().unsafe_store[width=1](i * N + j, sum)
 
         var workers = _matmul_workers(M)
         if workers > 1:
@@ -575,7 +577,7 @@ def _elementwise_view[
 
             comptime for lane in range(w):
                 res[lane] = func(a_chunk[lane], b_chunk[lane])
-            result._data._data.unsafe_store[width=w](idx, res)
+            result._data.unsafe_ptr().unsafe_store[width=w](idx, res)
 
         vectorize[simd_w](total, vec_op)
     else:
@@ -629,7 +631,7 @@ def _scalar_elementwise_view[
 
             comptime for lane in range(w):
                 res[lane] = func(m_chunk[lane], s_chunk[lane])
-            result._data._data.unsafe_store[width=w](idx, res)
+            result._data.unsafe_ptr().unsafe_store[width=w](idx, res)
 
         vectorize[simd_w](total, vec_scalar)
     else:
@@ -785,7 +787,7 @@ def _elementwise_inplace[
 
     if a.is_c_contiguous() and b.is_c_contiguous():
         comptime simd_w = simd_width_of[dtype]()
-        var a_ptr = a._data._data
+        var a_ptr = a._data.unsafe_ptr()
         var b_ptr = b._data.unsafe_ptr()
         var b_off = b.offset()
 
@@ -819,7 +821,7 @@ def _scalar_elementwise_inplace[
 
     if mat.is_c_contiguous():
         comptime simd_w = simd_width_of[dtype]()
-        var m_ptr = mat._data._data
+        var m_ptr = mat._data.unsafe_ptr()
 
         def vec_scalar[
             w: Int

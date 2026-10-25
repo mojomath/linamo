@@ -79,19 +79,13 @@ manual is the prose half: the shape of the API, not an enumeration of it.
 
 ## Getting started
 
-Linamo targets Mojo `1.1.0` and MAX `>=26.6.0`, and is published to the
-[modular-community](https://prefix.dev/channels/modular-community/packages/linamo)
-channel. In a project that has that channel in its `pixi.toml`:
+Linamo targets Mojo `1.2.0` and MAX `>=26.7.0`, and is published to the [modular-community](https://prefix.dev/channels/modular-community/packages/linamo) channel. In a project that has that channel in its `pixi.toml`:
 
 ```bash
 pixi add linamo
 ```
 
-Mojo, MAX and [Decimo](https://github.com/forfudan/decimo) come with it, and
-nothing needs to be added to the import path. Each release is pinned to one
-Mojo minor version --- v0.2.0 to Mojo 1.1, v0.1.0 to Mojo 1.0 --- and pixi
-picks the one that matches. To work from source instead, clone the repository
-and put the source directory and the precompiled Decimo on the import path:
+Mojo, MAX and [Decimo](https://github.com/forfudan/decimo) come with it, and nothing needs to be added to the import path. Each release is pinned to one Mojo minor version (v0.3.0 to Mojo 1.2, v0.2.0 to Mojo 1.1, v0.1.0 to Mojo 1.0) and pixi picks the one that matches. To work from source instead, clone the repository and put the source directory and the precompiled Decimo on the import path:
 
 ```bash
 pixi install                # in the linamo checkout
@@ -1828,7 +1822,6 @@ have an order. That is why elimination works where sorting does not.
 `isclose` and `allclose` are scalar-only, as is the SIMD `load`/`store` family:
 a complex element is two lanes wide and does not fit the one-lane assumption
 those make.
-
 
 ## StaticMatrix
 
