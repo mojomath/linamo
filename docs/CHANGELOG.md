@@ -2,6 +2,12 @@
 
 This is a list of changes for the Linamo package.
 
+## Unreleased
+
+### ⭐️ New
+
+1. **Statistics:** `mean`, `variance` (`var` is a Mojo keyword and thus cannot be used), `stddev`, `cov` and `corrcoef`, over floating-point, `Decimal`, `Dec128` and complex elements. `cov` and `corrcoef` take the columns as the variables; pass `rowvar=True` for NumPy's layout. `ddof` is keyword-only.
+
 ## 20261025 (v0.3.0)
 
 Linamo v0.3.0 updates the package to **Mojo v1.2.0**. There are no API

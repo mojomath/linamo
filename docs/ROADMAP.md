@@ -4,7 +4,7 @@ Linamo development roadmap. Phases are prioritized for use as the linear
 algebra foundation of [stamojo](https://github.com/mojomath/stamojo) (a
 statistical modeling library, similar to statsmodels).
 
-Last reviewed: **2026-10-25**
+Last reviewed: **2026-10-27**
 
 - [Phase 0 — Core Types \& Basic Operations](#phase-0--core-types--basic-operations)
 - [Phase 1 — Matrix Fundamentals](#phase-1--matrix-fundamentals)
@@ -753,20 +753,25 @@ import is the test.
 
 ## Phase 7 — Statistics Primitives
 
-> **Status: □ Not started**
+> **Status: ✓ Done**
 >
 > *stamojo dependency: important — descriptive stats and residual analysis.*
->
-> *Overlaps Phase 5.3: `sum`, `mean`, `var`, `std` arrive with the NuMojo
-> consolidation; `cov` and `corrcoef` are new work.*
 
-| Item                              | Module                     | stamojo use                          |
-| --------------------------------- | -------------------------- | ------------------------------------ |
-| `sum()` (along axis / full)       | `routines/statistics.mojo` | Data aggregation                     |
-| `mean()` (along axis / full)      | `routines/statistics.mojo` | Centering, descriptive stats         |
-| `var()` / `std()` (along axis)    | `routines/statistics.mojo` | Variance estimation, standardization |
-| `cov()` — covariance matrix       | `routines/statistics.mojo` | Covariance estimation                |
-| `corrcoef()` — correlation matrix | `routines/statistics.mojo` | Correlation analysis                 |
+| Item                                     | Module                     | stamojo use                          | Status |
+| ---------------------------------------- | -------------------------- | ------------------------------------ | ------ |
+| `sum()` (along axis / full)              | `routines/statistics.mojo` | Data aggregation                     | ✓      |
+| `mean()` (along axis / full)             | `routines/statistics.mojo` | Centering, descriptive stats         | ✓      |
+| `variance()` / `stddev()` (along axis)   | `routines/statistics.mojo` | Variance estimation, standardization | ✓      |
+| `cov()` — covariance matrix              | `routines/statistics.mojo` | Covariance estimation                | ✓      |
+| `corrcoef()` — correlation matrix        | `routines/statistics.mojo` | Correlation analysis                 | ✓      |
+
+NumPy's `var` and `std` are `variance` and `stddev`: `var` is a Mojo keyword
+and `std` the root of the standard library, so neither can name a function.
+`cov` and `corrcoef` take the columns as the variables, the layout of a
+stamojo design matrix, with `rowvar=True` for NumPy's. `ddof` is keyword-only,
+so `variance(m, 1)` cannot be read as either an axis or a `ddof`. The element
+type must divide: floats, `Decimal`, `Dec128` and the complex types; integer
+dtypes and `BInt` are refused at compile time.
 
 ---
 
@@ -1309,3 +1314,9 @@ call site keeps it.
 | 2026-10-25 | v0.3.0 prepared: Mojo 1.2.0, MAX 26.7, Decimo 0.16.0. Mojo    |
 |            | 1.2.0 hid `List`'s private `_data` pointer, so the SIMD paths |
 |            | now use `unsafe_ptr()`. 663 tests, zero warnings.             |
+| 2026-10-27 | Phase 7 done: `mean`, `variance`, `stddev`, `cov` and         |
+|            | `corrcoef`, over floats, `Decimal`, `Dec128` and complex.     |
+|            | Columns are the variables in `cov`/`corrcoef`; `ddof` is      |
+|            | keyword-only. Complex goes through one shared core with the   |
+|            | conjugating product as a parameter, as the pivot ranking does |
+|            | in `linalg`. 36 new tests, five against NumPy.                |

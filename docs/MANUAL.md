@@ -1,18 +1,10 @@
 # Linamo User Manual
 
-A working guide to the library: what the types are, what you can do to them,
-and why a few things are spelled the way they are.
+A working guide to the library: what the types are, what you can do to them, and why a few things are spelled the way they are.
 
-This manual is written for someone who knows NumPy and is meeting Mojo's
-ownership rules for the first time. Most of Linamo can be guessed at from
-NumPy. The part that cannot is [The two types](#the-two-types), which is
-therefore where the manual starts — read that chapter and the rest will not
-surprise you.
+This manual is written for someone who knows NumPy and is meeting Mojo's ownership rules for the first time. Most of Linamo can be guessed at from NumPy. The part that cannot is [The two types](#the-two-types), which is therefore where the manual starts — read that chapter and the rest will not surprise you.
 
-The per-symbol reference (every signature, parameter and raise) lives in the
-docstrings and is generated with `mojo doc`; see
-[Generating the symbol reference](#generating-the-symbol-reference). This
-manual is the prose half: the shape of the API, not an enumeration of it.
+The per-symbol reference (every signature, parameter and raise) lives in the docstrings and is generated with `mojo doc`; see [Generating the symbol reference](#generating-the-symbol-reference). This manual is the prose half: the shape of the API, not an enumeration of it.
 
 - [Linamo User Manual](#linamo-user-manual)
   - [Getting started](#getting-started)
@@ -50,6 +42,7 @@ manual is the prose half: the shape of the API, not an enumeration of it.
   - [Mutating a matrix](#mutating-a-matrix)
   - [Iteration](#iteration)
   - [Reductions, searches and sorts](#reductions-searches-and-sorts)
+  - [Statistics](#statistics)
   - [Custom reductions](#custom-reductions)
   - [Shape and layout](#shape-and-layout)
     - [The two layouts](#the-two-layouts)
@@ -1126,6 +1119,63 @@ Reducing an empty matrix gives zero for `sum` and one for `prod`; `min` and
 
 All of these accept a `Matrix` or a `MatrixView` — including a strided one —
 and a routine that works on `A` works unchanged on `A[0:4:2, 1:5:2]`.
+
+---
+
+## Statistics
+
+`mean`, `variance` and `stddev` reduce like `sum`: without an axis over the
+whole matrix, with one along that axis. `cov` and `corrcoef` go across
+variables and return a `p x p` matrix.
+
+```mojo
+import linamo as la
+
+var A = la.matrix[Float64]([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]])
+
+la.mean(A)                  # 3.5
+la.mean(A, 0)               # 1 x 3:  [2.5, 3.5, 4.5]
+la.variance(A)              # 2.9166666666666665, the population variance
+la.variance(A, ddof=1)      # 3.5, the sample variance
+la.stddev(A, 1, ddof=1)     # 2 x 1:  [1.0], [1.0]
+
+# Three observations of two variables, the second falling as the first rises.
+var X = la.matrix[Float64]([[1.0, 3.0], [2.0, 2.0], [3.0, 1.0]])
+la.cov(X)                   # [[1.0, -1.0], [-1.0, 1.0]]
+la.corrcoef(X)              # [[1.0, -1.0], [-1.0, 1.0]]
+```
+
+Three things differ from NumPy, and the first is the one to remember:
+
+- **The variables are the columns.** `cov(X)` of an `n_obs x n_vars` matrix is
+  `n_vars x n_vars`, as in R, pandas and statsmodels. NumPy takes the rows by
+  default; pass `rowvar=True` for that layout.
+- **The names are `variance` and `stddev`.** `var` is a Mojo keyword and `std`
+  is the root of the standard library, so neither can name a function.
+- **`ddof` is keyword-only**, so `variance(A, 1)` always means `axis=1`. The
+  defaults are NumPy's: 0 for `variance` and `stddev`, 1 for `cov`.
+  `corrcoef` takes none, since it cancels.
+
+An empty matrix, or `ddof` that leaves no degrees of freedom, raises
+`ValueError`. In `corrcoef`, a variable with zero variance gives `NaN` in its
+row and column for a floating-point type, as in NumPy, and raises for a
+`Decimal` one.
+
+The element type must be able to divide, so a floating-point matrix, a
+`Decimal` or `Dec128` one, or a complex one. An integer dtype and `BInt` are
+refused at compile time, since their division truncates and a mean would be
+silently wrong; `astype` turns an integer matrix into a floating-point one.
+Over `Decimal` the answers are exact where the arithmetic is:
+
+```mojo
+var D = la.from_string[la.Decimal]("[[0.1, 0.2], [0.3, 0.4]]")
+la.mean(D)                  # 0.25
+la.variance(D)              # 0.0125
+```
+
+For a complex element the squared deviation is `|x - mean|^2`, so a variance
+is real, returned as a complex number with a zero imaginary part, and `cov`
+and `corrcoef` are Hermitian rather than symmetric.
 
 ---
 

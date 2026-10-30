@@ -173,12 +173,12 @@ struct Matrix[T: Copyable & Deinitable](
     # buffer slots `m[i, j]` can reach. Two properties have to hold, and the
     # constructors below are the only place they can be established.
     #
-    # `layout_fits_buffer` is the easier one --- `row_stride = 100` over a
+    # `layout_fits_buffer` is the easier one. `row_stride = 100` over a
     # six-element buffer indexes past the end, which `List` catches under
     # `-D ASSERT=all` and is undefined in release. `layout_is_dense` is the
     # subtler one: `row_stride = 0` makes every row the same row, so
     # `m[0, 0] = 5` silently also writes `m[1, 0]`. That is a legitimate state
-    # for a `MatrixView` --- it is what `broadcast_to` produces --- and never
+    # for a `MatrixView` (it is what `broadcast_to` produces) and never
     # for a matrix that owns its buffer, which is why the check lives here and
     # not on the view.
     #
@@ -764,7 +764,6 @@ struct Matrix[T: Copyable & Deinitable](
         """
         return linamo.routines.linalg.transpose(self)
 
-    # [Mojo Miji]
     # Two bodies, identical, because the constraint has to be decidable where
     # the call is written. `linalg.conj_transpose` is a pair of overloads
     # split on `conforms_to(T, Conjugable)`, and inside a `Matrix[T]` whose
@@ -826,7 +825,6 @@ struct Matrix[T: Copyable & Deinitable](
     # String Representation and Writing
     # ===--------------------------------------------------------------------===#
 
-    # [Mojo Miji]
     # Both of these render elements as text, so they exist only when the
     # element type can be written. The struct's `Writable` conformance carries
     # the same condition, which is what keeps `print(m)` available for
@@ -1357,7 +1355,9 @@ struct Matrix[T: Copyable & Deinitable](
     ](mut self, other: MatrixView[Self.T, origin]) raises where (
         Self.T == Scalar[d]
     ):
-        """In-place element-wise addition with another matrix or view."""
+        """Performs in-place element-wise addition with another matrix or
+        view.
+        """
         linamo.routines.math._elementwise_inplace[func=Scalar[d].__add__](
             rebind[Matrix[Scalar[d]]](self), other._as_simd[d]()
         )
@@ -1365,7 +1365,7 @@ struct Matrix[T: Copyable & Deinitable](
     def __iadd__[
         d: DType, //
     ](mut self, other: Self.ElementType) where Self.T == Scalar[d]:
-        """In-place element-wise addition with a scalar."""
+        """Performs in-place element-wise addition with a scalar."""
         linamo.routines.math._scalar_elementwise_inplace[
             func=Scalar[d].__add__
         ](rebind[Matrix[Scalar[d]]](self), rebind[Scalar[d]](other))
@@ -1375,7 +1375,9 @@ struct Matrix[T: Copyable & Deinitable](
     ](mut self, other: MatrixView[Self.T, origin]) raises where (
         Self.T == Scalar[d]
     ):
-        """In-place element-wise subtraction with another matrix or view."""
+        """Performs in-place element-wise subtraction with another matrix or
+        view.
+        """
         linamo.routines.math._elementwise_inplace[func=Scalar[d].__sub__](
             rebind[Matrix[Scalar[d]]](self), other._as_simd[d]()
         )
@@ -1383,7 +1385,7 @@ struct Matrix[T: Copyable & Deinitable](
     def __isub__[
         d: DType, //
     ](mut self, other: Self.ElementType) where Self.T == Scalar[d]:
-        """In-place element-wise subtraction with a scalar."""
+        """Performs in-place element-wise subtraction with a scalar."""
         linamo.routines.math._scalar_elementwise_inplace[
             func=Scalar[d].__sub__
         ](rebind[Matrix[Scalar[d]]](self), rebind[Scalar[d]](other))
@@ -1391,7 +1393,7 @@ struct Matrix[T: Copyable & Deinitable](
     def __imul__[
         d: DType, //
     ](mut self, other: Self.ElementType) where Self.T == Scalar[d]:
-        """In-place element-wise multiplication with a scalar."""
+        """Performs in-place element-wise multiplication with a scalar."""
         linamo.routines.math._scalar_elementwise_inplace[
             func=Scalar[d].__mul__
         ](rebind[Matrix[Scalar[d]]](self), rebind[Scalar[d]](other))
@@ -1399,7 +1401,7 @@ struct Matrix[T: Copyable & Deinitable](
     def __itruediv__[
         d: DType, //
     ](mut self, other: Self.ElementType) where Self.T == Scalar[d]:
-        """In-place element-wise division with a scalar."""
+        """Performs in-place element-wise division with a scalar."""
         linamo.routines.math._scalar_elementwise_inplace[
             func=Scalar[d].__truediv__
         ](rebind[Matrix[Scalar[d]]](self), rebind[Scalar[d]](other))
@@ -1409,7 +1411,8 @@ struct Matrix[T: Copyable & Deinitable](
     ](mut self, other: MatrixView[Self.T, origin]) raises where (
         Self.T == Scalar[d]
     ):
-        """In-place element-wise floor division with another matrix or view."""
+        """Performs in-place element-wise floor division with another matrix or view.
+        """
         linamo.routines.math._elementwise_inplace[func=Scalar[d].__floordiv__](
             rebind[Matrix[Scalar[d]]](self), other._as_simd[d]()
         )
@@ -1417,7 +1420,7 @@ struct Matrix[T: Copyable & Deinitable](
     def __ifloordiv__[
         d: DType, //
     ](mut self, other: Self.ElementType) where Self.T == Scalar[d]:
-        """In-place element-wise floor division with a scalar."""
+        """Performs in-place element-wise floor division with a scalar."""
         linamo.routines.math._scalar_elementwise_inplace[
             func=Scalar[d].__floordiv__
         ](rebind[Matrix[Scalar[d]]](self), rebind[Scalar[d]](other))
@@ -1427,7 +1430,7 @@ struct Matrix[T: Copyable & Deinitable](
     ](mut self, other: MatrixView[Self.T, origin]) raises where (
         Self.T == Scalar[d]
     ):
-        """In-place element-wise modulo with another matrix or view."""
+        """Performs in-place element-wise modulo with another matrix or view."""
         linamo.routines.math._elementwise_inplace[func=Scalar[d].__mod__](
             rebind[Matrix[Scalar[d]]](self), other._as_simd[d]()
         )
@@ -1435,7 +1438,7 @@ struct Matrix[T: Copyable & Deinitable](
     def __imod__[
         d: DType, //
     ](mut self, other: Self.ElementType) where Self.T == Scalar[d]:
-        """In-place element-wise modulo with a scalar."""
+        """Performs in-place element-wise modulo with a scalar."""
         linamo.routines.math._scalar_elementwise_inplace[
             func=Scalar[d].__mod__
         ](rebind[Matrix[Scalar[d]]](self), rebind[Scalar[d]](other))
@@ -1453,7 +1456,9 @@ struct Matrix[T: Copyable & Deinitable](
     ](self, other: MatrixView[Self.T, origin]) raises -> Matrix[
         Scalar[DType.bool]
     ] where (Self.T == Scalar[d]):
-        """Element-wise less-than comparison with another matrix or view."""
+        """Performs element-wise less-than comparison with another matrix or
+        view.
+        """
         return linamo.routines.logic.less(
             self._simd_view[d](), other._as_simd[d]()
         )
@@ -1463,7 +1468,7 @@ struct Matrix[T: Copyable & Deinitable](
     ](self, other: Self.ElementType) -> Matrix[Scalar[DType.bool]] where (
         Self.T == Scalar[d]
     ):
-        """Element-wise less-than comparison against a scalar."""
+        """Performs element-wise less-than comparison against a scalar."""
         return linamo.routines.logic.scalar_less(
             self._simd_view[d](), rebind[Scalar[d]](other)
         )
@@ -1473,7 +1478,8 @@ struct Matrix[T: Copyable & Deinitable](
     ](self, other: MatrixView[Self.T, origin]) raises -> Matrix[
         Scalar[DType.bool]
     ] where (Self.T == Scalar[d]):
-        """Element-wise less-than-or-equal comparison with another matrix or view.
+        """Performs element-wise less-than-or-equal comparison with another
+        matrix or view.
         """
         return linamo.routines.logic.less_equal(
             self._simd_view[d](), other._as_simd[d]()
@@ -1484,7 +1490,9 @@ struct Matrix[T: Copyable & Deinitable](
     ](self, other: Self.ElementType) -> Matrix[Scalar[DType.bool]] where (
         Self.T == Scalar[d]
     ):
-        """Element-wise less-than-or-equal comparison against a scalar."""
+        """Performs element-wise less-than-or-equal comparison against a
+        scalar.
+        """
         return linamo.routines.logic.scalar_less_equal(
             self._simd_view[d](), rebind[Scalar[d]](other)
         )
@@ -1494,7 +1502,9 @@ struct Matrix[T: Copyable & Deinitable](
     ](self, other: MatrixView[Self.T, origin]) raises -> Matrix[
         Scalar[DType.bool]
     ] where (Self.T == Scalar[d]):
-        """Element-wise greater-than comparison with another matrix or view."""
+        """Performs element-wise greater-than comparison with another matrix or
+        view.
+        """
         return linamo.routines.logic.greater(
             self._simd_view[d](), other._as_simd[d]()
         )
@@ -1504,7 +1514,7 @@ struct Matrix[T: Copyable & Deinitable](
     ](self, other: Self.ElementType) -> Matrix[Scalar[DType.bool]] where (
         Self.T == Scalar[d]
     ):
-        """Element-wise greater-than comparison against a scalar."""
+        """Performs element-wise greater-than comparison against a scalar."""
         return linamo.routines.logic.scalar_greater(
             self._simd_view[d](), rebind[Scalar[d]](other)
         )
@@ -1514,7 +1524,8 @@ struct Matrix[T: Copyable & Deinitable](
     ](self, other: MatrixView[Self.T, origin]) raises -> Matrix[
         Scalar[DType.bool]
     ] where (Self.T == Scalar[d]):
-        """Element-wise greater-than-or-equal comparison with another matrix or view.
+        """Performs element-wise greater-than-or-equal comparison with another
+        matrix or view.
         """
         return linamo.routines.logic.greater_equal(
             self._simd_view[d](), other._as_simd[d]()
@@ -1525,7 +1536,9 @@ struct Matrix[T: Copyable & Deinitable](
     ](self, other: Self.ElementType) -> Matrix[Scalar[DType.bool]] where (
         Self.T == Scalar[d]
     ):
-        """Element-wise greater-than-or-equal comparison against a scalar."""
+        """Performs element-wise greater-than-or-equal comparison against a
+        scalar.
+        """
         return linamo.routines.logic.scalar_greater_equal(
             self._simd_view[d](), rebind[Scalar[d]](other)
         )
@@ -1535,7 +1548,9 @@ struct Matrix[T: Copyable & Deinitable](
     ](self, other: MatrixView[Self.T, origin]) raises -> Matrix[
         Scalar[DType.bool]
     ] where (Self.T == Scalar[d]):
-        """Element-wise equality comparison with another matrix or view."""
+        """Performs element-wise equality comparison with another matrix or
+        view.
+        """
         return linamo.routines.logic.equal(
             self._simd_view[d](), other._as_simd[d]()
         )
@@ -1545,7 +1560,7 @@ struct Matrix[T: Copyable & Deinitable](
     ](self, other: Self.ElementType) -> Matrix[Scalar[DType.bool]] where (
         Self.T == Scalar[d]
     ):
-        """Element-wise equality comparison against a scalar."""
+        """Performs element-wise equality comparison against a scalar."""
         return linamo.routines.logic.scalar_equal(
             self._simd_view[d](), rebind[Scalar[d]](other)
         )
@@ -1555,7 +1570,9 @@ struct Matrix[T: Copyable & Deinitable](
     ](self, other: MatrixView[Self.T, origin]) raises -> Matrix[
         Scalar[DType.bool]
     ] where (Self.T == Scalar[d]):
-        """Element-wise inequality comparison with another matrix or view."""
+        """Performs element-wise inequality comparison with another matrix or
+        view.
+        """
         return linamo.routines.logic.not_equal(
             self._simd_view[d](), other._as_simd[d]()
         )
@@ -1565,7 +1582,7 @@ struct Matrix[T: Copyable & Deinitable](
     ](self, other: Self.ElementType) -> Matrix[Scalar[DType.bool]] where (
         Self.T == Scalar[d]
     ):
-        """Element-wise inequality comparison against a scalar."""
+        """Performs element-wise inequality comparison against a scalar."""
         return linamo.routines.logic.scalar_not_equal(
             self._simd_view[d](), rebind[Scalar[d]](other)
         )

@@ -11,8 +11,7 @@ Linear algebra for Mojo, specialized for two-dimensional matrices.
 
 ## Overview
 
-Linamo focuses on efficient **matrix operations** and provides the foundations
-for **linear algebra** workflows in Mojo.
+Linamo focuses on efficient **matrix operations** and provides the foundations for **linear algebra** workflows in Mojo.
 
 | Type           | Information                        |
 | -------------- | ---------------------------------- |
@@ -20,8 +19,7 @@ for **linear algebra** workflows in Mojo.
 | `MatrixView`   | A non-owning view of `Matrix`      |
 | `StaticMatrix` | A matrix with a compile-time shape |
 
-Each is parameterised on an element **type** rather than a `DType`, so the same
-operators and routines run over fixed-width numbers and over exact ones:
+Each is parameterised on an element **type** rather than a `DType`, so the same operators and routines run over fixed-width numbers and over exact ones:
 
 | Element type            | Information                                            |
 | ----------------------- | ------------------------------------------------------ |
@@ -30,29 +28,15 @@ operators and routines run over fixed-width numbers and over exact ones:
 | `Decimal`, `Dec128`     | Base-ten decimals, so `0.1 + 0.2` is `0.3`             |
 | `CFloat64`, `CFloat32`  | Complex numbers, with a full set of decompositions     |
 
-`la.matrix[Float64]` and `la.matrix[BInt]` differ only in the brackets. The
-exact types come from [Decimo](https://github.com/forfudan/decimo) and are
-re-exported, so reaching for one costs no second import -- see
-[Arbitrary-precision elements](#arbitrary-precision-elements) and
-[Complex elements](#complex-elements).
+`la.matrix[Float64]` and `la.matrix[BInt]` differ only in the brackets. The exact types come from [Decimo](https://github.com/forfudan/decimo) and are re-exported, so reaching for one costs no second import -- see [Arbitrary-precision elements](#arbitrary-precision-elements) and [Complex elements](#complex-elements).
 
-The name **Linamo** is **LIN**ear + **A**lgebra + **MO**jo: the field it
-covers, and the language it is written in. It can also be read as
-**lin**-**amo**: *amo* is Latin for "I love", so the name reads as "I love
-linear algebra".
+The name **Linamo** is **LIN**ear + **A**lgebra + **MO**jo: the field it covers, and the language it is written in. It can also be read as **lin**-**amo**: *amo* is Latin for "I love", so the name reads as "I love linear algebra".
 
-Compared to a general-purpose multi-dimensional array library, Linamo is more
-specialized and optimized for linear algebra of 2D matrices. This allows us to
-keep the API small, clean, and focused, while still providing powerful
-functionality for matrix computations. It is designed to be similar to
-`scipy.linalg` in Python and `nalgebra` in Rust, but with a more Mojo-idiomatic
-API.
+Compared to a general-purpose multi-dimensional array library, Linamo is more specialized and optimized for linear algebra of 2D matrices. This allows us to keep the API small, clean, and focused, while still providing powerful functionality for matrix computations. It is designed to be similar to `scipy.linalg` in Python and `nalgebra` in Rust, but with a more Mojo-idiomatic API.
 
-If you need multi-dimensional arrays, consider the
-[NuMojo package](https://github.com/Mojo-Numerics-and-Algorithms-group/NuMojo).
+If you need multi-dimensional arrays, consider the [NuMojo package](https://github.com/Mojo-Numerics-and-Algorithms-group/NuMojo).
 
-Below are some differences between **Linamo** (this package) and **NuMojo** (a
-general-purpose multi-dimensional array library):
+Below are some differences between **Linamo** (this package) and **NuMojo** (a general-purpose multi-dimensional array library):
 
 | Feature                  | **Linamo**                                                   | **NuMojo**                                         |
 | ------------------------ | ------------------------------------------------------------ | -------------------------------------------------- |
@@ -74,31 +58,20 @@ general-purpose multi-dimensional array library):
 
 ## Goals
 
-The initial goal is to support [Mojo Miji](https://mojo-lang.com/miji/) practice
-content, focus on two-dimensional matrix computing, provide simple and intuitive
-syntax, and apply a series of targeted optimizations. Throughout the source
-code, detailed comments and explanations are provided, under the tag
-`[Mojo Miji]` to help readers understand the design decisions and implementation
-details.
+The initial goal is to support [Mojo Miji](https://mojo-lang.com/miji/) practice content, focus on two-dimensional matrix computing, provide simple and intuitive syntax, and apply a series of targeted optimizations. Throughout the source code, detailed comments and explanations are provided, under the tag `[Mojo Miji]` to help readers understand the design decisions and implementation details.
 
 - Keep the API small and easy to read while learning Mojo and this package.
 - Provide simple and intuitive syntax for matrix creation and operations.
-- Use **safe Mojo** features and avoid unsafe code as much as possible. The data
-  buffer of `Matrix` is a `List` instead of a `Pointer`.
-- Differentiate a matrix and a view on the matrix and prevent unintentional
-  modifications to the matrices via views.
-- Emphasize contiguous storage for 2D matrices, but also support non-contiguous
-  views through strides.
-- Optimize core operations like matrix multiplication which makes this package a
-  better tool if you want to only use 2D matrices.
+- Use **safe Mojo** features and avoid unsafe code as much as possible. The data buffer of `Matrix` is a `List` instead of a `Pointer`.
+- Differentiate a matrix and a view on the matrix and prevent unintentional modifications to the matrices via views.
+- Emphasize contiguous storage for 2D matrices, but also support non-contiguous views through strides.
+- Optimize core operations like matrix multiplication which makes this package a better tool if you want to only use 2D matrices.
 
 Linamo targets **Mojo 1.2.0**. The language is stable, but this package's own API is still moving quickly, so **pull requests are not accepted at this time**. If you have any suggestions, questions, or feedback, please feel free to open an [issue](https://github.com/mojomath/linamo/issues), start a [discussion](https://github.com/mojomath/linamo/discussions), or reach out on our [Discord channel](https://discord.gg/3rGH87uZTk). Thank you for your understanding!
 
 ## Install
 
-Linamo is published to the
-[modular-community](https://prefix.dev/channels/modular-community/packages/linamo)
-channel. Add the channel to your `pixi.toml` and add the package:
+Linamo is published to the [modular-community](https://prefix.dev/channels/modular-community/packages/linamo) channel. Add the channel to your `pixi.toml` and add the package:
 
 ```toml
 [workspace]
@@ -113,8 +86,7 @@ channels = [
 pixi add linamo
 ```
 
-That brings in Mojo, MAX and [Decimo](https://github.com/forfudan/decimo) as
-dependencies, and `import linamo as la` then works with no import path to set.
+That brings in Mojo, MAX and [Decimo](https://github.com/forfudan/decimo) as dependencies, and `import linamo as la` then works with no import path to set.
 
 Each Linamo release is pinned to one Mojo minor version: v0.3.0 needs Mojo 1.2, v0.2.0 Mojo 1.1, and v0.1.0 Mojo 1.0. pixi picks the one that matches the Mojo in your environment.
 
@@ -353,7 +325,7 @@ linamo
 │   │   ├── mutation.mojo        # the only source of mutable views: view_mut, fill, assign, store
 │   │   ├── searching.mojo       # argmin, argmax
 │   │   ├── sorting.mojo         # sort, argsort, sort_inplace
-│   │   ├── statistics.mojo      # sum, cumsum
+│   │   ├── statistics.mojo      # sum, cumsum, mean, variance, stddev, cov, corrcoef
 │   │   ├── random.mojo          # rand, seed
 │   │   ├── numpy_interop.mojo   # from_numpy, to_numpy
 │   │   └── linalg.mojo          # transpose, trace, lu, cholesky, qr, det, solve, inv, lstsq
