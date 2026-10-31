@@ -1359,12 +1359,13 @@ ask for.
 A non-square input raises `ValueError` from every routine that needs a square
 one, and `cholesky` raises if the input is not positive definite.
 
-A singular matrix is answered differently by the two element paths, because
-they divide differently. On a scalar element the division is IEEE arithmetic:
-`det` returns zero and `inv`, `solve` and a negative `matrix_power` return
-infinities, without raising. On an arbitrary-precision element there is no
-infinity to return, so `det` still reports zero but `inv`, `solve` and a
-negative `matrix_power` raise `ValueError` naming the matrix as singular.
+A singular matrix gives `det` of zero, while `inv`, `solve` and a negative
+`matrix_power` raise `ValueError` naming the matrix as singular. Every element
+type behaves this way. "Singular" means that elimination leaves an exact zero
+on U's diagonal, as in NumPy. A floating-point matrix that is singular on paper
+can miss that zero by a rounding step and is then solved, with answers as large
+as the rounding error makes them; the [README](../README.md) shows one. Over
+`Decimal` the same elimination reaches zero exactly and raises.
 
 `trace`, `det`, `lu`, `solve`, `inv` and `matrix_power` all carry a second
 overload for the arbitrary-precision element types; `cholesky`, `qr` and

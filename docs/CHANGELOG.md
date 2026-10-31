@@ -11,6 +11,7 @@ This is a list of changes for the Linamo package.
 ### 🛠 Fixed
 
 1. `matmul` with a column-contiguous left operand (F-order, or an `n x 1` matrix) read and wrote a freed buffer in v0.1.0 and v0.2.0, giving wrong products and corrupting the heap ([#1](https://github.com/mojomath/linamo/issues/1)). v0.3.0 was not affected in practice; the buffer's lifetime is now explicit, and tests cover every layout pair.
+1. On a singular floating-point matrix, `solve`, `inv` and a negative `matrix_power` raise `ValueError` instead of returning infinities or NaN, and `lu` and `det` no longer give NaN on a zero column. Floating point now behaves as the other element types already did.
 
 ## 20261025 (v0.3.0)
 

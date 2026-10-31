@@ -5,7 +5,15 @@ Tests for Phase 3 — Solvers & Inverse: det, solve, inv, lstsq.
 import std.testing as testing
 from linamo.types.matrix import Matrix
 from linamo.routines.creation import matrix, eye, zeros
-from linamo.routines.linalg import det, solve, inv, lstsq, transpose
+from linamo.routines.linalg import (
+    det,
+    inv,
+    lstsq,
+    lu,
+    matrix_power,
+    solve,
+    transpose,
+)
 from linamo.routines.math import matmul
 from linamo.utils.test_utils import assert_matrices_close
 
@@ -62,6 +70,16 @@ def test_det_singular() raises:
         d < 1e-10,
         msg="det of singular matrix should be ~0, got " + String(d),
     )
+
+
+def test_det_zero_column_is_zero() raises:
+    """A zero column leaves no pivot: det is 0, not NaN (0 / 0)."""
+    var A = matrix[Float64]([[0.0, 1.0, 2.0], [0.0, 3.0, 4.0], [0.0, 5.0, 7.0]])
+    testing.assert_equal(det(A), 0.0)
+    var U = lu(A)[1].copy()
+    for i in range(3):
+        for j in range(3):
+            testing.assert_true(U[i, j] == U[i, j], msg="U holds no NaN")
 
 
 def test_det_1x1() raises:
@@ -169,6 +187,35 @@ def test_solve_nonsquare_raises() raises:
     testing.assert_true(raised, msg="solve should raise for non-square A")
 
 
+def _assert_solve_says_singular(A: Matrix[Float64]) raises:
+    var b = matrix[Float64]([[1.0], [1.0]])
+    var raised = False
+    try:
+        _ = solve(A, b)
+    except e:
+        raised = True
+        testing.assert_true("singular" in String(e), msg="the message says why")
+    testing.assert_true(raised, msg="solve should raise for a singular A")
+
+
+def test_solve_singular_raises() raises:
+    """An exact zero pivot raises instead of returning inf or NaN."""
+    _assert_solve_says_singular(matrix[Float64]([[1.0, 2.0], [2.0, 4.0]]))
+    _assert_solve_says_singular(matrix[Float64]([[0.0, 1.0], [0.0, 2.0]]))
+    _assert_solve_says_singular(zeros[Float64](2, 2))
+
+
+def test_solve_nearly_singular_does_not_raise() raises:
+    """Only an exact zero pivot raises, as in NumPy.
+
+    `0.1 * 0.6 - 0.2 * 0.3` misses zero by a rounding step in binary floating
+    point, so this matrix is not singular to the elimination.
+    """
+    var A = matrix[Float64]([[0.1, 0.2], [0.3, 0.6]])
+    var b = matrix[Float64]([[1.0], [1.0]])
+    _ = solve(A, b)
+
+
 # ===----------------------------------------------------------------------===#
 # inv() tests
 # ===----------------------------------------------------------------------===#
@@ -222,6 +269,23 @@ def test_inv_nonsquare_raises() raises:
     except:
         raised = True
     testing.assert_true(raised, msg="inv should raise for non-square matrix")
+
+
+def test_inv_singular_raises() raises:
+    """Inv of a singular matrix raises, and so does a negative power."""
+    var A = matrix[Float64]([[1.0, 2.0], [2.0, 4.0]])
+    var raised = False
+    try:
+        _ = inv(A)
+    except:
+        raised = True
+    testing.assert_true(raised, msg="inv should raise for a singular matrix")
+    raised = False
+    try:
+        _ = matrix_power(A, -1)
+    except:
+        raised = True
+    testing.assert_true(raised, msg="A ** -1 should raise for a singular A")
 
 
 # ===----------------------------------------------------------------------===#

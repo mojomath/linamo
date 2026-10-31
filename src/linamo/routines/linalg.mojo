@@ -191,6 +191,31 @@ def lu[
     The input matrix view is decomposed into a unit lower-triangular matrix L,
     an upper-triangular matrix U, and a permutation vector P such that
     the rows of A permuted by P equal L @ U.
+
+    P is a list of row indices, not a matrix: row `i` of PA is row `P[i]` of
+    A. This differs from `scipy.linalg.lu`, which returns a permutation matrix
+    and factors A = PLU. At each step the pivot is the entry of largest
+    absolute value on or below the diagonal of the current column, and a tie
+    keeps the upper row.
+
+    A singular matrix decomposes without complaint and leaves a zero on the
+    diagonal of U, which is what lets `det` report zero for it. The routines
+    that go on to divide by that diagonal are the ones that raise.
+
+    Parameters:
+        dtype: The data type of the matrix elements.
+        origin: The origin of the operand.
+
+    Args:
+        view: The square matrix or view to decompose.
+
+    Returns:
+        The triple `(L, U, P)`: L is unit lower-triangular, U is
+        upper-triangular, both are new `n x n` matrices in row-major order,
+        and P is the row permutation described above.
+
+    Raises:
+        ValueError: If the matrix is not square.
     """
     if view.nrows() != view.ncols():
         raise ValueError(
@@ -242,6 +267,13 @@ def lu[
 
         # --- elimination ---
         var pivot = u_data[k * n + k]
+        if pivot == 0:
+            # Every entry on or below the diagonal in this column is zero, so
+            # there is no pivot and nothing to eliminate. Dividing anyway would
+            # make each factor 0 / 0 = NaN and spread NaN through U. Skipping
+            # leaves the zero on U's diagonal, which correctly marks the matrix
+            # as singular.
+            continue
         for i in range(k + 1, n):
             var factor = u_data[i * n + k] / pivot
             l_data[i * n + k] = factor
@@ -946,6 +978,14 @@ def solve[
 
     Both A and b can be matrix views. The right-hand side b can be a
     column vector (n x 1) or a matrix (n x k) for multiple right-hand sides.
+
+    A is singular when elimination leaves an exact zero on U's diagonal, as
+    in NumPy. A matrix that is only nearly singular is solved, and the
+    answer is as large and as inaccurate as its condition number makes it.
+
+    Raises:
+        ValueError: If A is not square, if the shapes do not match, or if A is
+            singular.
     """
     if A.nrows() != A.ncols():
         raise ValueError(
@@ -972,6 +1012,15 @@ def solve[
     ref L = lu_result[0]
     ref U = lu_result[1]
     ref piv = lu_result[2]
+
+    # Back substitution divides by U's diagonal. IEEE division by a zero there
+    # would not fail but return infinities and NaN as if they were a solution.
+    for i in range(n):
+        if U._data[i * n + i] == 0:
+            raise ValueError(
+                function="solve()",
+                message="Coefficient matrix A is singular.",
+            )
 
     # Permute rows of b according to piv: Pb
     var pb_data = List[Scalar[dtype]](unsafe_uninit_length=n * k)
@@ -1165,6 +1214,9 @@ def inv[
     """Computes the inverse of a square matrix view using LU decomposition.
 
     Solves A @ X = I for X.
+
+    Raises:
+        ValueError: If the matrix is not square or is singular.
     """
     if view.nrows() != view.ncols():
         raise ValueError(
