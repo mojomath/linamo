@@ -8,6 +8,9 @@ linamo results against numpy as ground truth.
 import std.testing as testing
 from linamo.routines.math import add, sub, mul, div, matmul
 from linamo.routines.math import scalar_add, scalar_sub, scalar_mul, scalar_div
+from linamo.routines.manipulation import contiguous
+from linamo.types.matrix import Matrix
+from linamo.types.matrix_view import MatrixView
 from linamo.routines.numpy_interop import from_numpy, to_numpy
 from linamo.utils.test_utils import assert_matrices_close
 from std.python import Python, PythonObject
@@ -155,6 +158,84 @@ def test_matmul_large_random() raises:
     """Tests matmul for larger matrices (64x48 @ 48x64)."""
     var np = Python.import_module("numpy")
     _test_matmul(np, 64, 48, 64)
+
+
+# ===----------------------------------------------------------------------===#
+# Matmul over every pair of layouts
+# ===----------------------------------------------------------------------===#
+# `matmul` picks one of four kernels from the operands' layouts, and the tests
+# above only ever take the first (both C-order). Here each operand comes in
+# C-order, F-order and as a strided view, and the nine pairs reach every
+# kernel: B row-contiguous (any A with a C-order B), C-order A with F-order B,
+# A column-contiguous (an F-order A, or an `n x 1` one) and the general
+# fallback. Each product is taken twice, because a kernel that reuses a stale
+# buffer can pass once and fail the next time (issue #1).
+
+
+def _check_matmul[
+    oa: Origin, ob: Origin, //
+](
+    a: MatrixView[Float64, oa],
+    b: MatrixView[Float64, ob],
+    want: Matrix[Float64],
+    label: String,
+) raises:
+    for t in range(2):
+        assert_matrices_close(
+            matmul(a, b), want, msg=label + ", call " + String(t), atol=1e-9
+        )
+
+
+def _interleave_zeros(np: PythonObject, x: PythonObject) raises -> PythonObject:
+    """Returns `x` with a zero column after each of its columns.
+
+    Every second column of the result is `x` again, which is how the tests
+    below build a strided view.
+    """
+    return np.stack(Python.list(x, np.zeros_like(x)), axis=2).reshape(
+        x.shape[0], 2 * x.shape[1]
+    )
+
+
+def _test_matmul_layouts(np: PythonObject, m: Int, k: Int, n: Int) raises:
+    """Helper: every layout pair of (m,k) @ (k,n) against numpy."""
+    var a_np = np.random.rand(m, k)
+    var b_np = np.random.rand(k, n)
+    var want = from_numpy(np.matmul(a_np, b_np))
+
+    var a_c = from_numpy(a_np)
+    var a_f = contiguous(a_c, order="F")
+    var a_big = from_numpy(_interleave_zeros(np, a_np))
+    var a_s = a_big[0:m, 0 : 2 * k : 2]
+
+    var b_c = from_numpy(b_np)
+    var b_f = contiguous(b_c, order="F")
+    var b_big = from_numpy(_interleave_zeros(np, b_np))
+    var b_s = b_big[0:k, 0 : 2 * n : 2]
+
+    var shape = (
+        String(m) + "x" + String(k) + " @ " + String(k) + "x" + String(n)
+    )
+    _check_matmul(a_c.view(), b_c.view(), want, "C @ C " + shape)
+    _check_matmul(a_c.view(), b_f.view(), want, "C @ F " + shape)
+    _check_matmul(a_c.view(), b_s, want, "C @ strided " + shape)
+    _check_matmul(a_f.view(), b_c.view(), want, "F @ C " + shape)
+    _check_matmul(a_f.view(), b_f.view(), want, "F @ F " + shape)
+    _check_matmul(a_f.view(), b_s, want, "F @ strided " + shape)
+    _check_matmul(a_s, b_c.view(), want, "strided @ C " + shape)
+    _check_matmul(a_s, b_f.view(), want, "strided @ F " + shape)
+    _check_matmul(a_s, b_s, want, "strided @ strided " + shape)
+
+
+def test_matmul_every_layout_pair() raises:
+    """Tests matmul for all nine layout pairs against numpy."""
+    var np = Python.import_module("numpy")
+    _test_matmul_layouts(np, 2, 2, 2)
+    _test_matmul_layouts(np, 5, 3, 4)
+    _test_matmul_layouts(np, 17, 9, 13)  # not a multiple of the SIMD width
+    _test_matmul_layouts(np, 3, 1, 5)  # A is n x 1, so column-contiguous
+    _test_matmul_layouts(np, 6, 4, 64)  # enough columns to run in parallel
+    _test_matmul_layouts(np, 64, 8, 1)
 
 
 # ===----------------------------------------------------------------------===#

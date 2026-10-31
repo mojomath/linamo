@@ -153,5 +153,51 @@ def test_dynamic_matmul_identity() raises:
             testing.assert_equal(c[i, j], a[i, j])
 
 
+# ===----------------------------------------------------------------------===#
+# Matmul over column-contiguous left operands (issue #1)
+# ===----------------------------------------------------------------------===#
+# These reach path 3 of `matmul`, which up to v0.2.0 accumulated into a freed
+# buffer: the first product was already wrong and later ones grew from call to
+# call. Each product is therefore taken more than once.
+
+
+def test_matmul_f_order_repeated() raises:
+    """F-order @ F-order gives the same exact product on every call."""
+    var a = la.from_string[Float64]("[[1, 2], [3, 4]]", order="F")
+    var b = la.from_string[Float64]("[[5, 6], [7, 8]]", order="F")
+    for _ in range(3):
+        var c = matmul(a, b)
+        testing.assert_equal(c[0, 0], 19.0)
+        testing.assert_equal(c[0, 1], 22.0)
+        testing.assert_equal(c[1, 0], 43.0)
+        testing.assert_equal(c[1, 1], 50.0)
+
+
+def test_matmul_column_vector_times_strided_view_repeated() raises:
+    """An `n x 1` C-order matrix is column-contiguous too."""
+    var col = la.from_string[Float64]("[[1], [2], [3]]")
+    var m = la.from_string[Float64]("[[10, 11, 20, 21, 30, 31]]")
+    var row = m[Slice(0, 1), Slice(0, 6, 2)]
+    for _ in range(3):
+        var d = matmul(col, row)
+        testing.assert_equal(d[0, 0], 10.0)
+        testing.assert_equal(d[0, 1], 20.0)
+        testing.assert_equal(d[0, 2], 30.0)
+        testing.assert_equal(d[2, 2], 90.0)
+
+
+def test_matmul_f_order_survives_later_allocations() raises:
+    """A larger F-order product, interleaved with other allocations."""
+    var a = la.contiguous(
+        la.reshape(la.arange[Float64](0.0, 64.0), 16, 4), order="F"
+    )
+    var b = la.from_string[Float64]("[[1, 2], [3, 4], [5, 6], [7, 8]]")
+    var want = matmul(la.contiguous(a), b)  # C-order: a different path
+    for _ in range(10):
+        var c = matmul(a, b)
+        var _other = matmul(b, la.transpose(b))
+        la.assert_matrices_equal(c, want)
+
+
 def main() raises:
     testing.TestSuite.discover_tests[__functions_in_module()]().run()

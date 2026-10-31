@@ -6,10 +6,11 @@
 # MacOS
 .DS_Store
 
-# VS Code + Zed + Helix ...
+# VS Code + Zed + Helix + Yumete ...
 .vscode
 .zed
 .helix
+.yumete
 
 # kgen trace
 kgen.trace.*
@@ -26,3 +27,4 @@ temp/
 local
 /test*.mojo
 /temp*.mojo
+*.yumete-swp

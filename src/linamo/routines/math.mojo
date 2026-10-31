@@ -20,12 +20,11 @@ from linamo.routines.functional import apply_along_axis, fold
 from linamo.utils.indexing import get_offset
 
 # [Mojo Miji]
-# The routines below take `MatrixView` operands and nothing else: one
-# signature per operation, not one per combination of `Matrix` and
-# `MatrixView`. A `Matrix` argument converts implicitly (see the `@implicit`
-# constructor in `types/matrix_view.mojo`), so `add(a, b)` compiles whichever
-# of the two types each operand happens to be, and the conversion is an O(1)
-# metadata copy.
+# The routines below take `MatrixView` operands and nothing else: one signature
+# per operation, not one per combination of `Matrix` and `MatrixView`. A
+# `Matrix` argument converts implicitly (see the `@implicit` constructor in
+# `types/matrix_view.mojo`), so `add(a, b)` compiles whichever of the two types
+# each operand happens to be, and the conversion is an O(1) metadata copy.
 #
 # A trait bound cannot do this job. `def add[M: MatrixLike](a: M, b: M)` fails
 # for a reason deeper than the missing parameterised traits: converting `M` to
@@ -425,6 +424,17 @@ def _matmul_view_simd[
                 result._data.unsafe_ptr().unsafe_store[width=1](
                     i * N + j, temp_ptr.unsafe_load[width=1](i)
                 )
+
+            # [Mojo Miji]
+            # `temp` is never named after `temp_ptr` is taken, and Mojo destroys
+            # a value after its last use, not at the end of its scope. This is
+            # called the ASAP destruction policy. Up to linamo v0.2.0 the
+            # pointer was the raw `temp._data`, so `temp` was freed at once and
+            # both loops above wrote into freed memory: products that grew from
+            # call to call, and a corrupted heap (issue #1). From linamo v0.3.0,
+            # `unsafe_ptr()` ties the pointer to `temp`'s origin, which happens
+            # to keep it alive; this line says so rather than relying on it.
+            _ = temp^
 
         var workers = _matmul_workers(N)
         if workers > 1:

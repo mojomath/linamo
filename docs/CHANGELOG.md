@@ -8,6 +8,10 @@ This is a list of changes for the Linamo package.
 
 1. **Statistics:** `mean`, `variance` (`var` is a Mojo keyword and thus cannot be used), `stddev`, `cov` and `corrcoef`, over floating-point, `Decimal`, `Dec128` and complex elements. `cov` and `corrcoef` take the columns as the variables; pass `rowvar=True` for NumPy's layout. `ddof` is keyword-only.
 
+### 🛠 Fixed
+
+1. `matmul` with a column-contiguous left operand (F-order, or an `n x 1` matrix) read and wrote a freed buffer in v0.1.0 and v0.2.0, giving wrong products and corrupting the heap ([#1](https://github.com/mojomath/linamo/issues/1)). v0.3.0 was not affected in practice; the buffer's lifetime is now explicit, and tests cover every layout pair.
+
 ## 20261025 (v0.3.0)
 
 Linamo v0.3.0 updates the package to **Mojo v1.2.0**. There are no API
