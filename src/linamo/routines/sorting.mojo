@@ -24,6 +24,13 @@ Nothing here needs a dtype. Sorting asks its element type to compare and to
 copy, both of which the *standard library* `Comparable` and `Copyable` already
 say, so these routines are generic over the element type and work on a
 `Matrix[BigInt]` as readily as a `Matrix[Float64]`.
+
+NaNs are sorted to the end, as in NumPy. A sort only compares, and every
+comparison with a NaN is false, so a plain sort cannot place a NaN: it stays
+wherever it started. So the NaNs are taken out first, found with `x != x` (only
+a NaN is unequal to itself), the other values are sorted, and the NaNs are put
+back at the end. Element types without NaN, such as integers and `Decimal`,
+never take this path.
 """
 
 from std.builtin.sort import sort as _sort_list
@@ -38,10 +45,41 @@ def _check_axis(axis: Int, function: String) raises:
         raise ValueError(function=function, message="Axis must be 0 or 1.")
 
 
+def _sort_lane[T: Copyable & Deinitable & Comparable](mut lane: List[T]):
+    """Sorts one gathered lane ascending, with any NaN after the rest."""
+    var has_nan = False
+    for i in range(len(lane)):
+        if lane[i] != lane[i]:
+            has_nan = True
+            break
+    if not has_nan:
+        _sort_list(lane)
+        return
+
+    var rest = List[T](capacity=len(lane))
+    var nans = List[T]()
+    for i in range(len(lane)):
+        if lane[i] != lane[i]:
+            nans.append(lane[i].copy())
+        else:
+            rest.append(lane[i].copy())
+    _sort_list(rest)
+    for i in range(len(nans)):
+        rest.append(nans[i].copy())
+    lane = rest^
+
+
+def _goes_after[T: Comparable](a: T, b: T) -> Bool:
+    """Whether `a` belongs after `b` in ascending order, a NaN after all."""
+    if a != a:
+        return b == b
+    return a > b
+
+
 def sort[
     T: Copyable & Deinitable & Comparable, origin: Origin[mut=False], //
 ](m: MatrixView[T, origin], axis: Int) raises -> Matrix[T]:
-    """Returns a copy with each lane sorted ascending.
+    """Returns a copy with each lane sorted ascending, NaNs last.
 
     Parameters:
         T: The type of the matrix elements.
@@ -70,14 +108,14 @@ def sort[
             var lane = List[T](capacity=m.nrows())
             for i in range(m.nrows()):
                 lane.append(m[i, j].copy())
-            _sort_list(lane)
+            _sort_lane(lane)
             lanes.append(lane^)
     else:
         for i in range(m.nrows()):
             var lane = List[T](capacity=m.ncols())
             for j in range(m.ncols()):
                 lane.append(m[i, j].copy())
-            _sort_list(lane)
+            _sort_lane(lane)
             lanes.append(lane^)
 
     var buffer = List[T](capacity=m.nrows() * m.ncols())
@@ -93,7 +131,7 @@ def sort[
 def sort_inplace[
     T: Copyable & Deinitable & Comparable, //
 ](mut m: Matrix[T], axis: Int) raises:
-    """Sorts each lane of a matrix ascending, in place.
+    """Sorts each lane of a matrix ascending, in place, NaNs last.
 
     The matrix keeps its own strides, so a column-major or transposed matrix is
     not silently re-laid-out the way `sort` (which always returns a fresh
@@ -117,7 +155,7 @@ def sort_inplace[
             var lane = List[T](capacity=m.nrows())
             for i in range(m.nrows()):
                 lane.append(m[i, j].copy())
-            _sort_list(lane)
+            _sort_lane(lane)
             for i in range(m.nrows()):
                 m[i, j] = lane[i].copy()
     else:
@@ -125,7 +163,7 @@ def sort_inplace[
             var lane = List[T](capacity=m.ncols())
             for j in range(m.ncols()):
                 lane.append(m[i, j].copy())
-            _sort_list(lane)
+            _sort_lane(lane)
             for j in range(m.ncols()):
                 m[i, j] = lane[j].copy()
 
@@ -133,10 +171,10 @@ def sort_inplace[
 def argsort[
     T: Copyable & Deinitable & Comparable, origin: Origin[mut=False], //
 ](m: MatrixView[T, origin], axis: Int) raises -> Matrix[Scalar[DType.int64]]:
-    """Returns the indices that would sort each lane ascending.
+    """Returns the indices that would sort each lane ascending, NaNs last.
 
-    Ties keep their original relative order, so the result is a stable
-    permutation and `argsort` agrees with `sort` element for element.
+    Ties keep their original relative order, and so do NaNs, so the result is
+    a stable permutation and `argsort` agrees with `sort` element for element.
 
     Parameters:
         T: The type of the matrix elements.
@@ -193,7 +231,7 @@ def _stable_order[
             var prev_value = (
                 m[prev, lane].copy() if axis == 0 else m[lane, prev].copy()
             )
-            if prev_value > value:
+            if _goes_after(prev_value, value):
                 pos -= 1
             else:
                 break

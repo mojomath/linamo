@@ -1,10 +1,15 @@
 """
-Index-returning reductions: where the smallest and largest elements are.
+Defines index-returning reductions: where the smallest and largest elements are.
 
 These do not go through `fold`, because a fold carries one accumulator and
 these carry two - the best value seen and where it was. The traversal is the
 same otherwise, and the tie rule matches NumPy: the *first* extremum in the
 scan order wins.
+
+If the operand holds a NaN, `argmin` and `argmax` return the position of the
+first one, as in NumPy. This matches `min` and `max`, which return NaN then.
+A NaN is found with `x != x`: only a NaN is unequal to itself, so element types
+without NaN, such as integers and `Decimal`, are unaffected.
 
 The full-matrix forms return a single flat index counted in row-major order,
 as NumPy's `argmin` on a 2-D array does, regardless of how the operand is
@@ -24,12 +29,15 @@ def _arg_extreme[
     //,
     want_max: Bool,
 ](v: MatrixView[T, origin]) -> Int:
-    """Returns the row-major position of the first extremum in `v`."""
+    """Returns the row-major position of the first extremum in `v`, or of
+    the first NaN if it holds one."""
     var best = v[0, 0].copy()
     var best_at = 0
     var k = 0
     for i in range(v.nrows()):
         for j in range(v.ncols()):
+            if v[i, j] != v[i, j]:
+                return k
             comptime if want_max:
                 if v[i, j] > best:
                     best = v[i, j].copy()
@@ -48,7 +56,7 @@ def _arg_axis[
     //,
     want_max: Bool,
 ](m: MatrixView[T, origin], axis: Int) raises -> Matrix[Scalar[DType.int64]]:
-    """Shared body of the axis forms of `argmin` and `argmax`."""
+    """Returns shared body of the axis forms of `argmin` and `argmax`."""
     if m.size() == 0:
         raise ValueError(
             function="argmin/argmax(m, axis)",
@@ -86,7 +94,8 @@ def argmin[
         m: The matrix or view to search.
 
     Returns:
-        The flat row-major index of the first smallest element.
+        The flat row-major index of the first smallest element, or of the
+        first NaN if there is one.
 
     Raises:
         ValueError: If the operand is empty.
@@ -113,7 +122,8 @@ def argmin[
             `nrows x 1`.
 
     Returns:
-        A matrix of `int64` indices, each counted within its own lane.
+        A matrix of `int64` indices, each counted within its own lane. A
+        lane holding a NaN gives the position of its first NaN.
 
     Raises:
         ValueError: If `axis` is neither 0 nor 1, or the operand is empty.
@@ -134,7 +144,8 @@ def argmax[
         m: The matrix or view to search.
 
     Returns:
-        The flat row-major index of the first largest element.
+        The flat row-major index of the first largest element, or of the
+        first NaN if there is one.
 
     Raises:
         ValueError: If the operand is empty.
@@ -161,7 +172,8 @@ def argmax[
             `nrows x 1`.
 
     Returns:
-        A matrix of `int64` indices, each counted within its own lane.
+        A matrix of `int64` indices, each counted within its own lane. A
+        lane holding a NaN gives the position of its first NaN.
 
     Raises:
         ValueError: If `axis` is neither 0 nor 1, or the operand is empty.

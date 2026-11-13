@@ -7,8 +7,8 @@ def get_offset(
 ) -> Int:
     """Calculates the linear offset in a buffer for given indices.
 
-    This function computes the position of an element in a 1D buffer
-    based on its 2D indices, strides, and an optional initial offset.
+    This function computes the position of an element in a 1D buffer based on
+    its 2D indices, strides, and an optional initial offset.
 
     Args:
         row: The row index of the element to access.

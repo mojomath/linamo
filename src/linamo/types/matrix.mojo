@@ -1,5 +1,5 @@
 """
-This module defines the `Matrix` type, which is a dynamically sized 2D matrix.
+Defines the `Matrix` type, which is a dynamically sized 2D matrix.
 """
 
 

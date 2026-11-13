@@ -1,5 +1,5 @@
 """
-Layout of the printed form of a matrix.
+This module defines the layout of the printed form of a matrix.
 
 `Matrix`, `MatrixView` and `StaticMatrix` all print through this module, so the
 three renderings differ only in the header line each writes first. A grid is

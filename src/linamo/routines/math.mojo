@@ -988,6 +988,13 @@ def scalar_rdiv[
 # a sentinel, so they work for any dtype without needing to know its bounds,
 # and they raise on an empty operand instead of returning a value that no
 # element justifies.
+#
+# A NaN wins, as in NumPy. Here `a` is the result so far and `b` is the next
+# element. Every comparison with a NaN is false, so the old `a if a < b else b`
+# always returned `b` when a NaN was involved: a NaN in `b` was kept, but a NaN
+# in `a` was replaced by the next element. So `min([1, 3, nan])` gave NaN while
+# `min([nan, 1, 3])` gave 1. The added `a != a` keeps a NaN in `a`: only a NaN
+# is unequal to itself, so for an integer dtype the test is always false.
 
 
 def _mul_op[dtype: DType](a: Scalar[dtype], b: Scalar[dtype]) -> Scalar[dtype]:
@@ -995,11 +1002,11 @@ def _mul_op[dtype: DType](a: Scalar[dtype], b: Scalar[dtype]) -> Scalar[dtype]:
 
 
 def _min_op[dtype: DType](a: Scalar[dtype], b: Scalar[dtype]) -> Scalar[dtype]:
-    return a if a < b else b
+    return a if a < b or a != a else b
 
 
 def _max_op[dtype: DType](a: Scalar[dtype], b: Scalar[dtype]) -> Scalar[dtype]:
-    return a if a > b else b
+    return a if a > b or a != a else b
 
 
 def _prod_lane[
@@ -1080,7 +1087,7 @@ def min[
         m: The matrix or view to reduce.
 
     Returns:
-        The smallest element.
+        The smallest element, or NaN if any element is NaN.
 
     Raises:
         ValueError: If the operand is empty.
@@ -1109,7 +1116,8 @@ def min[
             `nrows x 1`.
 
     Returns:
-        A new matrix holding one minimum per lane.
+        A new matrix holding one minimum per lane, NaN for a lane holding
+        one.
 
     Raises:
         ValueError: If `axis` is neither 0 nor 1, or the operand is empty.
@@ -1138,7 +1146,7 @@ def max[
         m: The matrix or view to reduce.
 
     Returns:
-        The largest element.
+        The largest element, or NaN if any element is NaN.
 
     Raises:
         ValueError: If the operand is empty.
@@ -1167,7 +1175,8 @@ def max[
             `nrows x 1`.
 
     Returns:
-        A new matrix holding one maximum per lane.
+        A new matrix holding one maximum per lane, NaN for a lane holding
+        one.
 
     Raises:
         ValueError: If `axis` is neither 0 nor 1, or the operand is empty.

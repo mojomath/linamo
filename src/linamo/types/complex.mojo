@@ -1,6 +1,5 @@
 """
-This module defines the `Complex` element type, a complex number that a matrix
-can hold.
+Defines the `Complex` element type, a complex number that a matrix can hold.
 """
 
 import std.math
@@ -12,24 +11,23 @@ from linamo.errors import ValueError
 from linamo.traits.conjugable import Conjugable
 
 
-# [Mojo Miji]
 # This type carries no arithmetic of its own. Every operator below forwards to
 # `std.complex.ComplexSIMD`, which is where complex multiplication, division and
 # the magnitude actually live and where they should stay.
 #
 # What the wrapper exists for is a single line the stdlib could not have
 # written. `ComplexSIMD` declares `(Equatable, TrivialRegisterPassable,
-# Writable, _Expable)`; it does not declare `Numeric`, because `Numeric` is
-# decimo's trait and was written afterwards. Mojo's conformance is nominal ---
-# declared where the struct is --- so no amount of code in Linamo can add it to
+# Writable, _Expable)`. It does not declare `Numeric`, because `Numeric` is
+# decimo's trait and was written afterwards. Mojo's conformance is nominal
+# (declared where the struct is) so no amount of code in Linamo can add it to
 # a type in the stdlib. The same rule that forced `Numeric` into decimo rather
 # than here forces this newtype.
 #
 # The trade is worth making precisely once. Sixty-four places in this library
 # are gated on `conforms_to(T, Numeric)`: twenty-eight routines and thirty-six
-# methods on `Matrix` and `MatrixView`. Declaring the trait once opens all of
-# them, and opens every routine added to that tier later. The alternative ---
-# naming `ComplexScalar[d]` in an overload of each --- also works, and needs no
+# methods on `Matrix` and `MatrixView`. Declaring the trait once opens all
+# of them, and opens every routine added to that tier later. The alternative
+# (naming `ComplexScalar[d]` in an overload of each) also works, and needs no
 # wrapper, but it needs sixty-four complex twins now and one more with every
 # routine after.
 struct Complex[d: DType](
@@ -53,20 +51,14 @@ struct Complex[d: DType](
         d: The dtype of the real and imaginary components.
     """
 
-    comptime Inner = ComplexScalar[Self.d]
-    """The stdlib type this one forwards to."""
-
-    comptime Real = Scalar[Self.d]
-    """The type of the components, and of the magnitude."""
-
-    var _v: Self.Inner
+    var _value: ComplexScalar[Self.d]
     """The wrapped value."""
 
     # ===-----------------------------------------------------------------===#
     # Initialization
     # ===-----------------------------------------------------------------===#
 
-    def __init__(out self, re: Self.Real, im: Self.Real = 0):
+    def __init__(out self, re: Scalar[Self.d], im: Scalar[Self.d] = 0):
         """Initializes a complex number from its components.
 
         Args:
@@ -84,10 +76,10 @@ struct Complex[d: DType](
             " of two Gaussian integers is not a Gaussian integer, so"
             " `__truediv__` could not honour `Numeric`."
         )
-        self._v = Self.Inner(re, im)
+        self._value = ComplexScalar[Self.d](re, im)
 
     @implicit
-    def __init__(out self, v: Self.Inner):
+    def __init__(out self, v: ComplexScalar[Self.d]):
         """Initializes a complex number from the stdlib's own complex type.
 
         Implicit, so a `ComplexFloat64` from `std.complex` may be passed
@@ -99,24 +91,24 @@ struct Complex[d: DType](
         comptime assert (
             Self.d.is_floating_point()
         ), "Complex requires a floating-point component dtype."
-        self._v = v
+        self._value = v
 
     # ===-----------------------------------------------------------------===#
     # Retrieve attributes
     # ===-----------------------------------------------------------------===#
 
     @always_inline
-    def re(self) -> Self.Real:
+    def re(self) -> Scalar[Self.d]:
         """Returns the real part."""
-        return self._v.re
+        return self._value.re
 
     @always_inline
-    def im(self) -> Self.Real:
+    def im(self) -> Scalar[Self.d]:
         """Returns the imaginary part."""
-        return self._v.im
+        return self._value.im
 
     @always_inline
-    def std(self) -> Self.Inner:
+    def std(self) -> ComplexScalar[Self.d]:
         """Returns the wrapped `std.complex` value.
 
         The way back out to the stdlib, for the functions this type does not
@@ -125,7 +117,7 @@ struct Complex[d: DType](
         Returns:
             The underlying `ComplexScalar[d]`.
         """
-        return self._v
+        return self._value
 
     # ===-----------------------------------------------------------------===#
     # Complex-specific operations
@@ -138,10 +130,10 @@ struct Complex[d: DType](
         Returns:
             `re - im*i`.
         """
-        return Self(self._v.conj())
+        return Self(self._value.conj())
 
     @always_inline
-    def norm(self) -> Self.Real:
+    def norm(self) -> Scalar[Self.d]:
         """Returns the magnitude.
 
         This is the value elimination pivots on: `Complex` has no ordering ---
@@ -151,10 +143,10 @@ struct Complex[d: DType](
         Returns:
             `sqrt(re*re + im*im)`.
         """
-        return self._v.norm()
+        return self._value.norm()
 
     @always_inline
-    def squared_norm(self) -> Self.Real:
+    def squared_norm(self) -> Scalar[Self.d]:
         """Returns the squared magnitude.
 
         Comparing two squared magnitudes orders them exactly as comparing the
@@ -163,7 +155,7 @@ struct Complex[d: DType](
         Returns:
             `re*re + im*im`.
         """
-        return self._v.squared_norm()
+        return self._value.squared_norm()
 
     # [Mojo Miji]
     # No `__abs__`, so no `abs(z)`. The stdlib's `Absable` requires the result
@@ -196,7 +188,7 @@ struct Complex[d: DType](
         Returns:
             `-re - im*i`.
         """
-        return Self(-self._v)
+        return Self(-self._value)
 
     @always_inline
     def __add__(self, other: Self) raises -> Self:
@@ -208,7 +200,7 @@ struct Complex[d: DType](
         Returns:
             The sum.
         """
-        return Self(self._v + other._v)
+        return Self(self._value + other._value)
 
     @always_inline
     def __sub__(self, other: Self) raises -> Self:
@@ -220,7 +212,7 @@ struct Complex[d: DType](
         Returns:
             The difference.
         """
-        return Self(self._v - other._v)
+        return Self(self._value - other._value)
 
     @always_inline
     def __mul__(self, other: Self) raises -> Self:
@@ -232,7 +224,7 @@ struct Complex[d: DType](
         Returns:
             The product.
         """
-        return Self(self._v * other._v)
+        return Self(self._value * other._value)
 
     def __truediv__(self, other: Self) raises -> Self:
         """Returns `self` divided by `other`.
@@ -251,12 +243,12 @@ struct Complex[d: DType](
         # yields an infinity or a NaN rather than an error. `Numeric` promises
         # a raise, and every other element type in this library raises here, so
         # the check belongs on this side of the forward.
-        if other._v.squared_norm() == 0:
+        if other._value.squared_norm() == 0:
             raise ValueError(
                 function="Complex.__truediv__()",
                 message="Division by zero.",
             )
-        return Self(self._v / other._v)
+        return Self(self._value / other._value)
 
     # ===-----------------------------------------------------------------===#
     # Rootable
@@ -278,8 +270,8 @@ struct Complex[d: DType](
         # needed. Writing it through `abs(im)` and restoring the sign at the
         # end keeps the imaginary part's sign right without a branch on the
         # quadrant.
-        var re = self._v.re
-        var im = self._v.im
+        var re = self._value.re
+        var im = self._value.im
         if re == 0 and im == 0:
             return Self.zero()
 
@@ -337,7 +329,7 @@ struct Complex[d: DType](
 
         # No trailing `i`, so the whole token is a real number.
         if bytes[n - 1] != I_LOWER and bytes[n - 1] != I_UPPER:
-            return Self(Self.Real(atof(text)))
+            return Self(Scalar[Self.d](atof(text)))
 
         # [Mojo Miji]
         # With the `i` dropped, what is left is either a lone coefficient
@@ -359,14 +351,14 @@ struct Complex[d: DType](
             k -= 1
 
         if split == -1:
-            return Self(Self.Real(0), Self._coefficient(body))
+            return Self(Scalar[Self.d](0), Self._coefficient(body))
         return Self(
-            Self.Real(atof(String(body[byte=0:split]))),
+            Scalar[Self.d](atof(String(body[byte=0:split]))),
             Self._coefficient(String(body[byte=split:])),
         )
 
     @staticmethod
-    def _coefficient(text: String) raises -> Self.Real:
+    def _coefficient(text: String) raises -> Scalar[Self.d]:
         """Reads the coefficient of the imaginary part.
 
         `i` and `-i` carry no digits, so an empty coefficient, `+`, and `-`
@@ -382,10 +374,10 @@ struct Complex[d: DType](
             Error: If the text is neither empty, a sign, nor a number.
         """
         if text.byte_length() == 0 or text == "+":
-            return Self.Real(1)
+            return Scalar[Self.d](1)
         if text == "-":
-            return Self.Real(-1)
-        return Self.Real(atof(text))
+            return Scalar[Self.d](-1)
+        return Scalar[Self.d](atof(text))
 
     # ===-----------------------------------------------------------------===#
     # Equatable
@@ -401,7 +393,7 @@ struct Complex[d: DType](
         Returns:
             True if the real and imaginary parts both match.
         """
-        return self._v == other._v
+        return self._value == other._value
 
     @always_inline
     def __ne__(self, other: Self) -> Bool:
@@ -413,7 +405,7 @@ struct Complex[d: DType](
         Returns:
             True if either component differs.
         """
-        return not (self._v == other._v)
+        return not (self._value == other._value)
 
     # ===-----------------------------------------------------------------===#
     # Formatting
@@ -432,8 +424,8 @@ struct Complex[d: DType](
         # is three different shapes for the same type, and the last one is
         # indistinguishable from a real matrix. Every element here gets both
         # parts and one sign character.
-        var im = self._v.im
-        writer.write(self._v.re)
+        var im = self._value.im
+        writer.write(self._value.re)
         writer.write("-" if im < 0 else "+")
         writer.write(abs(im), "i")
 
@@ -441,7 +433,6 @@ struct Complex[d: DType](
 # ===----------------------------------------------------------------------===#
 # Aliases
 # ===----------------------------------------------------------------------===#
-# [Mojo Miji]
 # Named by component width, as the stdlib's `ComplexFloat64` is and as Mojo
 # names every other scalar: `ComplexFloat64` is a pair of `Float64`. NumPy's
 # `complex128` counts the bits of the pair instead, which reads as a wider

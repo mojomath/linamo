@@ -23,6 +23,7 @@ from linamo.routines.logic import all, any
 from linamo.routines.math import cumprod, max, min, prod
 from linamo.routines.searching import argmax, argmin
 from linamo.routines.sorting import argsort, sort, sort_inplace
+from std.math import nan
 from linamo.routines.statistics import cumsum, sum
 
 
@@ -300,6 +301,95 @@ def test_argsort_is_stable() raises:
 def test_sort_bad_axis_raises() raises:
     with testing.assert_raises():
         _ = sort(_m(), 7)
+
+
+# ===----------------------------------------------------------------------===#
+# NaN
+# ===----------------------------------------------------------------------===#
+# NumPy's rules: `min` and `max` return NaN, `argmin` and `argmax` point at the
+# first one, and sorting puts NaNs last. Every comparison with a NaN is false,
+# so code that only compares gets an answer that depends on where the NaN
+# stands. Each test therefore moves the NaN through every position.
+
+
+def _nan_at(k: Int) raises -> la.Matrix[Float64]:
+    """`[[1, 3, 2]]` with a NaN put in at position `k`."""
+    var values: List[Float64] = [1.0, 3.0, 2.0]
+    values.insert(k, nan[DType.float64]())
+    return la.from_list[Float64](values^, 1, 4)
+
+
+def _is_nan(x: Float64) -> Bool:
+    return x != x
+
+
+def test_min_max_return_nan_wherever_it_stands() raises:
+    for k in range(4):
+        testing.assert_true(
+            _is_nan(min(_nan_at(k))), "min, NaN at " + String(k)
+        )
+        testing.assert_true(
+            _is_nan(max(_nan_at(k))), "max, NaN at " + String(k)
+        )
+
+
+def test_min_max_along_an_axis_give_nan_only_to_its_lane() raises:
+    var n = nan[DType.float64]()
+    var a = la.matrix[Float64]([[1.0, n, 3.0], [4.0, 0.0, 6.0]])
+    var lo = min(a, 0)
+    testing.assert_equal(lo[0, 0], 1.0)
+    testing.assert_true(_is_nan(lo[0, 1]))
+    testing.assert_equal(lo[0, 2], 3.0)
+    var hi = max(a, 1)
+    testing.assert_true(_is_nan(hi[0, 0]))
+    testing.assert_equal(hi[1, 0], 6.0)
+
+
+def test_argmin_argmax_point_at_the_first_nan() raises:
+    for k in range(4):
+        testing.assert_equal(argmin(_nan_at(k)), k)
+        testing.assert_equal(argmax(_nan_at(k)), k)
+    var n = nan[DType.float64]()
+    var a = la.matrix[Float64]([[1.0, n, n], [n, 5.0, 6.0]])
+    testing.assert_equal(argmax(a), 1)
+    var by_row = argmin(a, 1)
+    testing.assert_equal(by_row[0, 0], 1)
+    testing.assert_equal(by_row[1, 0], 0)
+
+
+def test_sort_puts_nans_last() raises:
+    for k in range(4):
+        var s = sort(_nan_at(k), 1)
+        testing.assert_equal(s[0, 0], 1.0)
+        testing.assert_equal(s[0, 1], 2.0)
+        testing.assert_equal(s[0, 2], 3.0)
+        testing.assert_true(_is_nan(s[0, 3]), "NaN last, from " + String(k))
+        var m = _nan_at(k)
+        sort_inplace(m, 1)
+        testing.assert_equal(m[0, 0], 1.0)
+        testing.assert_true(_is_nan(m[0, 3]))
+
+
+def test_sort_columns_with_nans() raises:
+    var n = nan[DType.float64]()
+    var a = la.matrix[Float64]([[n, 2.0], [3.0, n], [1.0, 0.0]])
+    var s = sort(a, 0)
+    testing.assert_equal(s[0, 0], 1.0)
+    testing.assert_equal(s[1, 0], 3.0)
+    testing.assert_true(_is_nan(s[2, 0]))
+    testing.assert_equal(s[0, 1], 0.0)
+    testing.assert_equal(s[1, 1], 2.0)
+    testing.assert_true(_is_nan(s[2, 1]))
+
+
+def test_argsort_puts_nans_last_and_stays_stable() raises:
+    var n = nan[DType.float64]()
+    var a = la.matrix[Float64]([[n, 2.0, n, 1.0]])
+    var order = argsort(a, 1)
+    testing.assert_equal(order[0, 0], 3)
+    testing.assert_equal(order[0, 1], 1)
+    testing.assert_equal(order[0, 2], 0)
+    testing.assert_equal(order[0, 3], 2)
 
 
 # ===----------------------------------------------------------------------===#

@@ -1114,6 +1114,11 @@ the original indices.
 `argmin` and `argmax` break ties towards the first occurrence, as NumPy does.
 `argsort` is stable: equal elements keep their relative order.
 
+A NaN follows NumPy's rules too: `min` and `max` return NaN if any element is
+NaN, `argmin` and `argmax` return the position of the first NaN, and `sort`,
+`sort_inplace` and `argsort` put NaNs last. Along an axis, each rule applies to
+the lanes that hold a NaN and leaves the others alone.
+
 Reducing an empty matrix gives zero for `sum` and one for `prod`; `min` and
 `max` raise `ValueError`, because there is no answer to give.
 

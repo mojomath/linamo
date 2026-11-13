@@ -1,5 +1,5 @@
 """
-Reductions that aggregate a matrix: sums, running sums, and the moments
+Defines reductions that aggregate a matrix: sums, running sums, and the moments
 `mean`, `variance` and `stddev`, with `cov` and `corrcoef` across variables.
 
 Each routine comes in two arities. `sum(m)` reduces the whole matrix to one
