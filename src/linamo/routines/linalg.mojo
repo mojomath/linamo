@@ -4,7 +4,7 @@ Defines linear algebra routines for matrices.
 
 from std.math import sqrt
 
-from decimo import Numeric
+from decimo import BigInt, Numeric, Rootable
 
 from linamo.errors import ValueError
 import linamo.routines.math
@@ -1666,4 +1666,377 @@ def lstsq[
         ncols=k,
         row_stride=k,
         col_stride=1,
+    )
+
+
+# ===---------------------------------------------------------------------- ===#
+# Norms
+# ===---------------------------------------------------------------------- ===#
+# The size of an ordered element is its absolute value; the size of a complex
+# one is its magnitude, `sqrt(re*re + im*im)`, which is real. So the norm of a
+# complex matrix is a real number, as in NumPy, and `_norm_scalar` serves both
+# `Scalar` and `Complex` elements, taking the measure as a parameter.
+#
+# The arbitrary-precision types get their own core, `_norm_numeric`, for the
+# same reason `det` has `_det_core`. A function written once for any element
+# type may only use what the type's trait promises: decimo's `Numeric`
+# promises `T.zero()` and `+`, which is all the sums need. But `Float64` and
+# the other `Scalar` types do not conform to `Numeric`, since Mojo's traits
+# are nominal and decimo cannot add a conformance to a stdlib type. So a core
+# written for `Numeric` refuses a `Scalar`, a core written for `Scalar`
+# refuses a `Decimal`, and the loop is written twice.
+
+
+def _check_norm_ord(ord: String) raises:
+    """Raises unless `ord` names a norm that `norm` computes.
+
+    Args:
+        ord: The order passed to `norm`.
+
+    Raises:
+        ValueError: If `ord` is not one of "fro", "1", "-1", "inf" and "-inf".
+    """
+    if (
+        ord == "fro"
+        or ord == "1"
+        or ord == "-1"
+        or ord == "inf"
+        or ord == "-inf"
+    ):
+        return
+    if ord == "2" or ord == "-2" or ord == "nuc":
+        raise ValueError(
+            function="norm()",
+            message="ord='"
+            + ord
+            + "' needs the singular values, which Linamo does not compute yet.",
+        )
+    raise ValueError(
+        function="norm()",
+        message="ord must be one of 'fro', '1', '-1', 'inf' and '-inf', not '"
+        + ord
+        + "'.",
+    )
+
+
+def _norm_lanes(
+    ord: String, nrows: Int, ncols: Int
+) raises -> Tuple[Bool, Bool, Int, Int]:
+    """Returns how a "1", "-1", "inf" or "-inf" norm walks the matrix.
+
+    These norms sum absolute values along each column ("1", "-1") or each row
+    ("inf", "-inf"), then take the largest sum or the smallest.
+
+    Args:
+        ord: The order, one of "1", "-1", "inf" and "-inf".
+        nrows: The number of rows.
+        ncols: The number of columns.
+
+    Returns:
+        Whether the sums run down the columns, whether the largest sum is
+        wanted, the number of sums and the length of each.
+
+    Raises:
+        ValueError: If the smallest sum is wanted and there are none. The
+            largest of no sums is 0, since every sum is at least 0, so "1" and
+            "inf" do not raise; NumPy 2 draws the same line.
+    """
+    var over_columns = ord == "1" or ord == "-1"
+    var take_max = ord == "1" or ord == "inf"
+    var lanes = ncols if over_columns else nrows
+    if lanes == 0 and not take_max:
+        raise ValueError(
+            function="norm()",
+            message="ord='"
+            + ord
+            + "' takes the smallest sum over the "
+            + ("columns" if over_columns else "rows")
+            + ", and the matrix has none.",
+        )
+    return (over_columns, take_max, lanes, nrows if over_columns else ncols)
+
+
+def _norm_scalar[
+    T: Copyable & Deinitable,
+    dtype: DType,
+    origin: Origin,
+    //,
+    size: def(T) thin -> Scalar[dtype],
+    squared_size: def(T) thin -> Scalar[dtype],
+](view: MatrixView[T, origin], ord: String) raises -> Scalar[dtype]:
+    """Computes the norm named by `ord` when the result is a `Scalar`.
+
+    Parameters:
+        T: The element type: `Scalar[dtype]` or `Complex[dtype]`.
+        dtype: The dtype of the result.
+        origin: The origin of the operand.
+        size: Returns the absolute value or magnitude of an element.
+        squared_size: Returns the square of `size`, without a square root.
+
+    Args:
+        view: The matrix or view to measure.
+        ord: The order, already checked by `_check_norm_ord`.
+
+    Returns:
+        The norm.
+
+    Raises:
+        ValueError: If `ord` is "-1" or "-inf" and there are no columns or
+            rows to take the smallest sum of.
+    """
+    if ord == "fro":
+        var acc: Scalar[dtype] = 0
+        for i in range(view.nrows()):
+            for j in range(view.ncols()):
+                acc += squared_size(view[i, j])
+        return sqrt(acc)
+
+    var over_columns, take_max, lanes, lane_len = _norm_lanes(
+        ord, view.nrows(), view.ncols()
+    )
+    var best: Scalar[dtype] = 0
+    for lane in range(lanes):
+        var s: Scalar[dtype] = 0
+        for k in range(lane_len):
+            var i = k if over_columns else lane
+            var j = lane if over_columns else k
+            s += size(view[i, j])
+        # A NaN wins, as in NumPy and in `max` and `min`. Every comparison with
+        # a NaN is false, so `s != s` is what spots one, and once `best` is a
+        # NaN no later `s` can replace it.
+        if lane == 0 or s != s:
+            best = s
+        elif best == best and (s > best if take_max else s < best):
+            best = s
+    return best
+
+
+def _norm_numeric[
+    T: Numeric & Comparable & Rootable, origin: Origin, //
+](view: MatrixView[T, origin], ord: String) raises -> T:
+    """Computes the norm named by `ord` over arbitrary-precision elements.
+
+    Parameters:
+        T: The element type.
+        origin: The origin of the operand.
+
+    Args:
+        view: The matrix or view to measure.
+        ord: The order, already checked by `_check_norm_ord`.
+
+    Returns:
+        The norm.
+
+    Raises:
+        ValueError: If `ord` is "-1" or "-inf" and there are no columns or
+            rows to take the smallest sum of.
+    """
+    if ord == "fro":
+        var acc = T.zero()
+        for i in range(view.nrows()):
+            for j in range(view.ncols()):
+                acc = acc + view[i, j] * view[i, j]
+        return acc.sqrt()
+
+    var over_columns, take_max, lanes, lane_len = _norm_lanes(
+        ord, view.nrows(), view.ncols()
+    )
+    var best = T.zero()
+    for lane in range(lanes):
+        var s = T.zero()
+        for k in range(lane_len):
+            var i = k if over_columns else lane
+            var j = lane if over_columns else k
+            ref x = view[i, j]
+            s = s - x if x < T.zero() else s + x
+        if lane == 0 or (s > best if take_max else s < best):
+            best = s^
+    return best^
+
+
+def _abs_scalar[dtype: DType](x: Scalar[dtype]) -> Scalar[dtype]:
+    """Returns `|x|`.
+
+    Parameters:
+        dtype: The dtype of the element.
+
+    Args:
+        x: The element.
+
+    Returns:
+        The absolute value.
+    """
+    return abs(x)
+
+
+def _square_scalar[dtype: DType](x: Scalar[dtype]) -> Scalar[dtype]:
+    """Returns `x * x`.
+
+    Parameters:
+        dtype: The dtype of the element.
+
+    Args:
+        x: The element.
+
+    Returns:
+        The square.
+    """
+    return x * x
+
+
+def _abs_complex[d: DType](z: Complex[d]) -> Scalar[d]:
+    """Returns the magnitude of a complex element.
+
+    Parameters:
+        d: The component dtype.
+
+    Args:
+        z: The element.
+
+    Returns:
+        `sqrt(re*re + im*im)`.
+    """
+    return z.norm()
+
+
+def _square_complex[d: DType](z: Complex[d]) -> Scalar[d]:
+    """Returns the squared magnitude of a complex element.
+
+    Parameters:
+        d: The component dtype.
+
+    Args:
+        z: The element.
+
+    Returns:
+        `re*re + im*im`.
+    """
+    return z.squared_norm()
+
+
+def norm[
+    dtype: DType, origin: Origin, //
+](
+    view: MatrixView[Scalar[dtype], origin], ord: String = "fro"
+) raises -> Scalar[dtype]:
+    """Computes a matrix norm.
+
+    `ord` names the norm, as NumPy's `numpy.linalg.norm` does for a 2-D array,
+    but as a string:
+
+    - "fro" (the default): the Frobenius norm, `sqrt(sum(|a_ij|^2))`.
+    - "1": the largest column sum of absolute values.
+    - "-1": the smallest column sum of absolute values.
+    - "inf": the largest row sum of absolute values.
+    - "-inf": the smallest row sum of absolute values.
+
+    For an `n x 1` matrix (a column vector) these are the vector norms: "fro"
+    is the Euclidean length, "1" the sum of absolute values and "inf" the
+    largest absolute value. The 2-norm and the nuclear norm, which need the
+    singular values, are not available yet.
+
+    If the matrix holds a NaN, the result is NaN.
+
+    Parameters:
+        dtype: The dtype of the matrix elements.
+        origin: The origin of the operand.
+
+    Args:
+        view: The matrix or view to measure.
+        ord: The norm to compute.
+
+    Returns:
+        The norm, of the same type as the elements.
+
+    Raises:
+        ValueError: If `ord` is not one of the names above, if `ord` is "fro"
+            and the dtype is not floating-point (the square root would
+            truncate), or if `ord` is "-1" or "-inf" and the matrix has no
+            columns or rows.
+    """
+    comptime assert dtype != DType.bool, "A boolean matrix has no norm."
+    _check_norm_ord(ord)
+    comptime if not dtype.is_floating_point():
+        if ord == "fro":
+            raise ValueError(
+                function="norm()",
+                message=(
+                    "ord='fro' needs a floating-point element type: an"
+                    " integer square root truncates. Convert first, e.g."
+                    " `m.astype[DType.float64]()`."
+                ),
+            )
+    return _norm_scalar[
+        size=_abs_scalar[dtype], squared_size=_square_scalar[dtype]
+    ](view, ord)
+
+
+def norm[
+    T: Numeric & Comparable & Rootable, origin: Origin, //
+](view: MatrixView[T, origin], ord: String = "fro") raises -> T:
+    """Computes a matrix norm over arbitrary-precision elements.
+
+    `ord` is as in the floating-point overload. The "1", "-1", "inf" and
+    "-inf" norms are sums and comparisons, so over `BInt`, `Decimal` and
+    `Dec128` they are exact.
+
+    Parameters:
+        T: The type of the matrix elements.
+        origin: The origin of the operand.
+
+    Args:
+        view: The matrix or view to measure.
+        ord: The norm to compute.
+
+    Returns:
+        The norm, of the same type as the elements.
+
+    Raises:
+        ValueError: If `ord` is not one of the names the floating-point
+            overload lists, if `ord` is "fro" and the elements are `BInt`
+            (its square root truncates), or if `ord` is "-1" or "-inf" and
+            the matrix has no columns or rows.
+    """
+    _check_norm_ord(ord)
+    comptime if T == BigInt:
+        if ord == "fro":
+            raise ValueError(
+                function="norm()",
+                message=(
+                    "ord='fro' is not defined over `BInt`: its square root"
+                    " truncates. Build the matrix over `Decimal` instead."
+                ),
+            )
+    return _norm_numeric(view, ord)
+
+
+def norm[
+    d: DType, origin: Origin, //
+](view: MatrixView[Complex[d], origin], ord: String = "fro") raises -> Scalar[
+    d
+]:
+    """Computes a matrix norm over complex elements.
+
+    `ord` is as in the floating-point overload, with the magnitude of each
+    element in place of its absolute value. The norm is a real number.
+
+    Parameters:
+        d: The component dtype of the matrix elements.
+        origin: The origin of the operand.
+
+    Args:
+        view: The matrix or view to measure.
+        ord: The norm to compute.
+
+    Returns:
+        The norm, a real number of the component dtype.
+
+    Raises:
+        ValueError: If `ord` is not one of the names the floating-point
+            overload lists, or if `ord` is "-1" or "-inf" and the matrix has
+            no columns or rows.
+    """
+    _check_norm_ord(ord)
+    return _norm_scalar[size=_abs_complex[d], squared_size=_square_complex[d]](
+        view, ord
     )

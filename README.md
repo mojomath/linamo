@@ -117,14 +117,7 @@ pixi run pack                                     # writes tests/linamo.mojoc
 mojo run -I $LINAMO/tests -I $LINAMO/temp my_program.mojo
 ```
 
-Decimo is not optional --- the matrix types name `decimo.Numeric`, so no part
-of Linamo compiles without it --- but it is an ordinary workspace dependency,
-so `pixi install` puts it on the import path and `temp/` is normally empty.
-`pixi run decimo` is what confirms that, and it is also the escape hatch: set
-`DECIMO_PATH` to a local checkout, or `LINAMO_DECIMO=git` to build the pinned
-upstream commit, and it precompiles Decimo into `temp/`, which is why `-I temp`
-is on both lines above. Every pixi task in this repository depends on that
-step, so inside the checkout it needs no separate command.
+Decimo is not optional --- the matrix types name `decimo.Numeric`, so no part of Linamo compiles without it --- but it is an ordinary workspace dependency, so `pixi install` puts it on the import path and `temp/` is normally empty. `pixi run decimo` is what confirms that, and it is also the escape hatch: set `DECIMO_PATH` to a local checkout, or `LINAMO_DECIMO=git` to build the pinned upstream commit, and it precompiles Decimo into `temp/`, which is why `-I temp` is on both lines above. Every pixi task in this repository depends on that step, so inside the checkout it needs no separate command.
 
 ## Quick start
 
@@ -328,7 +321,7 @@ linamo
 │   │   ├── statistics.mojo      # sum, cumsum, mean, variance, stddev, cov, corrcoef
 │   │   ├── random.mojo          # rand, seed
 │   │   ├── numpy_interop.mojo   # from_numpy, to_numpy
-│   │   └── linalg.mojo          # transpose, trace, lu, cholesky, qr, det, solve, inv, lstsq
+│   │   └── linalg.mojo          # transpose, trace, lu, cholesky, qr, det, solve, inv, lstsq, norm
 │   ├── traits/
 │   │   ├── matrix_like.mojo     # MatrixLike trait
 │   │   └── conjugable.mojo      # Conjugable trait, behind conj_transpose

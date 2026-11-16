@@ -7,7 +7,8 @@ transpose, trace, LU, Cholesky, QR against numpy.linalg as ground truth.
 
 import std.testing as testing
 from linamo.routines.creation import eye
-from linamo.routines.linalg import transpose, trace, lu, cholesky, qr
+from linamo.routines.linalg import transpose, trace, lu, cholesky, qr, norm
+from linamo.routines.manipulation import contiguous
 from linamo.routines.math import matmul
 from linamo.routines.numpy_interop import from_numpy, to_numpy
 from linamo.types.matrix import Matrix
@@ -273,6 +274,31 @@ def test_qr_orthogonality_random() raises:
 # ===----------------------------------------------------------------------===#
 # Test runner
 # ===----------------------------------------------------------------------===#
+
+
+# ===----------------------------------------------------------------------===#
+# norm
+# ===----------------------------------------------------------------------===#
+
+
+def test_norm_random_against_numpy() raises:
+    """Compare every order with numpy.linalg.norm, in both layouts."""
+    var np = Python.import_module("numpy")
+    np.random.seed(7)
+    var orders: List[String] = ["fro", "1", "-1", "inf", "-inf"]
+    var np_orders = Python.list("fro", 1, -1, np.inf, -np.inf)
+    var shapes: List[Tuple[Int, Int]] = [(1, 1), (3, 5), (8, 2), (17, 17)]
+    for shape in shapes:
+        var r = shape[0]
+        var c = shape[1]
+        var a_np = np.random.randn(r, c)
+        var a = from_numpy(a_np)
+        var f = contiguous(a, order="F")
+        for k in range(len(orders)):
+            var want = Float64(py=np.linalg.norm(a_np, np_orders[k]))
+            var label = String(r, "x", c, " ord=", orders[k])
+            testing.assert_almost_equal(norm(a, orders[k]), want, label)
+            testing.assert_almost_equal(norm(f, orders[k]), want, label)
 
 
 def main() raises:
