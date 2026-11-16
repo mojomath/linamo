@@ -1735,8 +1735,8 @@ def _norm_lanes(
             largest of no sums is 0, since every sum is at least 0, so "1" and
             "inf" do not raise; NumPy 2 draws the same line.
     """
-    var over_columns = ord == "1" or ord == "-1"
-    var take_max = ord == "1" or ord == "inf"
+    var over_columns = ord in ("1", "-1")
+    var take_max = ord in ("1", "inf")
     var lanes = ncols if over_columns else nrows
     if lanes == 0 and not take_max:
         raise ValueError(
