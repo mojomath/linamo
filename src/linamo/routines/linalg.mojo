@@ -1696,15 +1696,9 @@ def _check_norm_ord(ord: String) raises:
     Raises:
         ValueError: If `ord` is not one of "fro", "1", "-1", "inf" and "-inf".
     """
-    if (
-        ord == "fro"
-        or ord == "1"
-        or ord == "-1"
-        or ord == "inf"
-        or ord == "-inf"
-    ):
+    if ord in ("fro", "1", "-1", "inf", "-inf"):
         return
-    if ord == "2" or ord == "-2" or ord == "nuc":
+    if ord in ("2", "-2", "nuc"):
         raise ValueError(
             function="norm()",
             message="ord='"
