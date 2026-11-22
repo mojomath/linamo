@@ -777,7 +777,8 @@ dtypes and `BInt` are refused at compile time.
 
 ## Phase 8 — Norms & Conditioning
 
-> **Status: □ Not started**
+> **Status: 🚧 `norm` landed without the 2-norm and the nuclear norm, which
+> need `svd`; `cond`, `rank` and `pinv` remain**
 >
 > *stamojo dependency: useful for diagnostics and numerical stability.*
 

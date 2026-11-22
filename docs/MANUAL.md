@@ -1335,6 +1335,7 @@ side and returns owning matrices.
 | `qr(a)`              | `(Q, R)`             | Householder reflections, `m >= n`        |
 | `solve(A, b)`        | `Matrix`             | via LU; `b` may have several columns     |
 | `lstsq(A, b)`        | `Matrix`             | via QR; overdetermined systems, `m >= n` |
+| `norm(a, ord)`       | `Scalar[d]`          | Frobenius by default; see below          |
 
 ```mojo
 var A = la.matrix[Float64](
@@ -1372,9 +1373,25 @@ can miss that zero by a rounding step and is then solved, with answers as large
 as the rounding error makes them; the [README](../README.md) shows one. Over
 `Decimal` the same elimination reaches zero exactly and raises.
 
+`norm` takes the norm's name as a string, as `contiguous` takes `order`:
+`"fro"` (the default) is the Frobenius norm, `"1"` and `"-1"` the largest and
+smallest column sum of absolute values, and `"inf"` and `"-inf"` the same over
+the rows. On an `n x 1` matrix these are the vector norms, so `la.norm(r)` is
+the Euclidean length of a residual `r`. The 2-norm and the nuclear norm need
+singular values and raise for now. A NaN anywhere gives NaN, as in NumPy.
+
+```mojo
+var M = la.matrix[Float64]([[1.0, -2.0, 3.0], [-4.0, 5.0, -6.0]])
+print(la.norm(M))         # 9.539392014169456, sqrt(91)
+print(la.norm(M, "1"))    # 9.0, the largest column sum
+print(la.norm(M, "inf"))  # 15.0, the largest row sum
+```
+
 `trace`, `det`, `lu`, `solve`, `inv` and `matrix_power` all carry a second
 overload for the arbitrary-precision element types; `cholesky`, `qr` and
-`lstsq` do not, since they need a square root. See
+`lstsq` do not, since they need a square root. `norm` does: its sums are exact
+over `BInt`, `Decimal` and `Dec128`, and `"fro"` takes `Decimal`'s square root,
+though not `BInt`'s, which truncates. See
 [Arbitrary-precision elements](#arbitrary-precision-elements) for what division
 means there.
 
@@ -2075,7 +2092,8 @@ are:
 - **Creation**: `randn`, for normally distributed random matrices.
 - **Element-wise mathematics**: the trigonometric and hyperbolic functions,
   `round`, and the infinity predicates `isposinf` / `isneginf`.
-- **Linear algebra**: `issymmetric`, an LU-based `solve_lu`, and eigenvalues.
+- **Linear algebra**: `issymmetric`, an LU-based `solve_lu`, eigenvalues, and
+  the singular values behind the 2-norm, `cond`, `rank` and `pinv`.
 
 Each of these only *adds* a signature, so none of them will change anything
 written against this version.

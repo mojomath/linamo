@@ -113,6 +113,7 @@ from linamo.routines.linalg import (
     inv,
     matrix_power,
     lstsq,
+    norm,
 )
 from linamo.routines.functional import apply_along_axis, fold
 from linamo.routines.logic import (

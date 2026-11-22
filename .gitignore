@@ -11,6 +11,7 @@
 .zed
 .helix
 .yumete
+*.yumete-swp
 
 # kgen trace
 kgen.trace.*
@@ -27,4 +28,3 @@ temp/
 local
 /test*.mojo
 /temp*.mojo
-*.yumete-swp
