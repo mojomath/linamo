@@ -319,7 +319,7 @@ linamo
 │   │   ├── searching.mojo       # argmin, argmax
 │   │   ├── sorting.mojo         # sort, argsort, sort_inplace
 │   │   ├── statistics.mojo      # sum, cumsum, mean, variance, stddev, cov, corrcoef
-│   │   ├── random.mojo          # rand, seed
+│   │   ├── random.mojo          # rand, randn, seed
 │   │   ├── numpy_interop.mojo   # from_numpy, to_numpy
 │   │   └── linalg.mojo          # transpose, trace, lu, cholesky, qr, det, solve, inv, lstsq, norm
 │   ├── traits/

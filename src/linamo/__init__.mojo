@@ -150,7 +150,7 @@ from linamo.routines.mutation import (
     store,
     view_mut,
 )
-from linamo.routines.random import rand, seed
+from linamo.routines.random import rand, randn, seed
 from linamo.routines.searching import argmax, argmin
 from linamo.routines.sorting import argsort, sort, sort_inplace
 from linamo.routines.statistics import (

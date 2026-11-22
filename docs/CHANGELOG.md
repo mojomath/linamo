@@ -8,6 +8,11 @@ This is a list of changes for the Linamo package.
 
 1. **Statistics:** `mean`, `variance` (`var` is a Mojo keyword and thus cannot be used), `stddev`, `cov` and `corrcoef`, over floating-point, `Decimal`, `Dec128` and complex elements. `cov` and `corrcoef` take the columns as the variables; pass `rowvar=True` for NumPy's layout. `ddof` is keyword-only.
 1. **`norm`**: the Frobenius (`"fro"`, the default), `"1"`, `"-1"`, `"inf"` and `"-inf"` matrix norms, over every element type. A complex matrix has a real norm. The 2-norm and the nuclear norm need SVD and raise for now.
+1. **`randn`**: a matrix of normally distributed random values, standard normal by default, with optional `mean` and `stddev` of any scalar type. `seed` pins it as it pins `rand`.
+
+### 🛠 Changed
+
+1. `rand`'s `low` and `high` may be of any scalar type, e.g. `Float64` bounds for a `Float32` matrix. Before, they had to be of the element type. For an integer element type, `rand` raises `ValueError` if a bound is not a whole number the type can hold.
 
 ### 🛠 Fixed
 

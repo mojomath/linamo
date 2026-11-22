@@ -434,7 +434,8 @@ var c = v.as_imm() + v.as_imm()
 | `from_list[T](flat_list, nrows, ncols, order)`     | a matrix from one flat list, positionally     |
 | `from_string[T](text)`                             | a matrix parsed from a literal                |
 | `rand[T](nrows, ncols, low, high)`                 | uniform random values                         |
-| `seed(value)`                                      | pins `rand` for reproducibility               |
+| `randn[T](nrows, ncols, mean, stddev)`             | normally distributed random values            |
+| `seed(value)`                                      | pins `rand` and `randn` for reproducibility   |
 
 ```mojo
 import linamo as la
@@ -497,14 +498,19 @@ var E = la.empty[Float64](2, 2)  # contents unspecified; write before reading
 ```
 
 `rand` draws uniformly from the closed interval `[low, high]`, defaulting to
-`[0, 1]`. It uses the standard library's global generator, so `seed(n)` makes a
-run reproducible:
+`[0, 1]`. The bounds may be of any scalar type; for an integer element type
+they must be whole numbers that type can hold. `randn` draws from a normal distribution, the standard one (mean 0,
+standard deviation 1) by default; it needs a floating-point element type. Both
+use the standard library's global generator, so `seed(n)` makes a run
+reproducible:
 
 ```mojo
 la.seed(42)
 var R = la.rand[Float64](2, 3)         # values in [0, 1]
 var Q = la.rand[Float64](3, 3, -2.0, 2.0)
 var K = la.rand[Int64](2, 2, 1, 6)     # integers, both bounds included
+var N = la.randn[Float64](2, 3)        # standard normal
+var G = la.randn[Float64](3, 3, 10.0, 0.5)  # mean 10, standard deviation 0.5
 ```
 
 ### Parsing a matrix from text
@@ -2089,7 +2095,6 @@ This manual documents what exists. The
 [roadmap](ROADMAP.md) tracks what does not; the larger gaps as of this writing
 are:
 
-- **Creation**: `randn`, for normally distributed random matrices.
 - **Element-wise mathematics**: the trigonometric and hyperbolic functions,
   `round`, and the infinity predicates `isposinf` / `isneginf`.
 - **Linear algebra**: `issymmetric`, an LU-based `solve_lu`, eigenvalues, and

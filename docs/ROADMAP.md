@@ -434,7 +434,7 @@ constructor named for its source reads as one family with `from_numpy`.
 **`seed` came along with `rand`.** A generator that cannot be pinned cannot be
 tested, so `seed()` forwards to the standard library's global RNG that `rand`
 draws from; the reproducibility test seeds twice and compares element for
-element. `randn` and the rest of the distribution family stay in Phase 9.
+element. `randn` followed in Phase 9.
 
 ### 5.6 — Element-wise math & logic
 
@@ -793,14 +793,14 @@ dtypes and `BInt` are refused at compile time.
 
 ## Phase 9 — Random Matrix Generation
 
-> **Status: 🚧 `rand` and `seed` landed with 5.5; `randn` remains**
+> **Status: ✓ Done**
 >
 > *stamojo dependency: needed for simulation, bootstrap, MCMC.*
 
 | Item                             | Module                 | stamojo use                 | Status |
 | -------------------------------- | ---------------------- | --------------------------- | ------ |
 | `rand()` — uniform random matrix | `routines/random.mojo` | Monte Carlo simulation      | ✓      |
-| `randn()` — normal random matrix | `routines/random.mojo` | Error simulation, bootstrap | □      |
+| `randn()` — normal random matrix | `routines/random.mojo` | Error simulation, bootstrap | ✓      |
 | `seed()` — set RNG seed          | `routines/random.mojo` | Reproducibility             | ✓      |
 
 ---
